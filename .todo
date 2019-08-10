@@ -1,2 +1,2 @@
 todo:
-	☐ 补充 todo 的使用
+	☐ cors 中 fetch 采用 no-cors 模式无法触发 simple cors 模式。

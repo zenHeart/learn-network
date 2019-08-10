@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Document</title>
+</head>
+
+<body>
+	<h1>简单 cors 示例</h1>
+	<p> <button onclick="simpleCors()">点击获取请求内容</button></p>
+	<div id="simple-cors">
+
+	</div>
+
+	<h1>预请求 cors 示例</h1>
+	<script>
+		function addContent(id, content) {
+			let ele = document.getElementById(id);
+
+			let str = `<p><strong>${new Date().toLocaleString()} :</strong><i>${content}</i></p>`;
+			ele.insertAdjacentHTML('beforeend', str);
+		}
+		function simpleCors() {
+			let myHeaders = new Headers({
+				'Access-Control-Allow-Origin': '*',
+				'Content-Type': 'text/plain'
+			});
+			fetch('http://localhost:3000/', {
+				method: 'GET',
+				'mode': 'cors',
+				headers: myHeaders,
+			})
+				.then(res => res.json())
+				.then(json => {
+					addContent('simple-cors', json.data);
+				})
+		}
+	</script>
+</body>
+
+</html>

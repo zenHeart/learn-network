@@ -10,11 +10,8 @@
 
 <body>
 	<h1>简单 cors 示例</h1>
+	<label for="allowOrigin">使能 Access-Control-Allow-Origin<input name="allowOrigin" type="text"></label>
 	<p> <button onclick="simpleCors()">点击获取请求内容</button></p>
-	<div id="simple-cors">
-
-	</div>
-
 	<h1>预请求 cors 示例</h1>
 	<script>
 		function addContent(id, content) {
@@ -24,14 +21,14 @@
 			ele.insertAdjacentHTML('beforeend', str);
 		}
 		function simpleCors() {
-			let myHeaders = new Headers({
-				'Access-Control-Allow-Origin': '*',
-				'Content-Type': 'text/plain'
-			});
-			fetch('http://localhost:3000/', {
-				method: 'GET',
-				'mode': 'cors',
-				headers: myHeaders,
+			let params = {
+				allowOrigin: document.querySelector('input[name="allowOrigin"]').value
+			}
+			let query = Object.keys(params)
+             .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
+             .join('&');
+			fetch(`http://localhost:3000?${query}`, {
+				method: 'GET'
 			})
 				.then(res => res.json())
 				.then(json => {

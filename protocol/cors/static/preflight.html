@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Document</title>
+</head>
+
+<body>
+	<h1>预检请求示例</h1>
+	<p> 
+		<button onclick="preflight('POST')">点击获取请求内容</button> 
+		<button onclick="preflight('PUT')">put 请求</button> 
+	</p>
+	<ul>
+		<li><label for="allowOrigin">使能 Access-Control-Allow-Origin<input name="allowOrigin" type="text"></label></li>
+		<li><label for="withCrendential">使能  credential 模式<input name="withCrendential" type="checkbox"></label></li>
+		<li><label for="customHeader">允许浏览器读取自定义请求头<input name="customHeader" type="text"></label></li>
+	</ul>
+	<p id="simple-res"></p>
+	<script>
+		function addContent(id, content) {
+			let ele = document.getElementById(id);
+
+			let str = `<p><strong>${new Date().toLocaleString()} :</strong><i>${content}</i></p>`;
+			ele.innerHTML = str;
+		}
+		function preflight(type) {
+			let data = {
+				allowOrigin: document.querySelector('input[name="allowOrigin"]').value,
+				withCrendential: document.querySelector('input[name="withCrendential"]').checked || '',
+				customHeader: document.querySelector('input[name="customHeader"]').value || '',
+			}
+			fetch(`http://localhost:3000/preflight`, {
+				body: JSON.stringify(data), 
+				headers: { 
+            "Content-Type": "application/json"
+        },
+				method: type,
+				credentials: data.withCrendential?'include':'omit'
+			})
+				.then(res => {
+					console.log([...res.headers.entries()])
+					return  res.json()
+				})
+				.then(json => {
+					addContent('simple-res', json.data);
+				}).catch(e => {
+					addContent('simple-res',e.message)
+					console.error(e)
+				})
+		}
+	</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+@startuml
+title <预检请求时序图>
+
+hide footbox
+
+' 1. 定义角色
+boundary "浏览器" as c
+entity "服务器" as s
+
+==1. 预检请求==
+' 设置步骤计数
+autonumber
+c->s: 发送预检请求 options
+s-->c: 响应预检请求
+
+alt
+else 响应非法
+c -> c: 直接报错
+
+else 响应合法
+
+==2. 实际请求==
+c->s: 发送实际请求
+s-->c: 响应请求
+alt
+else 响应非法
+c -> c: 直接报错
+
+else 响应合法
+c ->c: 处理请求
+end
+end
+@enduml
+

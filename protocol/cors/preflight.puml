@@ -7,23 +7,26 @@ hide footbox
 boundary "浏览器" as c
 entity "服务器" as s
 
-==1. 预检请求==
+==1. Options 请求==
 ' 设置步骤计数
 autonumber
-c->s: 发送预检请求 options
-s-->c: 响应预检请求
+c->s: 自动发送 options 请求
+s-->c: 响应 options 请求
 
-alt
-else 响应非法
+alt 浏览器判断 options 响应结果
+else 响应不符合 CORS 协议
 c -> c: 直接报错
 
-else 响应合法
+else 实际请求不符合服务端限制
+c -> c: 直接报错
+
+else 响应符合 cors 且实际请求符合服务端限制
 
 ==2. 实际请求==
 c->s: 发送实际请求
 s-->c: 响应请求
 alt
-else 响应非法
+else 响应不符合 cors 规则
 c -> c: 直接报错
 
 else 响应合法

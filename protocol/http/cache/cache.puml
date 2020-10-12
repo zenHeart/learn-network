@@ -1,37 +1,39 @@
 @startuml
-title <预检请求时序图>
+title 缓存控制
+participant "浏览器" as b
+participant "代理服务器" as p
+participant "服务器" as s
 
-hide footbox
 
-' 1. 定义角色
-boundary "浏览器" as c
-entity "服务器" as s
 
-==1. Options 请求==
-' 设置步骤计数
+==缓存设定==
 autonumber
-c->s: 自动发送 options 请求
-s-->c: 响应 options 请求
+b->s:发送请求
+s-->b:Cache-Conntrol:no-store 禁止缓存
+s-->b:Cache-Conntrol:no-cache 必须进行缓存验证,
+s-->b:Cache-Conntrol:private 只允许私有缓存(浏览器缓存)
 
-alt 浏览器判断 options 响应结果
-else 响应不符合 CORS 协议
-c -> c: 直接报错
 
-else 实际请求不符合服务端限制
-c -> c: 直接报错
+==缓存验证==
+b->s:发送请求携带\n\
+If-None-Match: <Etag 值>
+s-->b:响应携带\n\
+Etag: <Etag 值>
 
-else 响应符合 cors 且实际请求符合服务端限制
 
-==2. 实际请求==
-c->s: 发送实际请求
-s-->c: 响应请求
-alt
-else 响应不符合 cors 规则
-c -> c: 直接报错
+==Etag 缓存验证==
+note over b,s
+详细的 Etag 验证参见 [[https://tools.ietf.org/html/rfc7232#section-2.3 Etag]]
+end note
 
-else 响应合法
-c ->c: 处理请求
-end
-end
+autonumber
+b->b:检测到资源不新鲜
+b->s:发送请求,自动携带此标签\n\
+If-None-Match:<资源的 Etag 标签> 
+s->s:服务器比对传入 Etag 和当前资源 Etag 是否一致
+s-->b:一致返回\n\
+Status: 304 \n\
+s-->b:不一致返回新资源\n\
+Status: 200 \n\
+Cache-Control: <设定时间>
 @enduml
-

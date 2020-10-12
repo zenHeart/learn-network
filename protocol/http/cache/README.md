@@ -1,138 +1,135 @@
-# CORS
+# cache
 
-**详细讲解 CORS 协议**
+**详细讲解 http 缓存控制**
 
-## CORS 概述
-浏览器会受到同源策略限制。 [CORS 规范 (coress orgin resource share)](https://www.w3.org/TR/CORS/) 是现代浏览器对于跨域场景资源共享的标准解决方案。
+[toc]
 
-相比 JSONP， CORS 允许发送 `POST` 请求，并且结合 CORS 扩展的请求头，可以实现更加完善的跨域控制。
+## 缓存概述
 
-CORS 请求分为两种
-* 简单请求（simple request）直接向服务端发送请求
-* 预检请求 （preflight request） 在实际请求发出前，浏览器会自动向服务端发送 `Options` 请求，然后发出实际请求
-
-## 简单请求
-参考 [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#Simple_requests) 简单请求需要同时满足如下条件
-1. 请求方法限制,只能是如下几种
-	* HEAD
-	* GET
-	* POST
-2. 请求头限制,只能设定如下请求头
-	* Accept
-	* Accept-Language
-	* Content-Language
-	* Content-Type
-	* DPR
-	* Downlink
-	* Save-Data
-	* Viewport-Width
-	* Width
-		> 后面几个头部用于指定客户端信息,详见 [HTTP Client Hints](https://httpwg.org/http-extensions/client-hints.html#dpr)
-3. 内容限制,`Content-Type` 只能是如下类型
-	* `text/plain`
-	* `multipart/form-data`
-	* `application/x-www-form-urlencoded`
-
-简单请求会携带 `Orgin` 头部说明请求源。服务端的响应头部必须包含
-
-* `Access-Control-Allow-Origin` 说明允许的跨域源。合法的值为 `<origin> | *`
-
-`Access-Control-Allow-Origin` 有如下限制：
-
-1. 响应头部只能包含一个 `Access-Control-Allow-Origin`，多个相同头部，浏览器判定为非法
-2. `<Origin>` 的值只能为一个具体的地址例如 `http://localhost:3000` 不支持多个值分隔，`http://localhost:3000,http://localhost:3000` 、 `http://localhost:30*` 均为非法值。只能采用 `*` 表示允许所有请求源，**此外若为单一值时，必须和请求头部的 `Orgin` 完全一致**，若 `Access-Control-Allow-Origin` 设置为 `http://localhost:3000/`  而请求头部 `Origin` 为 `http://localhost:3000` 由于不相同，浏览器仍会判定为非法请求。 
-
-浏览器对于跨域的请求的响应头部有严格限制，利用 `fetch` 等 API 发起跨域请求时，参考 [MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers)， 响应对象的头部只会包含如下几种 
-
-* **Cache-Control**
-* **Content-Language**
-* **Content-Length**
-* **Content-Type**
-* **Expires**
-* **Last-Modified**
-* **Pragma**
-
-服务端需设置 `Access-Control-Expose-Headers` 头部，控制哪些响应头，在跨域返回的响应对象中可获取。合法值为 `<header-name>[,<header-name>]* | *`
-
-
-## 预检请求
-CORS 类型为预检请求时，浏览器会自动发送 `Options` 请求给服务端，服务端正确响应 	`Options` 请求后，浏览器才会发送实际请求。
-
-`Options` 请求会携带如下请求头
-
-* `Access-Control-Request-Method` 发送允许的请求方法
-* `Access-Control-Request-Headers` 发送允许的请求头
-
-服务端对 `Options` 请求的响应头部如下
-
-* `Access-Control-Allow-Origin` 必须包含，声明服务端支持的跨域源
-* `Access-Control-Allow-Methods` 可选，申明服务端对后续实际请求支持的方法，**注意GET，POST 请求不受此限制**, 详见 [stackoverflow](https://stackoverflow.com/questions/42705306/access-control-allow-methods-doesnt-seem-to-be-working)
-* `Access-Control-Allow-Headers` 可选，申明服务端对后续实际请求支持的请求头
-* `Access-Control-Max-Age` 可选，为了避免每次都需要发送 `Options` 请求进行预检，服务端可设置 `Options` 请求的缓存时间，单位为 s，在有效期内浏览器会直接发送实际请求，当超过有效期后会重新发送 `Otpions` 请求进行预检，注意不同浏览器对有效期最大限制不同，详见 [Access-Control-Max-Age](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age)
+用户频繁向服务器请求不经常变化的资源，会造成无谓的带宽消耗和资源浪费 。HTTP 定义了缓存和相关控制策略来解决此问题。利用缓存可以提升用户性能，实现对资源的重用。
 
 
 
-浏览器接收到服务端对 `Options` 请求响应后，会先判断实际请求是否符合服务端限制要求，若不符合则不会触发实际请求，直接报错。
+## 缓存类型
 
-实际请求校验合法后，浏览器才会发送该请求，此时服务端任需响应 `Access-Control-Allow-Origin` 字段。
-
-整个交互流程如下图 
-
-![](./preflight.svg)
-
-## 请求凭证
-默认 CORS 请求不会携带 `Cookie` 或 `Authentication` 等凭证信息，浏览器端需显示声明该配置，参考 [fetch credential](https://fetch.spec.whatwg.org/#concept-request-credentials-mode)，对于 `fetch` api 需申明 `credentials` 配置为 `include` 。
+### 私有缓存 (private cache)
+保存在本地的缓存，通常指浏览器缓存
 
 
-此时服务端必须配置如下响应头部
-
-* `Access-Control-Allow-Credentials` 值必须为 `true` 表示允许客户端携带凭证，对于预检时发出的 `Options` 请求也必须包含此头部
-* `Access-Control-Allow-Origin` 的值必须和请求的 `	Origin` 一致,**不能设置为 `*`**，，对于预检时发出的 `Options` 请求也必须包含此头部，服务端可根据请求的 `Origin` 动态设置请求头，实现类似 `*` 的效果。
+### 共享缓存 (shared cache)
+保存在网络节点中的缓存，例如 CDN，代理缓存等。
 
 
+## 新鲜检测
+是指客户端是否可以利用缓存的内容作为请求响应。
 
-CORS 协议的整个决策树如下图
+判断条件为 `response_is_fresh =（fresh_lifetime> current_age）`
 
-![](./cors_server_flowchart.png)
+* `response_is_fresh` 大于 0 表示缓存资源新鲜
+* `fresh_lifetime` 服务端设定的缓存资源的过期时间
+* `current_age` 当前响应时间
 
 
-## 知识点总结
-1. CORS(Corss Origin Resource Share) 协议解决同源策略限制下，服务资源共享问题
-2. CORS 类别
-   1. 简单请求，无 `Options` 请求
-   2. 预检请求，发送 `Options` 请求作为预检
-      1. 预检请求 `Options` 响应非法时，不会触发实际请求
-3. 默认跨域请求不携带 Cookie 等凭证信息，浏览器需显示配置此逻辑
-   1. fetch 为 `credentials = include`
-   2. XMLHttpRequest 为 `withCredentials = true`
-4. 核心请求头部
-   1. 请求头
-      1. `Origin` 标识跨域请求，简单和预检请求都必须携带
-      2. `Access-Control-Request-Method` 用于预检请求设置允许的方法
-      3. `Access-Control-Request-Headers` 用于预检请求设置允许的请求头
-   2. 响应头
-      1. `Access-Control-Allow-Orgin` 设置允许接收跨域请求的源
-         1. 支持 `<Origin> | *` 模式
-         2. 对于包含凭证的请求必须返回明确的 `<Orgin>`
-         3. 响应头部不能重复出现
-      2. `Access-Control-Allow-Credentials` 携带凭证的请求必须包含此请求头，值需为 `true` 
-      3. `Access-Control-Expose-Headers` 设置浏览器响应对象可以解析的额外请求头，支持 `<header-name>[,header-name] | *` 模式
-      4. `Access-Control-Max-Age` 设置预检请求 `Options` 的缓存时间
-      5. `Access-Control-Allow-Methods` 设置预检请求允许的请求类型
-         1. 只在预检请求 `Options` 中起作用，限制服务端允许接收的请求类型。
-         2. `POST,GET` 不受此限制
-         3. 浏览器会在发送实际请求前，检查实际请求是否符合限制，不符合直接报错
-      6. `Access-Control-Allow-Headers` 设置预检请求允许的请求头部，
-         1. 只在预检请求 `Options` 中起作用，限制服务端允许接收的请求类型。
-         2. 浏览器会在发送实际请求前，检查实际请求是否符合限制，不符合直接报错
+`fresh_lifetime` 详见 [新鲜度计算方法](https://tools.ietf.org/html/rfc7234#section-4.2.1a)
+
+> 注意同时存在多个重复头部,则设置新鲜度则该头部无效
+
+
+
+
+
+## 缓存控制头部汇总
+### Cache-Control
+通用首部控制缓存策略
+
+对应的指令支持及含义如下:
+
+* 请求头支持的指令
+  * `max-age=<seconds>` 控制缓存过期时间
+  * `max-stale[=<seconds>]` 允许接收过期缓存的最长时间
+  * `min-fresh=<seconds>` 获取最新响应的指定时间
+  * `no-cache` 在缓存实现之前，强制验证缓存
+  * `no-store` 缓存不应存储有关客户端请求或服务器响应的任何内容。
+  * `no-transform` 控制缓存过期时间
+  * `only-if-cached` 表明客户端只接受已缓存的响应，并且不要向原始服务器检查是否有更新的拷贝
+
+* 响应头支持的指令
+  * `public` 控制缓存范围,表示响应可以被任何对象缓存(客户端,代理服务器等)
+  * `private` 控制缓存范围,表示响应只能存在客户端
+  * `no-cache` 在缓存实现之前，强制验证缓存
+  * `must-revalidate` 缓存必须在使用之前验证旧资源的状态，并且不可使用过期资源。
+  * `proxy-revalidate` 与must-revalidate作用相同，但它仅适用于共享缓存（例如代理），并被私有缓存忽略。
+  * `no-store` 缓存不应存储有关客户端请求或服务器响应的任何内容。
+  * `no-transform` 不得对资源进行转换或转变。Content-Encoding, Content-Range, Content-Type等HTTP头不能由代理修改。例如，非透明代理可以对图像格式进行转换，以便节省缓存空间或者减少缓慢链路上的流量。 no-transform指令不允许这样做。
+  * `max-age=<seconds>` 相对于请求设定的最大周期
+  * `s-maxage=<seconds>` 覆盖 max-age 用于共享缓存
+
+* 非官方扩展指令
+  * `immutable` 
+表示响应正文不会随时间而改变。资源（如果未过期）在服务器上不发生改变，因此客户端不应发送重新验证请求头（例如If-None-Match或If-Modified-Since）来检查更新，即使用户显式地刷新页面。在Firefox中，immutable只能被用在 https:// transactions. 有关更多信息，
+  * `stale-while-revalidate=<seconds>` 表明客户端愿意接受陈旧的响应，同时在后台异步检查新的响应。秒值指示客户愿意接受陈旧响应的时间长度。
+  * `stale-if-error=<seconds>` 表示如果新的检查失败，则客户愿意接受陈旧的响应。秒数值表示客户在初始到期后愿意接受陈旧响应的时间。
+
+## 缓存校验头部
+* `Age` 消息头里包含消息对象在缓存代理中存贮的时长，以秒为单位。.
+Age消息头的值通常接近于0。表示此消息对象刚刚从原始服务器获取不久；其他的值则是表示代理服务器当前的系统时间与此应答消息中的通用消息头 Date 的值之差。详见 [RFC 7234, section 5.1: Age](https://tools.ietf.org/html/rfc7234#section-5.1)
+* `Expires`  设置响应过期时间，详见 [RFC 7234 Expires](https://tools.ietf.org/html/rfc7234#section-5.3)
+   * `max-age` 用于设置私有缓存和共享缓存的过期时间
+   * `s-maxage` 只会修改共享缓存的时间。
+   > 结合两条指令可以同时控制私有缓存和共享缓存,其中私有缓存的过期时间为 `max-age` 共享缓存为 `s-maxage`, 如果在Cache-Control响应头设置了 `max-age` 或者 `s-max-age` 指令，那么 Expires 头会被忽略。
+* `Pragma` 是一个在 HTTP/1.0 中规定的通用首部,仅支持 `no-cache` 指令,强制要求缓存服务器在返回缓存的版本之前将请求提交到源头服务器进行验证。
+* `Last-Modified` 是一个响应首部，其中包含源头服务器认定的资源做出修改的日期及时间
+
+
+参考 google 缓存策略图
+
+![](./cahce-flowchart.png)
+
+
+
+
+* [ ] 缓存空中碰撞
+
+## 用户缓存行为
+
+行为 ｜ 结果
+:--- | :---|
+刷新 ｜ 强制，协商有效
+强制刷新 ｜
+跳转 ｜ 缓存有效
+新开窗口 ｜ 缓存有效
+前进，后退 ｜ 缓存有效
+地址栏回车 ｜ 同刷新
+
+
+## 浏览器缓存类型
+### disk  cache
+
+
+参考 [Where is the accurate cache folder of Chrome 75 in Mac](https://support.google.com/chrome/thread/9338226?hl=en), 访问 <chrome://version/>, 查看 **个人资料路径** 字段，缓存保存在 `个人资料路径/cache` 目录下。
+
+###  memory cache
+
+
+## 知识点
+1. 缓存控制
+   1. 是否开启缓存(权限控制)
+   2. 缓存作用域控制(空间控制)
+   3. 缓存时间控制(时间控制)
 
 
 ## 参考资料
-* [wiki CORS](https://en.wikipedia.org/wiki/Cross-origin_resource_sharing#cite_note-22)
-* [fetch spec](https://fetch.spec.whatwg.org/#cors-request)
-* [CORS mdn](https://developer.mozilla.org/en-US/docs/Web/HTTP/cors)
-* [CORS w3c](https://w3c.github.io/webappsec-CORS-for-developers/)
-* [Developers don't understand CORS](https://fosterelli.co/developers-dont-understand-cors)
-* [Using CORS](https://www.html5rocks.com/en/tutorials/cors/)
-* [cors error](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS/Errors)
-
+* [ Hypertext Transfer Protocol (HTTP/1.1): Caching](https://tools.ietf.org/html/rfc7234)
+* [Cache-Control Extensions](https://tools.ietf.org/html/rfc5861)
+* [HTTP Immutable Responses](https://tools.ietf.org/html/draft-mcmanus-immutable-00)
+* [mdn cache](https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching)
+* [web cache](http://www.web-caching.com/)
+* [http 缓存测试验证](https://github.com/http-tests/cache-tests)
+* [http 缓存测试验证](https://github.com/web-platform-tests/wpt/tree/master/fetch/http-cache)
+* [http 缓存响应指令](https://httpwg.org/specs/rfc7234.html#cache-response-directive)
+* [http 缓存控制小节](https://imweb.io/topic/5795dcb6fb312541492eda8c)
+* [RFC 7234](http://www.rfcreader.com/#rfc7234_line119)
+* [Caching Tutorial](https://www.mnot.net/cache_docs/)
+* [ ] [chromium http cache](https://www.chromium.org/developers/design-documents/network-stack/http-cache)
+* [ ] [chromium http_cache.h](https://chromium.googlesource.com/chromium/src/+/master/net/http/http_cache.h)
+* [ ] [chromium disk cache](https://www.chromium.org/developers/design-documents/network-stack/disk-cache)

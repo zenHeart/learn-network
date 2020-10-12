@@ -4,14 +4,17 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start:cors": "export DEBUG='express*' && supervisor cors/index.js "
-    "start:cache": "export DEBUG='express*' && supervisor cache/index.js "
+    "start:cors": "cd cors; export DEBUG='express*' && supervisor index.js ",
+    "start:cache": "cd cache ;export DEBUG='express*' && supervisor index.js "
   },
   "author": "zenheart <zenheart_register@163.com>",
   "license": "ISC",
   "devDependencies": {
     "cors": "2.8.5",
-    "express": "4.16.4"
+    "express": "4.16.4",
+    "koa": "2.7.0",
+    "koa-send": "5.0.0",
+    "koa-static-cache": "5.1.2"
   },
   "dependencies": {
     "body-parser": "^1.19.0"

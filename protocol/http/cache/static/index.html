@@ -9,17 +9,21 @@
 </head>
 
 <body>
-	<h1>简单 cors 示例</h1>
+	<h1>cache 示例</h1>
 	<p> 
-		<button onclick="simpleCors('GET')">get 请求</button> 
-		<button onclick="simpleCors('POST')">post 请求</button> 
+		<button onclick="cache('GET')">get 请求</button> 
+		<button onclick="cache('POST')">post 请求</button> 
 	</p>
 	<ul>
-		<li><label for="allowOrigin">使能 Access-Control-Allow-Origin<input name="allowOrigin" type="text"></label></li>
+		<li>
+		<label for="cacheControl">
+			cache-control
+			<input name="cacheControl" type="text"></label>
+		</li>
 		<li><label for="withCrendential">使能  credential 模式<input name="withCrendential" type="checkbox"></label></li>
 		<li><label for="customHeader">允许浏览器读取自定义请求头<input name="customHeader" type="text"></label></li>
 	</ul>
-	<p id="simple-res"></p>
+	<p id="cache-get"></p>
 	<script>
 		function addContent(id, content) {
 			let ele = document.getElementById(id);
@@ -27,16 +31,16 @@
 			let str = `<p><strong>${new Date().toLocaleString()} :</strong><i>${content}</i></p>`;
 			ele.innerHTML = str;
 		}
-		function simpleCors(type) {
+		function cache(type) {
 			let params = {
-				allowOrigin: document.querySelector('input[name="allowOrigin"]').value,
+				cacheControl: document.querySelector('input[name="cacheControl"]').value,
 				withCrendential: document.querySelector('input[name="withCrendential"]').checked || '',
 				customHeader: document.querySelector('input[name="customHeader"]').value || '',
 			}
 			let query = Object.keys(params)
              .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
 						 .join('&');
-			fetch(`http://localhost:3000/simple?${query}`, {
+			fetch(`http://localhost:3000/cache?${query}`, {
 				body: type === 'GET'?null: JSON.stringify(params),
 				method: type,
 				credentials: params.withCrendential?'include':'omit'
@@ -46,9 +50,9 @@
 					return  res.json()
 				})
 				.then(json => {
-					addContent('simple-res', json.data);
+					addContent('cache-get', json.data);
 				}).catch(e => {
-					addContent('simple-res',e.message)
+					addContent('cache-get',e.message)
 					console.error(e)
 				})
 		}

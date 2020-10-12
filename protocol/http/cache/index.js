@@ -1,28 +1,19 @@
 var express = require('express')
 var app = express()
-var app1 = express();
 var bodyParser = require('body-parser')
-var { simple, preflight ,preflightOption} = require('./handle')
+var handles = require('./handle')
 
-// 简单请求
-app.use('/simple', bodyParser.text());
-app.get('/simple',simple)
-app.post('/simple',simple)
+// 设置缓存
+app.use('/cache', bodyParser.json());
+app.get('/cache',handles.cache)
+app.post('/cache',handles.cache)
 
-// 预检请求
-app.use('/preflight', bodyParser.json())
-app.options('/preflight',preflightOption)
-app.use('/preflight',preflight)
+app.use(express.static('static'))
 
 
 app.listen(3000, function () {
-  console.log('CORS-enabled web server listening on port 3000')
+  console.log(`server listening on port http://localhost:3000`)
 })
-// 默认地址 
-app1.use(express.static('static'))
-app1.listen(3001,function() {
-	console.log('static server start on port 3001');
-})
-app1.get('/',(req,res) => {
+app.get('/',(req,res) => {
 	res.send(200)
 })

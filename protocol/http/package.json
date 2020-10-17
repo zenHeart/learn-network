@@ -17,6 +17,7 @@
     "koa-static-cache": "5.1.2"
   },
   "dependencies": {
-    "body-parser": "^1.19.0"
+    "body-parser": "^1.19.0",
+    "on-headers": "^1.0.2"
   }
 }

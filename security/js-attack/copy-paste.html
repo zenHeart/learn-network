@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <p style="background: black;color: red" id="copy">echo "looks good"</p>
+  <script>
+    let el = document.getElementById('copy')
+    el.oncopy = function(e) {
+      e.clipboardData.setData('text/plain', 
+        'echo "rm something"'
+      );
+      e.preventDefault();
+    }
+  </script>
+</body>
+</html>

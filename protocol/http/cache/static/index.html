@@ -10,18 +10,32 @@
 
 <body>
 	<h1>cache 示例</h1>
+	<div>
+		<img src="/green.png" alt="gree">
+		<img src="/red.png" alt="red">
+	</div>
+	<p><a href="/index.html">static link1</a></p>
 	<p> 
 		<button onclick="cache('GET')">get 请求</button> 
 		<button onclick="cache('POST')">post 请求</button> 
 	</p>
-	<ul>
+	<p>respond cache-control set</p>
+	<ul class="respond">
 		<li>
 		<label for="cacheControl">
 			cache-control
-			<input name="cacheControl" type="text"></label>
+			<input name="cacheControl" value="max-age=100.public" type="text"></label>
 		</li>
 		<li><label for="withCrendential">使能  credential 模式<input name="withCrendential" type="checkbox"></label></li>
 		<li><label for="customHeader">允许浏览器读取自定义请求头<input name="customHeader" type="text"></label></li>
+	</ul>
+	<p>request cache-control set</p>
+	<ul class="request">
+		<li>
+		<label for="cacheControl">
+				cache-control
+			<input name="cacheControl" type="text"></label>
+		</li>
 	</ul>
 	<p id="cache-get"></p>
 	<script>
@@ -33,17 +47,21 @@
 		}
 		function cache(type) {
 			let params = {
-				cacheControl: document.querySelector('input[name="cacheControl"]').value,
-				withCrendential: document.querySelector('input[name="withCrendential"]').checked || '',
-				customHeader: document.querySelector('input[name="customHeader"]').value || '',
+				cacheControl: document.querySelector('.respond input[name="cacheControl"]').value,
+				withCrendential: document.querySelector('.respond input[name="withCrendential"]').checked || '',
+				customHeader: document.querySelector('.respond input[name="customHeader"]').value || '',
+			}
+			let requestHeader = {
+				'Cache-Control': document.querySelector('.request input[name="cacheControl"]').value,
 			}
 			let query = Object.keys(params)
              .map(k => encodeURIComponent(k) + '=' + encodeURIComponent(params[k]))
 						 .join('&');
-			fetch(`http://localhost:3000/cache?${query}`, {
+			fetch(`http://localhost:3002/cache?${query}`, {
 				body: type === 'GET'?null: JSON.stringify(params),
 				method: type,
-				credentials: params.withCrendential?'include':'omit'
+				credentials: params.withCrendential?'include':'omit',
+				headers: requestHeader
 			})
 				.then(res => {
 					console.log([...res.headers.entries()])
@@ -57,5 +75,6 @@
 				})
 		}
 	</script>
+	<script src="/a.js"></script>
 </body>
 </html>

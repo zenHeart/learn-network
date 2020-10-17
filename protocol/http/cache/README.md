@@ -9,7 +9,6 @@
 用户频繁向服务器请求不经常变化的资源，会造成无谓的带宽消耗和资源浪费 。HTTP 定义了缓存和相关控制策略来解决此问题。利用缓存可以提升用户性能，实现对资源的重用。
 
 
-
 ## 缓存类型
 
 ### 私有缓存 (private cache)
@@ -42,20 +41,16 @@
 ### Cache-Control
 通用首部控制缓存策略
 
-对应的指令支持及含义如下:
+参考 [rfc7234](http://www.rfcreader.com/#rfc7234_line901) 常用指令如下
 
 * 请求头支持的指令
-  * `max-age=<seconds>` 控制缓存过期时间
-  * `max-stale[=<seconds>]` 允许接收过期缓存的最长时间
-  * `min-fresh=<seconds>` 获取最新响应的指定时间
-  * `no-cache` 在缓存实现之前，强制验证缓存
-  * `no-store` 缓存不应存储有关客户端请求或服务器响应的任何内容。
-  * `no-transform` 控制缓存过期时间
-  * `only-if-cached` 表明客户端只接受已缓存的响应，并且不要向原始服务器检查是否有更新的拷贝
+  * `max-age=<seconds>` 请求方接受的最大缓存过期时间，`chrome 85.0.4183.121` 验证，客户端配置 max-age=0，会触发缓存验证
+  * `no-cache` 获取缓存前，客户端必须先校验
+  * `no-store` 不该存储缓存，chrome 验证对已缓存请求设置此指令无效
 
 * 响应头支持的指令
-  * `public` 控制缓存范围,表示响应可以被任何对象缓存(客户端,代理服务器等)
-  * `private` 控制缓存范围,表示响应只能存在客户端
+  * `public` 表示响应可以被任何对象缓存(客户端,代理服务器等)
+  * `private` 表示响应只能存在客户端
   * `no-cache` 在缓存实现之前，强制验证缓存
   * `must-revalidate` 缓存必须在使用之前验证旧资源的状态，并且不可使用过期资源。
   * `proxy-revalidate` 与must-revalidate作用相同，但它仅适用于共享缓存（例如代理），并被私有缓存忽略。
@@ -90,32 +85,38 @@ Age消息头的值通常接近于0。表示此消息对象刚刚从原始服务�
 
 * [ ] 缓存空中碰撞
 
-## 用户缓存行为
+## 浏览器缓存控制
 
-行为 ｜ 结果
-:--- | :---|
-刷新 ｜ 强制，协商有效
-强制刷新 ｜
-跳转 ｜ 缓存有效
-新开窗口 ｜ 缓存有效
-前进，后退 ｜ 缓存有效
-地址栏回车 ｜ 同刷新
+### 缓存类型
 
-
-## 浏览器缓存类型
-### disk  cache
+**disk cache**
 
 
 参考 [Where is the accurate cache folder of Chrome 75 in Mac](https://support.google.com/chrome/thread/9338226?hl=en), 访问 <chrome://version/>, 查看 **个人资料路径** 字段，缓存保存在 `个人资料路径/cache` 目录下。
 
-###  memory cache
+**memory cache**
 
+### 用户操作对缓存影响
+
+> 以 chrome 为例
+
+行为 ｜ 结果
+:--- | :---|
+刷新，地址栏回车 ｜ 对缓存无影响
+强制刷新 ｜ 会清除内存缓存，触发重新请求，对 `disk cache` 无影响
+清空缓存并硬性重新加载 ｜ 会清除内存缓存和 `disk cache`, 重新加载所有资源
+新开窗口，前进，后退 ｜ 会失效 memory-cache, 从 `disk cache` 尝试加载
 
 ## 知识点
-1. 缓存控制
-   1. 是否开启缓存(权限控制)
-   2. 缓存作用域控制(空间控制)
-   3. 缓存时间控制(时间控制)
+1. HTTP 缓存实现对响应资源的复用，可以提升性能和节约带宽
+
+
+## TODO
+* [ ] http 是否可缓存，参考 [Is it possible to cache POST methods in HTTP?](https://stackoverflow.com/questions/626057/is-it-possible-to-cache-post-methods-in-http), 实践未得到验证
+* [ ] max-stale 期望过期时间的最大值 指令在浏览器端的作用
+* [ ] min-fresh 期望的新鲜度检查最小指
+* [ ] `no-transform` 的作用需验证
+* [ ] `only-if-cached` 表明客户端只接受已缓存的响应，并且不要向原始服务器检查是否有更新的拷贝，的使用
 
 
 ## 参考资料

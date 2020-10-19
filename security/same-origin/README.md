@@ -32,6 +32,7 @@ RFC 定义参见 [同源概念](https://tools.ietf.org/html/rfc6454).
 
 
 ## 参考资料
+* [same origin](https://web.dev/same-site-same-origin/)
 * [mdn 同源策略](https://developer.mozilla.org/en-US/docs/Web/Security/Same-origin_policy)
 * [同源策略](http://www.ruanyifeng.com/blog/2016/04/same-origin-policy.html)
 * [ ] [rfc same origin]([cors](https://tools.ietf.org/html/rfc6454))

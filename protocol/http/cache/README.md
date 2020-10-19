@@ -134,3 +134,4 @@ Age消息头的值通常接近于0。表示此消息对象刚刚从原始服务�
 * [ ] [chromium http cache](https://www.chromium.org/developers/design-documents/network-stack/http-cache)
 * [ ] [chromium http_cache.h](https://chromium.googlesource.com/chromium/src/+/master/net/http/http_cache.h)
 * [ ] [chromium disk cache](https://www.chromium.org/developers/design-documents/network-stack/disk-cache)
+* [partitioning the cache](https://developers.google.com/web/updates/2020/10/http-cache-partitioning)

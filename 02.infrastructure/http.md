@@ -150,7 +150,7 @@ Request-Line = Method SP Request-URL SP HTTP-Verison CRLF
 ### method
 方法的作用在于告知服务器如何处理请求
 常见的方法如下(来自 http 权威指南)
-![](img/protocol_http1.jpg)
+![](../public/img/protocol_http1.jpg)
 1. 当服务器可以理解但是，请求不被允许状态码为 405 （方法不被允许）
 2. 当服务器不支持此方法时，返回  501 （表示方法不被允许）
 
@@ -224,40 +224,40 @@ HTTP 规定了以下几种类型的首部
 
 通用首部
 * 信息性首部
-    ![](img/protocol_http2.jpg)
+    ![](../public/img/protocol_http2.jpg)
 * 通用缓存首部
-    ![](img/protocol_http3.jpg)
+    ![](../public/img/protocol_http3.jpg)
 
 请求首部
 > 1. 请求信息首部
 >
 >    **服务器会利用其中的 UA 信息来决定推送的内容**例如判别用户是 PC 端访问还是移动端访问。
 >
->    ![](img/protocol_http4.jpg)
+>    ![](../public/img/protocol_http4.jpg)
 
 > 2. Accept 首部
 >
 >   客户端告知服务器自己的需要的规则
 >
->   ![](img/protocol_http6.jpg)
+>   ![](../public/img/protocol_http6.jpg)
 
 > 3. 条件请求头首部
 >
 >   客户端告知服务器自己的需要的规则
 >
->   ![](img/protocol_http7.jpg)
+>   ![](../public/img/protocol_http7.jpg)
 
 > 2. Accept 首部
 >
 >   客户端告知服务器自己的需要的规则
 >
->   ![](img/protocol_http8.jpg)
+>   ![](../public/img/protocol_http8.jpg)
 
 > 2. Accept 首部
 >
 >   客户端告知服务器自己的需要的规则
 >
->   ![](img/protocol_http9.jpg)
+>   ![](../public/img/protocol_http9.jpg)
 
 
 

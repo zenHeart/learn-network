@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start":"node server.js",
+    "start:handshake":"node 02.handshake/handshake.js",
+    "start:handshake:fast":"python 02.handshake/fastconnect.py",
     "start:half":"node server-half-close.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

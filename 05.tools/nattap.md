@@ -15,7 +15,7 @@ modified: 2017-11-15
 [nat](https://natapp.cn/) 内网穿透工具.
 可以将本地 ip 映射到远程服务器进行访问.
 
-![](img/nat_work_flow.png)
+![](../public/img/nat_work_flow.png)
 
 利用 nat 可以很方便的将本地服务映射到外网访问.
 步骤如下.

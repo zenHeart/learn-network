@@ -1,3 +1,5 @@
 node_modules/
 book/*  
 package-lock.json
+.vitepress/dist
+.vitepress/cache

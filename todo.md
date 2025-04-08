@@ -1,19 +1,19 @@
+## Inbox
 
-inbox:
-	☐ ncz cors https://humanwhocodes.com/blog/2010/05/25/cross-domain-ajax-with-cross-origin-resource-sharing/
-	☐ w3c cors https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Access_control_CORS
-	☐ https://fosterelli.co/developers-dont-understand-cors
-	☐ cors 中 fetch 采用 no-cors 模式无法触发 simple cors 模式。
-	
+- [ ] ncz cors <https://humanwhocodes.com/blog/2010/05/25/cross-domain-ajax-with-cross-origin-resource-sharing/>
+- [ ] w3c cors <https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Access_control_CORS>
+- [ ] <https://fosterelli.co/developers-dont-understand-cors>
+- [ ] cors 中 fetch 采用 no-cors 模式无法触发 simple cors 模式。
 
-	
-todo:
-	* [ ] read net 101 https://hpbn.co/primer-on-latency-and-bandwidth/#bw-latency-fig
-	缓存控制:
-		☐ 说明缓存的作用
-		☐ 演示私有缓存和共享缓存的区别
-		☐ 测试缓存限制的方法，验证 post 是否可以缓存
-		☐ 验证缓存失效数值过大是否存在溢出风险
-		☐ 验证多指令并存时缓存的执行策略
-		☐ 验证结合 max-age 和 s-max-age 修改缓存的效果
-	
+## Todo
+
+- [ ] read net 101 <https://hpbn.co/primer-on-latency-and-bandwidth/#bw-latency-fig>
+
+### 缓存控制
+
+- [ ] 说明缓存的作用
+- [ ] 演示私有缓存和共享缓存的区别
+- [ ] 测试缓存限制的方法，验证 post 是否可以缓存
+- [ ] 验证缓存失效数值过大是否存在溢出风险
+- [ ] 验证多指令并存时缓存的执行策略
+- [ ] 验证结合 max-age 和 s-max-age 修改缓存的效果

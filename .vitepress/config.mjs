@@ -7,6 +7,7 @@ export default withMermaid({
   description: "前端网络手册",
   base: isDev ? "/" : "/learn-network/",
   themeConfig: {
+    outline: [2, 3],
     lastUpdated: 'Last Updated',
     docsRepo: 'https://github.com/zenHeart/learn-network',
     docsBranch: 'master',
@@ -62,7 +63,12 @@ function createGuide() {
           text: '应用层',
           items: [
             { text: "DNS", link: "/guide/02.protocols/04.01.dns" },
-            { text: "HTTP", link: "/guide/02.protocols/04.02.http" },
+            {
+              text: "HTTP", items: [
+                { text: "URI", link: "/guide/02.protocols/04.02.http/00.url-urn-uri" },
+                { text: "HTTP", link: "/guide/02.protocols/04.02.http/01.http" },
+              ]
+            },
             { text: "WebSocket", link: "/guide/02.protocols/04.03.websocket" },
             { text: "MQTT", link: "/guide/02.protocols/04.04.mqtt" },
             { text: "CDN", link: "/guide/02.protocols/04.05.CDN" },

@@ -7,6 +7,9 @@ const options = {
   cert: fs.readFileSync(path.join(__dirname, "cert/server.crt")),
   // 添加延迟以便更容易观察握手过程
   handshakeTimeout: 5000,
+  // 指定 TLS 版本
+  minVersion: process.env.TLS_VERSION || "TLSv1.3",
+  maxVersion: process.env.TLS_VERSION || "TLSv1.3",
 };
 
 const server = tls.createServer(options, (socket) => {

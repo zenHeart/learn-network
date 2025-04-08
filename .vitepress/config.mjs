@@ -54,7 +54,8 @@ function createGuide() {
             { text: "ICMP", link: "/guide/02.protocols/03.00.icmp" },
             { text: "UDP", link: "/guide/02.protocols/03.01.udp" },
             { text: "TCP", link: "/guide/02.protocols/03.02.tcp" },
-            { text: "Socket", link: "/guide/02.protocols/03.03.socket" },
+            { text: "SSL TLS", link: "/guide/02.protocols/03.03.ssl-tls" },
+            { text: "Socket", link: "/guide/02.protocols/03.04.socket" },
           ]
         },
         {
@@ -90,6 +91,7 @@ function createGuide() {
         { text: "PING", link: "/guide/05.tools/01.ping" },
         { text: "NAT Tap", link: "/guide/05.tools/02.nattap" },
         { text: "Wireshark", link: "/guide/05.tools/03.wireshark" },
+        { text: "OpenSSL", link: "/guide/05.tools/04.OpenSSL" },
       ],
     },
     { text: "其他", link: "/guide/06.other/" },

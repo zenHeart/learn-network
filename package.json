@@ -4,10 +4,11 @@
   "description": "network ====",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "docs:dev": "vitepress dev",
+    "start": "vitepress dev",
     "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview"
+    "docs:preview": "vitepress preview",
+    "pretls:handshake": "./examples/openSSL/handshake/cert.sh &  sleep 2",
+    "tls:handshake": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && node examples/openSSL/handshake/server.js & sleep 2 && node examples/openSSL/handshake/client.js"
   },
   "repository": {
     "type": "git",

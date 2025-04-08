@@ -3,3 +3,4 @@ book/*
 package-lock.json
 .vitepress/dist
 .vitepress/cache
+cert/

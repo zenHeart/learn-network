@@ -20,6 +20,20 @@
         background-color: #d9edf7;
         color: #31708f;
       }
+      .message-input {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+      }
+      .message-input input {
+        flex-grow: 1;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+      }
+      .message-input button {
+        padding: 8px 15px;
+      }
     </style>
   </head>
   <body>
@@ -29,8 +43,15 @@
       <button id="sendMsg">发送测试消息</button>
       <button id="closeConn">关闭连接</button>
     </div>
+
+    <div class="message-input">
+      <input type="text" id="messageInput" placeholder="输入要发送的消息..." />
+      <button id="sendCustomMsg">发送</button>
+    </div>
+
     <script>
       const statusDiv = document.getElementById("status");
+      const messageInput = document.getElementById("messageInput");
 
       function addStatus(message, type = "info") {
         const div = document.createElement("div");
@@ -107,6 +128,30 @@
           addStatus("连接未建立，无法发送消息", "error");
         }
       };
+
+      // 发送自定义消息
+      function sendCustomMessage() {
+        if (ws.readyState === WebSocket.OPEN) {
+          const message = messageInput.value.trim();
+          if (message) {
+            ws.send(message);
+            addStatus(`已发送消息: "${message}"`);
+            messageInput.value = ""; // 清空输入框
+          }
+        } else {
+          addStatus("连接未建立，无法发送消息", "error");
+        }
+      }
+
+      // 点击发送按钮
+      document.getElementById("sendCustomMsg").onclick = sendCustomMessage;
+
+      // 按下回车键发送
+      messageInput.addEventListener("keypress", function (e) {
+        if (e.key === "Enter") {
+          sendCustomMessage();
+        }
+      });
 
       // 手动关闭连接
       document.getElementById("closeConn").onclick = function () {

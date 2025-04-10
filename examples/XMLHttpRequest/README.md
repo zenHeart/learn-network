@@ -22,3 +22,5 @@
    3. 非法的请求头会抛出异常
 6. withCredentials 添加鉴权信息
    1. 注意改配置只针对非同源才有效
+   2. 注意需要确保 Access-Control-Allow-Origin 头部的值包含跨域的 url
+   3. 注意需要确保 Access-Control-Allow-Credentials 头部的值为 true

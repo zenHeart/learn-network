@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XMLHttpRequest Timeout Test</title>
+    <style>
+      .header-container {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+        background-color: #f7f7f7;
+      }
+      .header-list {
+        margin-top: 10px;
+      }
+      .header-item {
+        margin-bottom: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>XMLHttpRequest 测试</h3>
+    <div>
+      <label>
+        <input type="checkbox" id="syncMode" checked /> 使用同步模式
+        (第三个参数为)
+      </label>
+      <br />
+      <label>
+        超时设置 (毫秒):
+        <input type="number" id="timeoutValue" value="2000" min="100" />
+      </label>
+
+      <!-- 添加请求头设置部分 -->
+      <div class="header-container">
+        <h4>设置请求头</h4>
+        <div>
+          <label>
+            请求头名称:
+            <input
+              type="text"
+              id="headerName"
+              placeholder="例如: Content-Type"
+            />
+          </label>
+          <label>
+            请求头值:
+            <input
+              type="text"
+              id="headerValue"
+              placeholder="例如: application/json"
+            />
+          </label>
+          <button id="addHeader">添加请求头</button>
+        </div>
+
+        <div class="header-list">
+          <h5>当前请求头:</h5>
+          <div id="headersList"></div>
+        </div>
+      </div>
+
+      <br />
+      <button id="sendRequest">发送请求</button>
+    </div>
+    <div id="result"></div>
+    <div id="log"></div>
+  </body>
+  <script>
+    const logElement = document.getElementById("log");
+    const resultElement = document.getElementById("result");
+    const syncCheckbox = document.getElementById("syncMode");
+    const timeoutInput = document.getElementById("timeoutValue");
+    const sendButton = document.getElementById("sendRequest");
+
+    // 请求头相关元素
+    const headerNameInput = document.getElementById("headerName");
+    const headerValueInput = document.getElementById("headerValue");
+    const addHeaderButton = document.getElementById("addHeader");
+    const headersListElement = document.getElementById("headersList");
+
+    // 存储请求头的对象
+    const requestHeaders = {};
+
+    function clearLog() {
+      logElement.innerHTML = "";
+    }
+
+    function log(message) {
+      logElement.innerHTML += `<div>${message}</div>`;
+    }
+
+    // 添加readyState状态的文字描述
+    function getReadyStateText(state) {
+      const states = {
+        0: "UNSENT (未初始化)",
+        1: "OPENED (已打开)",
+        2: "HEADERS_RECEIVED (已获取响应头)",
+        3: "LOADING (正在下载)",
+        4: "DONE (已完成)",
+      };
+      return states[state] || `未知状态 (${state})`;
+    }
+
+    // 添加请求头到列表
+    function addHeaderToList() {
+      const name = headerNameInput.value.trim();
+      const value = headerValueInput.value.trim();
+
+      if (name && value) {
+        requestHeaders[name] = value;
+        renderHeadersList();
+
+        // 清空输入框
+        headerNameInput.value = "";
+        headerValueInput.value = "";
+      } else {
+        alert("请求头名称和值都不能为空");
+      }
+    }
+
+    // 渲染请求头列表
+    function renderHeadersList() {
+      headersListElement.innerHTML = "";
+
+      if (Object.keys(requestHeaders).length === 0) {
+        headersListElement.innerHTML = "<p>尚未添加任何请求头</p>";
+      } else {
+        for (const [name, value] of Object.entries(requestHeaders)) {
+          const headerItem = document.createElement("div");
+          headerItem.className = "header-item";
+          headerItem.innerHTML = `
+            <b>${name}</b>: ${value}
+            <button data-header="${name}" class="remove-header">删除</button>
+          `;
+          headersListElement.appendChild(headerItem);
+        }
+      }
+    }
+
+    // 删除请求头
+    function removeHeader(headerName) {
+      delete requestHeaders[headerName];
+      renderHeadersList();
+    }
+
+    function sendXHRRequest() {
+      clearLog();
+      const isAsync = !syncCheckbox.checked;
+      const timeoutMs = parseInt(timeoutInput.value, 10);
+
+      log("1. 发送请求前");
+
+      const xhr = new XMLHttpRequest();
+
+      // 监听readyState变化
+      xhr.onreadystatechange = function () {
+        log(
+          `ReadyState 变化: ${xhr.readyState} - ${getReadyStateText(
+            xhr.readyState
+          )}, Status : ${xhr.status}`
+        );
+      };
+
+      xhr.open("GET", "https://jsonplaceholder.typicode.com/todos/1", isAsync);
+
+      // 设置请求头
+      log(`正在设置 ${Object.keys(requestHeaders).length} 个自定义请求头...`);
+      for (const [name, value] of Object.entries(requestHeaders)) {
+        xhr.setRequestHeader(name, value);
+        log(`设置请求头: ${name} = ${value}`);
+      }
+
+      // 设置超时时间（仅异步模式下有效）
+      if (isAsync) {
+        xhr.timeout = timeoutMs;
+        log(`2. 请求已打开 (异步模式, 超时: ${timeoutMs}ms)`);
+
+        // 超时事件处理
+        xhr.ontimeout = function () {
+          log(`⚠️ 请求超时，超过 ${timeoutMs}ms 未收到响应`);
+          updateResult("请求超时", isAsync, true);
+        };
+
+        xhr.onload = function () {
+          log("3. 异步请求已完成");
+          log("响应内容: " + xhr.responseText);
+          logResponseHeaders(xhr);
+          updateResult(xhr.responseText, isAsync, false);
+        };
+
+        xhr.onerror = function () {
+          log("❌ 请求发生错误");
+          updateResult("请求出错", isAsync, false);
+        };
+      } else {
+        log(`2. 请求已打开 (同步模式, 超时设置在同步模式下无效)`);
+      }
+
+      try {
+        xhr.send();
+
+        if (!isAsync) {
+          log("3. 同步请求已完成");
+          log("响应内容: " + xhr.responseText);
+          logResponseHeaders(xhr);
+          updateResult(xhr.responseText, isAsync, false);
+        }
+      } catch (error) {
+        log(`❌ 捕获到错误: ${error.message}`);
+        updateResult(error.message, isAsync, false);
+      }
+
+      log("4. send() 方法执行完毕");
+    }
+
+    // 记录响应头
+    function logResponseHeaders(xhr) {
+      log("--- 响应头信息 ---");
+      const headers = xhr.getAllResponseHeaders();
+      if (headers) {
+        const headerLines = headers.trim().split(/[\r\n]+/);
+        headerLines.forEach((line) => {
+          const parts = line.split(": ");
+          const name = parts.shift();
+          const value = parts.join(": ");
+          log(`${name}: ${value}`);
+        });
+      } else {
+        log("无法获取响应头信息");
+      }
+      log("----------------");
+    }
+
+    function updateResult(responseText, isAsync, isTimeout) {
+      resultElement.innerHTML = `
+        <h4>${isAsync ? "异步" : "同步"} XMLHttpRequest 测试结果</h4>
+        ${
+          isTimeout
+            ? '<p style="color: orange;"><strong>请求超时!</strong></p>'
+            : ""
+        }
+        <p>查看控制台和上方日志可观察${isAsync ? "异步" : "同步阻塞"}效果</p>
+        <p>响应内容或结果: ${responseText}</p>
+      `;
+    }
+
+    // 事件监听
+    sendButton.addEventListener("click", sendXHRRequest);
+    addHeaderButton.addEventListener("click", addHeaderToList);
+
+    // 委托事件监听删除按钮
+    headersListElement.addEventListener("click", function (event) {
+      if (event.target.classList.contains("remove-header")) {
+        const headerName = event.target.getAttribute("data-header");
+        removeHeader(headerName);
+      }
+    });
+
+    // 初始化页面
+    resultElement.innerHTML = '<p>点击"发送请求"按钮开始测试</p>';
+    logElement.innerHTML = `
+      <p>请求日志将显示在这里</p>
+      <p><strong>注意:</strong> 超时设置只在异步模式下有效。同步模式下，超时设置会被忽略。</p>
+      <p><strong>请求头:</strong> 可以添加自定义请求头，例如 Content-Type: application/json</p>
+    `;
+    renderHeadersList();
+  </script>
+</html>

@@ -9,7 +9,8 @@
     "pretls:handshake": "./examples/tsl/handshake/cert.sh &  sleep 2",
     "tls:handshake": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",
     "tls:handshake:v1.2": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && export TLS_VERSION=TLSv1.2 && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",
-    "websocket:handshake": "lsof -ti:8080 | xargs kill -9 2>/dev/null || true && node examples/websocket/handshake/server.js & sleep 2 && open examples/websocket/handshake/client.html"
+    "websocket:handshake": "lsof -ti:8080 | xargs kill -9 2>/dev/null || true && node examples/websocket/handshake/server.js & sleep 2 && open examples/websocket/handshake/client.html",
+    "xmlhttprequest:withCredentials": "node examples/XMLHttpRequest/withCredentialsCookieServer.js"
   },
   "repository": {
     "type": "git",

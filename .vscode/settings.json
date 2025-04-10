@@ -1,13 +1,11 @@
-
 {
   "editor.formatOnSave": true,
+  "editor.tabSize": 3,
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit",
     "source.fixAll.markdownlint": "explicit"
   },
-  "eslint.workingDirectories": [
-    "./"
-  ],
+  "eslint.workingDirectories": ["./"],
   "markdownlint.config": {
     "default": true
   }

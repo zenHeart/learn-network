@@ -33,16 +33,15 @@ const server = http.createServer((req, res) => {
    const origin = req.headers.origin;
    console.log("Origin:", origin);
 
-   // 检查请求源是否在允许列表中
+   // 在服务器的请求处理函数开头部分
    if (ALLOWED_ORIGINS.includes(origin)) {
       res.setHeader("Access-Control-Allow-Origin", origin);
-
-      // 无条件设置允许凭证，解决withCredentials=true的CORS问题
       res.setHeader("Access-Control-Allow-Credentials", "true");
-   } else if (origin === 'null' || !origin) {
-      // 特殊处理 null origin (文件协议访问)
-      res.setHeader("Access-Control-Allow-Origin", "null");
-      res.setHeader("Access-Control-Allow-Credentials", "true");
+      console.log(`设置CORS响应头: 允许来源 ${origin}，允许凭证`);
+   } else {
+      // 对于非允许的来源，不设置CORS头，这会导致请求失败，但这是合理的安全措施
+      console.warn(`拒绝未授权的来源请求: ${origin}`);
+      // 不设置任何CORS头
    }
 
    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -111,42 +110,59 @@ const server = http.createServer((req, res) => {
    console.log("Received cookies:", cookies);
 
    if (req.url === "/api/set-cookie") {
-      // 设置cookie时使用更兼容的配置
-      // 注意: 对于 file:// 协议，浏览器通常有更严格的限制
+      // 改进Cookie设置，确保跨域可用
       const cookieOptions = [
          "testCookie=withCredentialsDemo",
          "Path=/",
-         "Max-Age=3600",
+         "Max-Age=3600"
       ];
 
-      // 仅在非 null origin 情况下添加 SameSite=None
-      if (origin && origin !== "null") {
-         cookieOptions.push("SameSite=None");
+      // 根据请求的协议决定是否添加 SameSite 和 Secure
+      const isSecure = req.headers['x-forwarded-proto'] === 'https' || req.connection.encrypted;
 
-         // 如果是HTTPS连接，添加Secure标志
-         if (
-            req.headers["x-forwarded-proto"] === "https" ||
-            req.connection.encrypted
-         ) {
+      if (origin && origin !== "null") {
+         // 如果请求不是来自同源
+         if (isSecure) {
+            // 安全连接可以使用 SameSite=None
+            cookieOptions.push("SameSite=None");
             cookieOptions.push("Secure");
+         } else {
+            // 非安全连接使用 SameSite=Lax
+            cookieOptions.push("SameSite=Lax");
          }
       }
 
-      res.setHeader("Set-Cookie", cookieOptions.join("; "));
-      console.log("Setting cookie:", cookieOptions.join("; "));
+      // 打印详细的Cookie设置信息
+      const cookieString = cookieOptions.join("; ");
+      res.setHeader("Set-Cookie", cookieString);
+      console.log("Setting cookie with options:", cookieString);
 
+      // 调试响应信息
       res.writeHead(200);
       res.end(
          JSON.stringify({
             message: "Cookie has been set!",
             cookieSet: true,
-            cookieOptions: cookieOptions.join("; "),
+            cookieOptions: cookieString,
+            note: "如果使用HTTP协议，一些现代浏览器可能拒绝接受设置SameSite=None且无Secure标志的Cookie",
+            debug: {
+               origin,
+               headers: req.headers,
+               responseHeaders: {
+                  "Access-Control-Allow-Origin": res.getHeader("Access-Control-Allow-Origin"),
+                  "Access-Control-Allow-Credentials": res.getHeader("Access-Control-Allow-Credentials"),
+                  "Set-Cookie": cookieString
+               }
+            }
          })
       );
    } else if (req.url === "/api/check-cookie") {
-      // Check if our test cookie exists
+      // 详细记录Cookie接收情况
+      console.log("Check-cookie request headers:", req.headers);
+      console.log("Cookie header:", req.headers.cookie);
+
       const hasCookie = cookies.hasOwnProperty("testCookie");
-      console.log("Cookie check result:", hasCookie);
+      console.log("Cookie check result:", hasCookie, "Cookies found:", Object.keys(cookies));
 
       res.writeHead(200);
       res.end(
@@ -156,8 +172,12 @@ const server = http.createServer((req, res) => {
             allCookies: cookies,
             requestHeaders: {
                cookie: req.headers.cookie || "(none)",
-               origin: req.headers.origin || "(none)",
+               origin: req.headers.origin || "(none)"
             },
+            responseHeaders: {
+               "Access-Control-Allow-Origin": res.getHeader("Access-Control-Allow-Origin"),
+               "Access-Control-Allow-Credentials": res.getHeader("Access-Control-Allow-Credentials")
+            }
          })
       );
    } else {

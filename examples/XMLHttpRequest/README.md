@@ -34,3 +34,8 @@
    7. 必须在调用 `send()` 前设置，否则可能不生效
    8. 如果返回类型不匹配，会出现解析失败返回空
       > 查看 [responseType 示例](./responseType/index.html) 了解不同 responseType 的使用方法和效果。
+8. progress 监听下载进度
+   1. event.loaded/event.total 计算上传进度
+9. upload.onprogress 监听上传进度
+   1. event.loaded/event.total 计算上传进度
+   2. loadend 事件表示上传完成

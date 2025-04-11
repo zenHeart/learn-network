@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SendBeacon 基础示例</title>
+    <style>
+      .container {
+        margin: 20px;
+      }
+      .section {
+        margin-bottom: 20px;
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+      .result {
+        margin-top: 10px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>SendBeacon 基础示例</h1>
+
+      <!-- 1. 基本使用示例 -->
+      <div class="section">
+        <h3>1. 基本数据发送</h3>
+        <button onclick="sendBasicData()">发送基本数据</button>
+        <div id="basicResult" class="result"></div>
+      </div>
+
+      <!-- 2. 页面退出分析示例 -->
+      <div class="section">
+        <h3>2. 页面退出分析</h3>
+        <p>关闭页面或刷新页面时会自动发送退出数据</p>
+        <div id="exitResult" class="result"></div>
+      </div>
+
+      <!-- 3. 性能数据上报示例 -->
+      <div class="section">
+        <h3>3. 性能数据上报</h3>
+        <button onclick="sendPerformanceData()">发送性能数据</button>
+        <div id="performanceResult" class="result"></div>
+      </div>
+
+      <script>
+        // 1. 基本数据发送
+        function sendBasicData() {
+          const data = JSON.stringify({
+            type: "basic",
+            timestamp: new Date().toISOString(),
+          });
+
+          const result = navigator.sendBeacon("/log", data);
+          document.getElementById("basicResult").textContent = `发送状态: ${
+            result ? "成功" : "失败"
+          }`;
+        }
+
+        // 2. 页面退出分析
+        let startTime = Date.now();
+        window.addEventListener("unload", () => {
+          const data = JSON.stringify({
+            event: "page_exit",
+            timeSpent: Date.now() - startTime,
+            location: window.location.href,
+          });
+          navigator.sendBeacon("/analytics", data);
+        });
+
+        // 3. 性能数据上报
+        function sendPerformanceData() {
+          const performanceData = new FormData();
+          performanceData.append("timing", JSON.stringify(performance.timing));
+          performanceData.append("type", "performance");
+
+          const result = navigator.sendBeacon("/performance", performanceData);
+          document.getElementById(
+            "performanceResult"
+          ).textContent = `性能数据发送状态: ${result ? "成功" : "失败"}`;
+        }
+
+        // 兼容性检查
+        if (!navigator.sendBeacon) {
+          document.body.innerHTML = "<h2>您的浏览器不支持 SendBeacon API</h2>";
+        }
+      </script>
+    </div>
+  </body>
+</html>

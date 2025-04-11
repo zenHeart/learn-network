@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Fetch示例</title>
+  </head>
+  <body>
+    <h1>Fetch示例</h1>
+
+    <h2>基本GET请求</h2>
+    <button onclick="fetchText()">获取文本数据</button>
+    <button onclick="fetchJson()">获取JSON数据</button>
+    <div id="output"></div>
+
+    <h2>POST请求</h2>
+    <button onclick="postData()">提交数据</button>
+
+    <h2>上传文件</h2>
+    <input type="file" id="fileInput" />
+    <button onclick="uploadFile()">上传文件</button>
+
+    <h2>下载文件</h2>
+    <button onclick="downloadFile()">下载文件</button>
+
+    <h2>中止请求</h2>
+    <button onclick="abortRequest()">发送请求</button>
+    <button onclick="abort()">中止请求</button>
+
+    <script>
+      let controller = null;
+
+      function fetchText() {
+        fetch("https://jsonplaceholder.typicode.com/posts/1")
+          .then((response) => response.text())
+          .then((data) => {
+            document.getElementById("output").innerText = data;
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+
+      function fetchJson() {
+        fetch("https://jsonplaceholder.typicode.com/posts/2")
+          .then((response) => response.json())
+          .then((data) => {
+            document.getElementById("output").innerText = JSON.stringify(
+              data,
+              null,
+              4
+            );
+          })
+          .catch((error) => console.error("Error:", error));
+      }
+
+      function postData() {
+        fetch("https://jsonplaceholder.typicode.com/posts", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ title: "foo", body: "bar", userId: 1 }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Success:", data);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function uploadFile() {
+        let formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        fetch("https://httpbin.org/post", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Success:", data);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      }
+
+      function downloadFile() {
+        fetch("https://jsonplaceholder.typicode.com/posts/1")
+          .then((response) => response.blob())
+          .then((blob) => {
+            let url = window.URL.createObjectURL(blob);
+            let a = document.createElement("a");
+            a.href = url;
+            a.download = "post1.txt";
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+          });
+      }
+
+      function abortRequest() {
+        controller = new AbortController();
+        // 连接 AbortController 信号
+        controller.signal.addEventListener("abort", (e) => {
+          console.log("请求被中止", e);
+        });
+        fetch("https://jsonplaceholder.typicode.com/posts?_delay=5000", {
+          signal: controller.signal,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log(data);
+          })
+          .catch((error) => {
+            if (error.name === "AbortError") {
+              console.log("请求被中止");
+            } else {
+              console.error("Error:", error);
+            }
+          });
+      }
+
+      function abort() {
+        if (controller) {
+          controller.abort();
+          controller = null;
+        }
+      }
+    </script>
+  </body>
+</html>

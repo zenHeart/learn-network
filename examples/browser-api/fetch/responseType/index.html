@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fetch responseType 示例</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .result-container {
+        margin-top: 20px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+      }
+      code {
+        font-family: Consolas, monospace;
+        background-color: #eee;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      button {
+        padding: 8px 12px;
+        margin: 5px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-x: auto;
+        background-color: #f5f5f5;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .image-result {
+        max-width: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>fetch responseType 示例</h1>
+
+    <div>
+      <button onclick="testResponseType('')">默认("")</button>
+      <button onclick="testResponseType('text')">text</button>
+      <button onclick="testResponseType('json')">json</button>
+      <button onclick="testResponseType('document')">document</button>
+      <button onclick="testResponseType('arraybuffer')">arraybuffer</button>
+      <button onclick="testResponseType('blob')">blob</button>
+    </div>
+
+    <div class="result-container">
+      <h3>请求结果：</h3>
+      <div id="resultType"></div>
+      <div id="result"></div>
+    </div>
+
+    <script>
+      function testResponseType(type) {
+        let url;
+        switch (type) {
+          case "json":
+            url = "./data/sample.json";
+            break;
+          case "document":
+            url = "./data/sample.html";
+            break;
+          case "arraybuffer":
+          case "blob":
+            url = "./data/sample.jpg";
+            break;
+          default:
+            url = "./data/sample.txt";
+            break;
+        }
+
+        fetch(url)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`请求失败: ${response.status}`);
+            }
+            return response[type]();
+          })
+          .then((data) => {
+            document.getElementById("resultType").innerHTML = `
+              <p>responseType: <code>${type || "空字符串 (默认)"}</code></p>
+              <p>response 类型: <code>${Object.prototype.toString.call(
+                data
+              )}</code></p>
+            `;
+            displayResult(data, type);
+          })
+          .catch((error) => {
+            document.getElementById(
+              "result"
+            ).innerHTML = `<p>${error.message}</p>`;
+          });
+      }
+
+      function displayResult(response, type) {
+        console.log(response);
+        const resultDiv = document.getElementById("result");
+        resultDiv.innerHTML = "";
+
+        switch (type) {
+          case "json":
+            const jsonPre = document.createElement("pre");
+            jsonPre.textContent = JSON.stringify(response, null, 2);
+            resultDiv.appendChild(jsonPre);
+            break;
+
+          case "document":
+            // Clear previous content
+            resultDiv.innerHTML = "";
+
+            // Create document info
+            const docInfo = document.createElement("p");
+            docInfo.innerHTML = `HTML Document: <strong>${
+              response.title || "Untitled Document"
+            }</strong>`;
+
+            // Create toggle buttons
+            const toggleContainer = document.createElement("div");
+            toggleContainer.style.marginBottom = "10px";
+
+            const sourceBtn = document.createElement("button");
+            sourceBtn.textContent = "Source";
+            sourceBtn.className = "active";
+            sourceBtn.style.marginRight = "5px";
+
+            const renderedBtn = document.createElement("button");
+            renderedBtn.textContent = "Rendered";
+
+            toggleContainer.appendChild(sourceBtn);
+            toggleContainer.appendChild(renderedBtn);
+
+            // Create source view
+            const sourceView = document.createElement("pre");
+            sourceView.textContent = new XMLSerializer().serializeToString(
+              response
+            );
+
+            // Create rendered view (iframe)
+            const renderedView = document.createElement("iframe");
+            renderedView.style.width = "100%";
+            renderedView.style.height = "300px";
+            renderedView.style.border = "1px solid #ccc";
+            renderedView.style.display = "none";
+
+            // Add everything to result div
+            resultDiv.appendChild(docInfo);
+            resultDiv.appendChild(toggleContainer);
+            resultDiv.appendChild(sourceView);
+            resultDiv.appendChild(renderedView);
+
+            // Set iframe content
+            const iframeDoc =
+              renderedView.contentDocument ||
+              renderedView.contentWindow.document;
+            iframeDoc.open();
+            iframeDoc.write(new XMLSerializer().serializeToString(response));
+            iframeDoc.close();
+
+            // Add toggle functionality
+            sourceBtn.addEventListener("click", function () {
+              sourceView.style.display = "block";
+              renderedView.style.display = "none";
+              this.className = "active";
+              renderedBtn.className = "";
+            });
+
+            renderedBtn.addEventListener("click", function () {
+              sourceView.style.display = "none";
+              renderedView.style.display = "block";
+              this.className = "active";
+              sourceBtn.className = "";
+            });
+            break;
+
+          case "arraybuffer":
+            const view = new Uint8Array(response);
+            let hexString = "";
+            for (let i = 0; i < Math.min(50, view.length); i++) {
+              hexString += view[i].toString(16).padStart(2, "0") + " ";
+            }
+            if (view.length > 50) hexString += "...";
+
+            resultDiv.innerHTML = `
+                        <p>ArrayBuffer 长度: ${response.byteLength} 字节</p>
+                        <p>前 50 个字节 (十六进制): ${hexString}</p>
+                    `;
+            break;
+
+          case "blob":
+            const img = document.createElement("img");
+            img.className = "image-result";
+            img.src = URL.createObjectURL(response);
+            resultDiv.innerHTML = `<p>Blob 大小: ${response.size} 字节, 类型: ${response.type}</p>`;
+            resultDiv.appendChild(img);
+            break;
+
+          default:
+            resultDiv.innerHTML = `<pre>${response}</pre>`;
+            break;
+        }
+      }
+
+      // 页面加载后自动执行一次默认示例
+      window.onload = function () {
+        testResponseType("");
+      };
+    </script>
+  </body>
+</html>

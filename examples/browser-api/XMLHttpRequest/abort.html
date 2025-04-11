@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XMLHttpRequest Abort Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .controls {
+        margin-bottom: 20px;
+      }
+      button {
+        padding: 8px 12px;
+        margin: 5px 0;
+      }
+      .abort-button {
+        background-color: #ff6666;
+      }
+      #log {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 300px;
+        overflow-y: auto;
+        margin-top: 20px;
+      }
+      .timestamp {
+        color: #777;
+        font-size: 0.8em;
+      }
+      .aborted {
+        color: red;
+        font-weight: bold;
+      }
+      .demo-section {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>XMLHttpRequest Abort 示例</h2>
+
+    <div class="demo-section">
+      <h3>1. 传统 XMLHttpRequest 中止方法</h3>
+      <p>使用 XMLHttpRequest 自带的 abort() 方法中止请求</p>
+
+      <div class="controls">
+        <label>
+          URL:
+          <select id="urlSelect">
+            <option value="slow">慢速响应 (5秒)</option>
+            <option value="fast">快速响应 (立即)</option>
+          </select>
+        </label>
+        <br />
+        <button id="startButton">开始请求</button>
+        <button id="abortButton" class="abort-button" disabled>中止请求</button>
+      </div>
+
+      <div id="status">状态: 空闲</div>
+      <div id="result"></div>
+    </div>
+
+    <div class="demo-section">
+      <h3>2. AbortController + XMLHttpRequest</h3>
+      <p>使用现代的 AbortController 接口来中止 XMLHttpRequest</p>
+
+      <div class="controls">
+        <label>
+          URL:
+          <select id="acUrlSelect">
+            <option value="slow">慢速响应 (5秒)</option>
+            <option value="fast">快速响应 (立即)</option>
+          </select>
+        </label>
+        <br />
+        <button id="acStartButton">开始请求</button>
+        <button id="acAbortButton" class="abort-button" disabled>
+          中止请求
+        </button>
+      </div>
+
+      <div id="acStatus">状态: 空闲</div>
+      <div id="acResult"></div>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+      // DOM 元素
+      const startButton = document.getElementById("startButton");
+      const abortButton = document.getElementById("abortButton");
+      const urlSelect = document.getElementById("urlSelect");
+      const statusEl = document.getElementById("status");
+      const resultEl = document.getElementById("result");
+      const logEl = document.getElementById("log");
+
+      // AbortController DOM 元素
+      const acStartButton = document.getElementById("acStartButton");
+      const acAbortButton = document.getElementById("acAbortButton");
+      const acUrlSelect = document.getElementById("acUrlSelect");
+      const acStatusEl = document.getElementById("acStatus");
+      const acResultEl = document.getElementById("acResult");
+
+      // 请求对象引用
+      let xhr = null;
+
+      // AbortController 引用
+      let controller = null;
+      let acXhr = null;
+
+      // 添加日志
+      function log(message, isError = false) {
+        const timestamp = new Date().toLocaleTimeString();
+        const entry = document.createElement("div");
+        entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+
+        if (isError) {
+          entry.classList.add("aborted");
+        }
+
+        logEl.appendChild(entry);
+        logEl.scrollTop = logEl.scrollHeight; // 自动滚动到底部
+      }
+
+      // 更新状态
+      function updateStatus(element, message) {
+        element.textContent = `状态: ${message}`;
+      }
+
+      // 清除日志
+      function clearLog() {
+        logEl.innerHTML = "";
+      }
+
+      // 获取 ReadyState 文字描述
+      function getReadyStateText(state) {
+        const states = {
+          0: "UNSENT (未初始化)",
+          1: "OPENED (已打开)",
+          2: "HEADERS_RECEIVED (已获取响应头)",
+          3: "LOADING (正在下载)",
+          4: "DONE (已完成)",
+        };
+        return states[state] || `未知状态 (${state})`;
+      }
+
+      // 获取URL
+      function getUrl(selector) {
+        const urlType = selector.value;
+        return urlType === "slow"
+          ? "https://httpbin.org/delay/5" // 慢速响应
+          : "https://jsonplaceholder.typicode.com/todos/1"; // 快速响应
+      }
+
+      // 开始请求 - 传统方式
+      function startRequest() {
+        // 清理之前的请求
+        if (xhr) {
+          xhr.abort();
+          xhr = null;
+        }
+
+        clearLog();
+        resultEl.textContent = "";
+        updateStatus(statusEl, "正在请求...");
+
+        // 创建新请求
+        xhr = new XMLHttpRequest();
+
+        const url = getUrl(urlSelect);
+        log(`传统方式: 准备发送请求到: ${url}`);
+
+        // 设置事件处理程序
+        xhr.onreadystatechange = function () {
+          log(
+            `传统方式: ReadyState 变化: ${xhr.readyState} - ${getReadyStateText(
+              xhr.readyState
+            )}`
+          );
+        };
+
+        xhr.onload = function () {
+          log("传统方式: 请求成功完成!");
+          resultEl.textContent = xhr.responseText;
+          updateStatus(statusEl, "已完成");
+          resetButtons(startButton, abortButton);
+        };
+
+        xhr.onerror = function () {
+          log("传统方式: 请求发生错误!", true);
+          updateStatus(statusEl, "错误");
+          resetButtons(startButton, abortButton);
+        };
+
+        // 中止事件
+        xhr.onabort = function () {
+          log("传统方式: 请求已被中止!", true);
+          updateStatus(statusEl, "已中止");
+          resultEl.textContent = "请求被用户手动中止";
+          resetButtons(startButton, abortButton);
+        };
+
+        // 打开并发送请求
+        xhr.open("GET", url, true);
+        xhr.send();
+
+        log("传统方式: 请求已发送，等待响应...");
+
+        // 更新按钮状态
+        startButton.disabled = true;
+        abortButton.disabled = false;
+      }
+
+      // 中止请求 - 传统方式
+      function abortRequest() {
+        if (xhr) {
+          log("传统方式: 用户触发了中止操作!");
+          xhr.abort(); // 调用abort()方法中止请求
+          xhr = null;
+        }
+      }
+
+      // 开始请求 - AbortController 方式
+      function startRequestWithAbortController() {
+        // 清理之前的请求
+        if (controller) {
+          controller.abort();
+          controller = null;
+        }
+
+        if (acXhr) {
+          acXhr.abort();
+          acXhr = null;
+        }
+
+        acResultEl.textContent = "";
+        updateStatus(acStatusEl, "正在请求...");
+
+        // 创建新的 AbortController
+        controller = new AbortController();
+        const signal = controller.signal;
+
+        // 创建新 XMLHttpRequest
+        acXhr = new XMLHttpRequest();
+
+        const url = getUrl(acUrlSelect);
+        log(`AbortController: 准备发送请求到: ${url}`);
+
+        // 设置事件处理程序
+        acXhr.onreadystatechange = function () {
+          log(
+            `AbortController: ReadyState 变化: ${
+              acXhr.readyState
+            } - ${getReadyStateText(acXhr.readyState)}`
+          );
+        };
+
+        acXhr.onload = function () {
+          log("AbortController: 请求成功完成!");
+          acResultEl.textContent = acXhr.responseText;
+          updateStatus(acStatusEl, "已完成");
+          resetButtons(acStartButton, acAbortButton);
+        };
+
+        acXhr.onerror = function () {
+          log("AbortController: 请求发生错误!", true);
+          updateStatus(acStatusEl, "错误");
+          resetButtons(acStartButton, acAbortButton);
+        };
+
+        // 中止事件
+        acXhr.onabort = function () {
+          log("AbortController: 请求已被中止!", true);
+          updateStatus(acStatusEl, "已中止");
+          acResultEl.textContent = "请求被 AbortController 中止";
+          resetButtons(acStartButton, acAbortButton);
+        };
+
+        // 连接 AbortController 信号
+        signal.addEventListener("abort", () => {
+          if (acXhr) {
+            log("AbortController: 信号触发中止!");
+            acXhr.abort();
+          }
+        });
+
+        // 打开并发送请求
+        acXhr.open("GET", url, true);
+        acXhr.send();
+
+        log("AbortController: 请求已发送，等待响应...");
+
+        // 更新按钮状态
+        acStartButton.disabled = true;
+        acAbortButton.disabled = false;
+      }
+
+      // 通过 AbortController 中止请求
+      function abortRequestWithController() {
+        if (controller) {
+          log("AbortController: 用户触发了中止操作!");
+          controller.abort(); // 发送中止信号
+          controller = null;
+        }
+      }
+
+      // 重置按钮状态
+      function resetButtons(startBtn, abortBtn) {
+        startBtn.disabled = false;
+        abortBtn.disabled = true;
+      }
+
+      // 事件监听 - 传统方式
+      startButton.addEventListener("click", startRequest);
+      abortButton.addEventListener("click", abortRequest);
+
+      // 事件监听 - AbortController 方式
+      acStartButton.addEventListener("click", startRequestWithAbortController);
+      acAbortButton.addEventListener("click", abortRequestWithController);
+
+      // 初始化
+      log("页面已加载。示例展示了两种中止 XMLHttpRequest 的方法。");
+    </script>
+  </body>
+</html>

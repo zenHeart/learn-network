@@ -1,0 +1,11 @@
+{
+  "title": "Sample JSON",
+  "description": "这是一个JSON示例文件",
+  "items": [
+    { "id": 1, "name": "项目1" },
+    { "id": 2, "name": "项目2" },
+    { "id": 3, "name": "项目3" }
+  ],
+  "success": true,
+  "count": 3
+}

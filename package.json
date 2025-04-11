@@ -10,10 +10,15 @@
     "tls:handshake": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",
     "tls:handshake:v1.2": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && export TLS_VERSION=TLSv1.2 && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",
     "websocket:handshake": "lsof -ti:8080 | xargs kill -9 2>/dev/null || true && node examples/websocket/handshake/server.js & sleep 2 && open examples/websocket/handshake/client.html",
-    "xmlhttprequest:withCredentials": "node examples/XMLHttpRequest/withCredentials/server.js",
-    "xmlhttprequest:responseType": "node examples/XMLHttpRequest/responseType/server.js",
-    "xmlhttprequest:download": "node examples/XMLHttpRequest/download/server.js",
-    "xmlhttprequest:upload": "node examples/XMLHttpRequest/upload/server.js"
+    "xmlhttprequest:withCredentials": "node examples/browser-api/XMLHttpRequest/withCredentials/server.js",
+    "xmlhttprequest:responseType": "node examples/browser-api/XMLHttpRequest/responseType/server.js",
+    "xmlhttprequest:download": "node examples/browser-api/XMLHttpRequest/download/server.js",
+    "xmlhttprequest:upload": "node examples/browser-api/XMLHttpRequest/upload/server.js",
+    "fetch:withCredentials": "node examples/browser-api/fetch/withCredentials/server.js",
+    "fetch:abort": "node examples/browser-api/fetch/abort/server.js",
+    "fetch:responseType": "node examples/browser-api/fetch/responseType/server.js",
+    "fetch:upload": "node examples/browser-api/fetch/upload/server.js",
+    "fetch:download": "node examples/browser-api/fetch/download/server.js"
   },
   "repository": {
     "type": "git",

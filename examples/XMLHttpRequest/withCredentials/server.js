@@ -60,7 +60,7 @@ const server = http.createServer((req, res) => {
 
       // 默认路径处理
       if (req.url === "/") {
-         filePath = "/withCredentials.html";
+         filePath = "/index.html";
       }
 
       // 处理相对路径，确保安全访问
@@ -189,7 +189,7 @@ const server = http.createServer((req, res) => {
             endpoints: {
                setCookie: "/api/set-cookie",
                checkCookie: "/api/check-cookie",
-               staticHtml: "/withCredentials.html",
+               staticHtml: "/index.html",
             },
             cookies,
          })
@@ -222,17 +222,13 @@ server.listen(PORT, () => {
    console.log("Available endpoints:");
    console.log("  - GET /api/set-cookie  : Sets a test cookie");
    console.log("  - GET /api/check-cookie: Checks if the test cookie exists");
-   console.log("  - GET /                : Serves withCredentials.html");
-   console.log("  - GET /withCredentials.html: Serves the test HTML file");
-   console.log(
-      "\nAccess the test page directly at http://localhost:8080/withCredentials.html"
-   );
+   console.log("  - GET /                : Serves index.html");
 });
 
 // 创建一个新的服务器来单独服务 HTML 文件
 const htmlServer = http.createServer((req, res) => {
    if (req.url === "/") {
-      const filePath = path.join(__dirname, "withCredentials.html");
+      const filePath = path.join(__dirname, "index.html");
       fs.readFile(filePath, (err, content) => {
          if (err) {
             res.writeHead(500);
@@ -252,5 +248,5 @@ const htmlServer = http.createServer((req, res) => {
 
 htmlServer.listen(HTML_PORT, () => {
    console.log(`HTML server running at http://localhost:${HTML_PORT}`);
-   console.log("Serving withCredentials.html");
+   console.log("Serving index.html");
 });

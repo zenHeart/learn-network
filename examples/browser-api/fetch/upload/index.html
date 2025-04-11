@@ -84,13 +84,50 @@
             file.size
           )})`;
 
-          const formData = new FormData();
-          formData.append("file", file);
+          const reader = file.stream().getReader();
+          const contentLength = file.size;
+          let uploadedLength = 0;
 
-          fetch(uploadUrl, {
+          const stream = new ReadableStream({
+            start(controller) {
+              function push() {
+                reader.read().then(({ done, value }) => {
+                  if (done) {
+                    controller.close();
+                    return;
+                  }
+                  uploadedLength += value.length;
+                  const percentComplete = Math.round(
+                    (uploadedLength / contentLength) * 100
+                  );
+                  progressBar.style.width = percentComplete + "%";
+                  statusDiv.textContent = `已上传 ${percentComplete}% (${formatFileSize(
+                    uploadedLength
+                  )} / ${formatFileSize(contentLength)})`;
+                  console.log(
+                    `上传进度: ${percentComplete}% (${formatFileSize(
+                      uploadedLength
+                    )} / ${formatFileSize(contentLength)})`
+                  );
+                  controller.enqueue(value);
+                  push();
+                });
+              }
+              push();
+            },
+          });
+
+          const newRequest = new Request(uploadUrl, {
             method: "POST",
-            body: formData,
-          })
+            body: stream,
+            headers: {
+              "Content-Type": "application/octet-stream",
+              "X-File-Size": contentLength,
+            },
+            duplex: "half",
+          });
+
+          fetch(newRequest)
             .then((response) => {
               if (!response.ok) {
                 throw new Error(

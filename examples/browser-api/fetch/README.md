@@ -11,6 +11,7 @@
 2. **基础配置**
 
    - **超时控制**
+
      - fetch 本身不直接支持超时，需要结合 AbortController 和 setTimeout 实现
 
      ```js
@@ -36,6 +37,7 @@
      ```
 
      - 也可使用 Headers 类: `new Headers({'Content-Type': 'application/json'})`
+
    - **响应数据类型**
      - 不需要预设，而是通过响应对象的方法来处理不同类型
        - `response.text()` - 返回文本字符串的 Promise
@@ -113,6 +115,7 @@
 ## CORS
 
 1. **鉴权信息**
+
    - `credentials` 控制是否发送 cookies
 
      ```js
@@ -170,6 +173,7 @@
 2. **上传进度**
    - fetch API 本身不直接支持上传进度
    - 可以使用较新的 [Streams API](https://developer.mozilla.org/en-US/docs/Web/API/Streams_API) 实现
+   - 注意由于 Stream 在 chrome 使用 http2 上传，会导致丢失 content-length 头部, 可以利用自定义头部解决此问题
 
 ## 特有功能
 

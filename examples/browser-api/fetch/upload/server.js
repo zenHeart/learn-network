@@ -1,8 +1,8 @@
-const http = require("http");
+const http2 = require("http2");
 const fs = require("fs");
 const path = require("path");
 
-const PORT = 8080;
+const PORT = 8443;
 
 // MIME 类型映射
 const MIME_TYPES = {
@@ -18,7 +18,7 @@ const MIME_TYPES = {
 
 // 格式化文件大小
 function formatSize(bytes) {
-   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+   const units = ["B", "KB", "MB", "GB", "TB"];
    let size = bytes;
    let unitIndex = 0;
 
@@ -31,99 +31,89 @@ function formatSize(bytes) {
 }
 
 // 创建上传目录
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadDir)) {
    fs.mkdirSync(uploadDir, { recursive: true });
    console.log(`创建上传目录: ${uploadDir}`);
 }
 
-const server = http.createServer((req, res) => {
-   // 打印请求信息调试
-   console.log(`${req.method} ${req.url}`);
+// 创建 HTTP/2 服务器
+const server = http2.createSecureServer({
+   key: fs.readFileSync(path.join(__dirname, "privkey.pem")),
+   cert: fs.readFileSync(path.join(__dirname, "fullchain.pem")),
+});
 
-   // 设置基本的CORS头
-   res.setHeader("Access-Control-Allow-Origin", "*");
-   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+server.on("stream", (stream, headers) => {
+   const method = headers[":method"];
+   const url = headers[":path"];
 
-   // 处理OPTIONS请求
-   if (req.method === "OPTIONS") {
-      res.writeHead(204);
-      res.end();
-      return;
-   }
+   if (method === "POST" && url === "/upload") {
+      const contentType = headers["content-type"];
 
-   // 处理上传请求
-   if (req.method === 'POST' && req.url === '/upload') {
-      const contentType = req.headers['content-type'];
-
-      // 检查是否是multipart/form-data请求
-      if (!contentType || !contentType.includes('multipart/form-data')) {
-         res.writeHead(400);
-         res.end('Bad Request: Expected multipart/form-data');
+      if (!contentType || !contentType.includes("application/octet-stream")) {
+         stream.respond({ ":status": 400 });
+         stream.end("Bad Request: Expected application/octet-stream");
          return;
       }
 
-      // 获取boundary
-      const boundary = contentType.split('boundary=')[1];
-      if (!boundary) {
-         res.writeHead(400);
-         res.end('Bad Request: No boundary in multipart/form-data');
-         return;
-      }
-
-      // 创建唯一的文件名
       const timestamp = Date.now();
       const uploadedFilePath = path.join(uploadDir, `uploaded_file_${timestamp}`);
       const fileStream = fs.createWriteStream(uploadedFilePath);
 
       let totalBytes = 0;
-      const contentLength = parseInt(req.headers['content-length'], 10);
+      console.log(headers)
+      const contentLength = parseInt(headers["x-file-size"], 10);
 
-      console.log(`开始接收上传，预计大小: ${formatSize(contentLength)}`);
+      console.log(`开始接收上传，预计大小: ${contentLength} 字节`);
 
-      // 处理数据流
-      req.on('data', (chunk) => {
+      stream.on("data", (chunk) => {
          totalBytes += chunk.length;
          fileStream.write(chunk);
 
-         // 打印上传进度
          const progress = Math.round((totalBytes / contentLength) * 100);
-         console.log(`上传进度: ${progress}% (${formatSize(totalBytes)}/${formatSize(contentLength)})`);
+         console.log(
+            `上传进度: ${progress}% (${formatSize(totalBytes)} / ${formatSize(
+               contentLength
+            )})`
+         );
       });
 
-      req.on('end', () => {
+      stream.on("end", () => {
          fileStream.end();
-         console.log(`文件上传完成: ${uploadedFilePath} (${formatSize(totalBytes)})`);
+         console.log(`文件上传完成: ${uploadedFilePath} (${totalBytes} 字节)`);
 
-         res.writeHead(200);
-         res.end(JSON.stringify({
-            status: 'success',
-            message: '文件上传成功',
-            size: totalBytes
-         }));
+         stream.respond({ ":status": 200 });
+         stream.end(
+            JSON.stringify({
+               status: "success",
+               message: "文件上传成功",
+               size: totalBytes,
+            })
+         );
       });
 
-      req.on('error', (err) => {
-         console.error('上传错误:', err);
+      stream.on("error", (err) => {
+         console.error("上传错误:", err);
          fileStream.end();
 
-         res.writeHead(500);
-         res.end(JSON.stringify({
-            status: 'error',
-            message: '上传失败: ' + err.message
-         }));
+         stream.respond({ ":status": 500 });
+         stream.end(
+            JSON.stringify({
+               status: "error",
+               message: "上传失败: " + err.message,
+            })
+         );
       });
 
       return;
    }
 
    // 处理静态文件请求
-   if (req.url === "/" || req.url === "/index.html" || req.url.endsWith('.js') || req.url.endsWith('.css')) {
-      let filePath = req.url;
+   if (method === "GET") {
+      let filePath = url;
 
       // 默认路径处理
-      if (req.url === "/") {
+      if (url === "/") {
          filePath = "/index.html";
       }
 
@@ -132,8 +122,8 @@ const server = http.createServer((req, res) => {
 
       // 安全检查：确保路径不会跳出基本目录
       if (!safePath.startsWith(__dirname)) {
-         res.writeHead(403);
-         res.end("Forbidden: Invalid path");
+         stream.respond({ ":status": 403 });
+         stream.end("Forbidden: Invalid path");
          return;
       }
 
@@ -142,13 +132,13 @@ const server = http.createServer((req, res) => {
             if (err.code === "ENOENT") {
                // 文件不存在
                console.log(`File not found: ${safePath}`);
-               res.writeHead(404);
-               res.end("404 Not Found");
+               stream.respond({ ":status": 404 });
+               stream.end("404 Not Found");
             } else {
                // 服务器错误
                console.error(`Server error: ${err}`);
-               res.writeHead(500);
-               res.end("500 Internal Server Error");
+               stream.respond({ ":status": 500 });
+               stream.end("500 Internal Server Error");
             }
             return;
          }
@@ -158,20 +148,18 @@ const server = http.createServer((req, res) => {
          const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
          // 发送文件内容
-         res.writeHead(200, { "Content-Type": contentType });
-         res.end(content);
+         stream.respond({ ":status": 200, "content-type": contentType });
+         stream.end(content);
          console.log(`提供静态文件: ${safePath} (${contentType})`);
       });
       return;
    }
 
    // 默认响应
-   res.writeHead(404);
-   res.end("404 Not Found");
+   stream.respond({ ":status": 404 });
+   stream.end("404 Not Found");
 });
 
 server.listen(PORT, () => {
-   console.log(`服务器运行在 http://localhost:${PORT}`);
-   console.log(`上传端点: http://localhost:${PORT}/upload`);
-   console.log(`网页访问: http://localhost:${PORT}/`);
+   console.log(`HTTP/2 服务器运行在 https://localhost:${PORT}`);
 });

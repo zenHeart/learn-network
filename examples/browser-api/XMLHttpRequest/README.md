@@ -16,6 +16,10 @@
      - http 规范请求头名不区分大小写
      - 默认浏览器会将首字母大写
      - 非法的请求头会抛出异常
+     - 注意有些头不允许设置例如, 详细参考 [禁止修改的请求头](https://developer.mozilla.org/en-US/docs/Glossary/Forbidden_request_header)
+       - `Content-Length`
+       - `Cookie`
+       - `Host`
    - `responseType` 设置响应数据类型
      - `""` (空字符串) - 默认值，等同于 "text"
      - `"text"` - 返回文本字符串

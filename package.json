@@ -19,7 +19,8 @@
     "fetch:responseType": "node examples/browser-api/fetch/responseType/server.js",
     "fetch:upload": "node examples/browser-api/fetch/upload/server.js",
     "fetch:download": "node examples/browser-api/fetch/download/server.js",
-    "sendBeacon": "node examples/browser-api/sendBeacon/server.js"
+    "sendBeacon": "node examples/browser-api/sendBeacon/server.js",
+    "sse": "node examples/browser-api/sse/server.js"
   },
   "repository": {
     "type": "git",

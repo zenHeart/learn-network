@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SSE 示例</title>
+    <style>
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .message-box {
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+      .notification {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>SSE 实时数据示例</h1>
+      <button onclick="triggerNotification()">触发通知</button>
+      <div id="messages"></div>
+    </div>
+
+    <script>
+      const messagesDiv = document.getElementById("messages");
+
+      function addMessage(message, isNotification = false) {
+        const div = document.createElement("div");
+        div.className = `message-box ${isNotification ? "notification" : ""}`;
+        div.textContent =
+          typeof message === "string" ? message : JSON.stringify(message);
+        messagesDiv.insertBefore(div, messagesDiv.firstChild);
+      }
+
+      // 建立 SSE 连接
+      const eventSource = new EventSource("http://localhost:3000/events");
+
+      // 处理常规消息
+      eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        addMessage(data);
+      };
+
+      // 处理通知事件
+      eventSource.addEventListener("notification", (event) => {
+        const data = JSON.parse(event.data);
+        addMessage(data, true);
+      });
+
+      // 处理错误
+      eventSource.onerror = (error) => {
+        console.error("SSE 错误:", error);
+        addMessage("连接错误，正在尝试重新连接...", true);
+      };
+
+      // 触发通知的函数
+      async function triggerNotification() {
+        try {
+          await fetch("http://localhost:3000/trigger-notification");
+        } catch (error) {
+          console.error("触发通知失败:", error);
+        }
+      }
+    </script>
+  </body>
+</html>

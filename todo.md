@@ -105,11 +105,9 @@
          - 网络资源加载优先级
       2. [ ] 网络请求 API
          - XMLHttpRequest
+         - 流式数据处理
          - Fetch API
          - Beacon API
-         - 请求取消与超时控制
-         - 上传下载进度监控
-         - 流式数据处理
       3. [ ] 实时通信 API
          - WebSocket API 实现与最佳实践
          - EventSource API (SSE 客户端)

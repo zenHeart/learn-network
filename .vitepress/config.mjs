@@ -85,7 +85,16 @@ function createGuide() {
         },
       ],
     },
-    { text: "浏览器", link: "/guide/03.browser/fetch" },
+    {
+      text: "宿主环境",
+      items: [{
+        text: "浏览器",
+        items: [
+          { text: "XMLHttpRequest", link: "/guide/03.agent/01.browser/01.XMLHttpRequest" },
+          { text: "Fetch", link: "/guide/03.agent/01.browser/02.fetch" },
+        ]
+      }]
+    },
     {
       text: "安全",
       items: [

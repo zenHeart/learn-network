@@ -24,3 +24,12 @@
    1. 注意改配置只针对非同源才有效
    2. 注意需要确保 Access-Control-Allow-Origin 头部的值包含跨域的 url
    3. 注意需要确保 Access-Control-Allow-Credentials 头部的值为 true
+7. responseType 设置响应数据类型
+   1. `""` (空字符串) - 默认值，等同于 "text"
+   2. `"text"` - 返回文本字符串
+   3. `"arraybuffer"` - 返回 ArrayBuffer 对象
+   4. `"blob"` - 返回 Blob 对象
+   5. `"document"` - 返回解析为 HTML 或 XML 的文档对象，取决于接收到的数据 MIME 类型
+   6. `"json"` - 将响应解析为 JSON，返回 JavaScript 对象
+   7. 必须在调用 `send()` 前设置，否则可能不生效
+      > 查看 [responseType 示例](./responseType/index.html) 了解不同 responseType 的使用方法和效果。

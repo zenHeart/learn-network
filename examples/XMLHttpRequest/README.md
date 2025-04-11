@@ -32,4 +32,5 @@
    5. `"document"` - 返回解析为 HTML 或 XML 的文档对象，取决于接收到的数据 MIME 类型
    6. `"json"` - 将响应解析为 JSON，返回 JavaScript 对象
    7. 必须在调用 `send()` 前设置，否则可能不生效
+   8. 如果返回类型不匹配，会出现解析失败返回空
       > 查看 [responseType 示例](./responseType/index.html) 了解不同 responseType 的使用方法和效果。

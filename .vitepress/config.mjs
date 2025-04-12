@@ -4,6 +4,9 @@ const isDev = process.env.npm_lifecycle_script.includes("dev");
 
 // https://vitepress.dev/reference/site-config
 export default withMermaid({
+  mermaidPlugin: {
+    class: "mermaid ln-mermaid", // set additional css classes for parent container 
+  },
   title: "learn-network",
   description: "前端网络手册",
   base: isDev ? "/" : "/learn-network/",
@@ -75,6 +78,10 @@ function createGuide() {
                   text: "HTTP",
                   link: "/guide/02.protocols/04.02.http/01.http",
                 },
+                {
+                  text: 'cache',
+                  link: "/guide/02.protocols/04.02.http/02.cache",
+                }
               ],
             },
             { text: "WebSocket", link: "/guide/02.protocols/04.03.websocket" },
@@ -133,7 +140,6 @@ function createExamples() {
           text: "http",
           items: [
             { text: "cros", link: "/examples/http/cros/README.md" },
-            { text: "cache", link: "/examples/http/cache/README.md" },
           ],
         },
         {

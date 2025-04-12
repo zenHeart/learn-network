@@ -136,3 +136,28 @@
 .DocSearch {
   --docsearch-primary-color: var(--vp-c-brand-1) !important;
 }
+
+.mermaid.ln-mermaid {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: visible;
+  padding: 10px 0;
+}
+
+.mermaid.ln-mermaid svg {
+  display: block;
+  margin: 0 auto;
+  transition: transform 0.3s ease;
+  transform-origin: center center;
+}
+
+.mermaid.ln-mermaid:hover svg {
+  background: white;
+  transform: scale(1.2); /* Increases size by 20% on hover */
+  filter: drop-shadow(
+    0 0 5px rgba(0, 0, 0, 0.2)
+  ); /* Optional: adds shadow effect */
+  z-index: 100; /* Ensures the enlarged svg appears above other content */
+}

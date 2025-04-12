@@ -111,6 +111,7 @@ function createGuide() {
       items: [
         { text: "Overview", link: "/guide/04.security/index" },
         { text: "Same Origin", link: "/guide/04.security/00.sam-origin" },
+        { text: "JSONP", link: "/guide/04.security/01.JSONP.md" },
         { text: "XSRF", link: "/guide/04.security/01.xsrf" },
         { text: "XSS", link: "/guide/04.security/02.xss" },
         { text: "CORS", link: "/guide/04.security/03.cros" },
@@ -139,10 +140,6 @@ function createExamples() {
         {
           text: "概述",
           link: "/examples/",
-        },
-        {
-          text: "JSONP",
-          items: [{ text: "JSONP", link: "/examples/JSONP/README.md" }],
         },
       ],
     },

@@ -81,6 +81,10 @@ function createGuide() {
                 {
                   text: 'cache',
                   link: "/guide/02.protocols/04.02.http/02.cache",
+                },
+                {
+                  text: 'cors',
+                  link: "/guide/02.protocols/04.02.http/03.cors",
                 }
               ],
             },
@@ -135,12 +139,6 @@ function createExamples() {
         {
           text: "概述",
           link: "/examples/",
-        },
-        {
-          text: "http",
-          items: [
-            { text: "cros", link: "/examples/http/cros/README.md" },
-          ],
         },
         {
           text: "JSONP",

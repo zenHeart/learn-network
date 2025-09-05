@@ -7,6 +7,6 @@
   },
   "eslint.workingDirectories": ["./"],
   "markdownlint.config": {
-    "default": true
+    "default": false
   }
 }

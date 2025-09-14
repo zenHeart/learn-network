@@ -85,6 +85,15 @@ function createGuide() {
                 {
                   text: 'cors',
                   link: "/guide/02.protocols/04.02.http/03.cors",
+                },
+                {
+                  text: 'proxy',
+                  items: [
+                    {
+                      text: 'pac',
+                      link: "/guide/02.protocols/04.02.http/05.proxy/02.pac.md",
+                    },
+                  ],
                 }
               ],
             },

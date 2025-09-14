@@ -15,8 +15,6 @@ permissions:
 
 # 环境变量
 env:
-  VITE_APP_TITLE: "旅行地图"
-  VITE_APP_DESCRIPTION: "我的旅行记录地图"
   VITE_BASE_URL: "/learn-network/"
 
 jobs:
@@ -68,7 +66,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: .vitepress/dist
 
   # 部署到 GitHub Pages
   deploy:

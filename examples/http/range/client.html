@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Range Header Example</title>
+  </head>
+  <body>
+    <h1>Range Header Example</h1>
+    <button id="fetch-range">Fetch Partial Content</button>
+    <button id="fetch-full">Fetch Full Content</button>
+    <pre id="output"></pre>
+
+    <script>
+      const output = document.getElementById("output");
+
+      document
+        .getElementById("fetch-range")
+        .addEventListener("click", async () => {
+          try {
+            const response = await fetch("http://localhost:3000", {
+              headers: { Range: "bytes=0-4" },
+            });
+            const text = await response.text();
+            output.textContent = `Status: ${response.status}\nContent: ${text}`;
+          } catch (error) {
+            output.textContent = `Error: ${error.message}`;
+          }
+        });
+
+      document
+        .getElementById("fetch-full")
+        .addEventListener("click", async () => {
+          try {
+            const response = await fetch("http://localhost:3000", {
+              headers: { Range: "bytes=0-" },
+            });
+            const text = await response.text();
+            output.textContent = `Status: ${response.status}\nContent: ${text}`;
+          } catch (error) {
+            output.textContent = `Error: ${error.message}`;
+          }
+        });
+    </script>
+  </body>
+</html>

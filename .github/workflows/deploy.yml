@@ -32,8 +32,12 @@ jobs:
         with:
           node-version: "18.20.4"
 
+      - name: Clean install cache
+        run: rm -rf node_modules package-lock.json
       - name: Install dependencies
         run: npm install --frozen-lockfile
+      - name: Rebuild rollup native deps
+        run: npm rebuild rollup || npm install @rollup/rollup-linux-x64-gnu --ignore-scripts --no-save
 
   # 构建项目
   build:
@@ -48,8 +52,12 @@ jobs:
         with:
           node-version: "18.20.4"
 
+      - name: Clean install cache
+        run: rm -rf node_modules package-lock.json
       - name: Install dependencies
         run: npm install --frozen-lockfile
+      - name: Rebuild rollup native deps
+        run: npm rebuild rollup || npm install @rollup/rollup-linux-x64-gnu --ignore-scripts --no-save
 
       - name: Build project
         env:

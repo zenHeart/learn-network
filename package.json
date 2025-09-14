@@ -4,8 +4,8 @@
   "description": "network ====",
   "scripts": {
     "start": "vitepress dev",
-    "docs:build": "vitepress build",
-    "docs:preview": "vitepress preview",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
     "pretls:handshake": "./examples/tsl/handshake/cert.sh &  sleep 2",
     "tls:handshake": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",
     "tls:handshake:v1.2": "lsof -ti:8443 | xargs kill -9 2>/dev/null || true && export TLS_VERSION=TLSv1.2 && node examples/tsl/handshake/server.js & sleep 2 && node examples/tsl/handshake/client.js",

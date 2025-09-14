@@ -138,6 +138,7 @@ function createGuide() {
         { text: "Wireshark", link: "/guide/05.tools/03.wireshark" },
         { text: "OpenSSL", link: "/guide/05.tools/04.openssl" },
         { text: "lsof", link: "/guide/05.tools/05.lsof" },
+        { text: "弱网测试", link: "/guide/05.tools/06.weaknet" },
         { text: "CheatSheet", link: "/guide/05.tools/cheatsheet" },
       ],
     },

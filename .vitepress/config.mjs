@@ -112,6 +112,8 @@ function createGuide() {
         items: [
           { text: "XMLHttpRequest", link: "/guide/03.agent/01.browser/01.XMLHttpRequest" },
           { text: "Fetch", link: "/guide/03.agent/01.browser/02.fetch" },
+          { text: "sendBeacon", link: "/guide/03.agent/01.browser/03.sendBeacon" },
+          { text: "SSE", link: "/guide/03.agent/01.browser/04.sse" },
         ]
       }]
     },
@@ -134,7 +136,9 @@ function createGuide() {
         { text: "PING", link: "/guide/05.tools/01.ping" },
         { text: "NAT Tap", link: "/guide/05.tools/02.nattap" },
         { text: "Wireshark", link: "/guide/05.tools/03.wireshark" },
-        { text: "OpenSSL", link: "/guide/05.tools/04.OpenSSL" },
+        { text: "OpenSSL", link: "/guide/05.tools/04.openssl" },
+        { text: "lsof", link: "/guide/05.tools/05.lsof" },
+        { text: "CheatSheet", link: "/guide/05.tools/cheatsheet" },
       ],
     },
     { text: "其他", link: "/guide/06.other/" },

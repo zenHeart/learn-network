@@ -2,9 +2,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 # 设置权限
@@ -30,10 +30,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "23"
+          node-version: "18.20.4"
 
       - name: Install dependencies
-        run: npm install
+        run: pnpm install
 
   # 构建项目
   build:
@@ -46,12 +46,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "23"
+          node-version: "18.20.4"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10.8.1
+          version: 9.12.3
 
       - name: Get pnpm store directory
         shell: bash
@@ -67,14 +67,14 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: npm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Build project
         env:
           VITE_AMAP_API_KEY: ${{ secrets.AMAP_API_KEY }}
           VITE_AMAP_SECURITY_JS_CODE: ${{ secrets.AMAP_SECURITY_JS_CODE }}
           VITE_BASE_URL: "/learn-network/"
-        run: npm build
+        run: pnpm run build
 
       - name: Copy content assets
         run: |
@@ -90,12 +90,12 @@ jobs:
 
   # 部署到 GitHub Pages
   deploy:
+    if: github.ref == 'refs/heads/master'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

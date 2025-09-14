@@ -65,18 +65,10 @@ jobs:
           VITE_AMAP_SECURITY_JS_CODE: ${{ secrets.AMAP_SECURITY_JS_CODE }}
           VITE_BASE_URL: "/learn-network/"
         run: npm run build
-
-      - name: Copy content assets
-        run: |
-          # 创建dist/content目录
-          mkdir -p dist/content
-          # 复制content目录中的所有图片文件到dist/content
-          find content -type f \( -name "*.jpg" -o -name "*.jpeg" -o -name "*.png" -o -name "*.gif" -o -name "*.webp" -o -name "*.svg" \) -exec cp --parents {} dist/ \;
-
       - name: Upload build artifacts
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist
+          path: ./vitepress/dist
 
   # 部署到 GitHub Pages
   deploy:

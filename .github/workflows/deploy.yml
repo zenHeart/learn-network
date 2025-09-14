@@ -33,7 +33,7 @@ jobs:
           node-version: "18.20.4"
 
       - name: Install dependencies
-        run: pnpm install
+        run: npm install --frozen-lockfile
 
   # 构建项目
   build:
@@ -48,33 +48,15 @@ jobs:
         with:
           node-version: "18.20.4"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.12.3
-
-      - name: Get pnpm store directory
-        shell: bash
-        run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: npm install --frozen-lockfile
 
       - name: Build project
         env:
           VITE_AMAP_API_KEY: ${{ secrets.AMAP_API_KEY }}
           VITE_AMAP_SECURITY_JS_CODE: ${{ secrets.AMAP_SECURITY_JS_CODE }}
           VITE_BASE_URL: "/learn-network/"
-        run: pnpm run build
+        run: npm run build
 
       - name: Copy content assets
         run: |

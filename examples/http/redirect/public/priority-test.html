@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>重定向优先级测试</title>
+    <!-- Meta Refresh 重定向 - 10秒后跳转 -->
+    <meta http-equiv="Refresh" content="10; URL=/target?from=meta-refresh">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 90vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        .priority-box {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        .p1 { border-left-color: #ff4444; }
+        .p2 { border-left-color: #ffaa00; }
+        .p3 { border-left-color: #00aa44; }
+        
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 1em;
+        }
+        button:hover { background: #45a049; }
+        .danger { background: #f44336; }
+        .danger:hover { background: #da190b; }
+        .warning { background: #ff9800; }
+        .warning:hover { background: #e68900; }
+        
+        .countdown {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffeb3b;
+        }
+        
+        .code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 重定向优先级测试</h1>
+        
+        <p>这个页面同时包含了三种重定向方式，用于测试它们的优先级：</p>
+        
+        <div class="priority-box p1">
+            <h3>🚨 1. HTTP 状态码重定向 (最高优先级)</h3>
+            <p>服务器端重定向，通过 HTTP 响应状态码实现</p>
+            <div class="code">
+                HTTP/1.1 302 Found<br>
+                Location: /target
+            </div>
+            <button onclick="testHttpRedirect()">测试 HTTP 302 重定向</button>
+            <button onclick="testHttpRedirect(301)">测试 HTTP 301 重定向</button>
+        </div>
+        
+        <div class="priority-box p2">
+            <h3>⏰ 2. Meta Refresh 重定向 (中等优先级)</h3>
+            <p>HTML Meta 标签重定向，当前页面设置了 10 秒后跳转</p>
+            <div class="code">
+                &lt;meta http-equiv="Refresh" content="10; URL=/target?from=meta-refresh"&gt;
+            </div>
+            <p>Meta Refresh 倒计时: <span class="countdown" id="metaCountdown">10</span> 秒</p>
+        </div>
+        
+        <div class="priority-box p3">
+            <h3>💻 3. JavaScript 重定向 (最低优先级)</h3>
+            <p>客户端脚本重定向，当前页面设置了 15 秒后跳转</p>
+            <div class="code">
+                setTimeout(() => {<br>
+                &nbsp;&nbsp;window.location.href = '/target?from=javascript';<br>
+                }, 15000);
+            </div>
+            <p>JavaScript 倒计时: <span class="countdown" id="jsCountdown">15</span> 秒</p>
+        </div>
+        
+        <div style="margin: 30px 0; text-align: center;">
+            <h3>🧪 优先级测试</h3>
+            <p>点击下面的按钮测试不同重定向方式的优先级：</p>
+            
+            <button onclick="testAllRedirects()">🚀 同时触发所有重定向</button>
+            <button class="warning" onclick="testJsOnly()">📝 仅 JavaScript 重定向</button>
+            <button class="danger" onclick="cancelAllRedirects()">❌ 取消所有重定向</button>
+        </div>
+        
+        <div class="priority-box">
+            <h3>📊 预期结果</h3>
+            <ol>
+                <li><strong>HTTP 状态码重定向</strong> 会立即生效，忽略其他重定向</li>
+                <li>如果没有 HTTP 重定向，<strong>Meta Refresh</strong> 会在 10 秒后生效</li>
+                <li>如果前两者都被取消，<strong>JavaScript</strong> 会在 15 秒后生效</li>
+            </ol>
+        </div>
+        
+        <div style="margin-top: 30px; font-size: 0.9em; opacity: 0.8;">
+            <p>💡 <strong>提示:</strong> 打开浏览器开发者工具的 Network 面板，观察不同重定向方式的网络请求。</p>
+        </div>
+    </div>
+
+    <script>
+        let metaCountdown = 10;
+        let jsCountdown = 15;
+        let metaCancelled = false;
+        let jsCancelled = false;
+        
+        // 更新倒计时显示
+        function updateCountdowns() {
+            if (!metaCancelled && metaCountdown > 0) {
+                document.getElementById('metaCountdown').textContent = metaCountdown;
+                metaCountdown--;
+            } else if (!metaCancelled && metaCountdown === 0) {
+                document.getElementById('metaCountdown').textContent = '即将跳转...';
+            }
+            
+            if (!jsCancelled && jsCountdown > 0) {
+                document.getElementById('jsCountdown').textContent = jsCountdown;
+                jsCountdown--;
+            } else if (!jsCancelled && jsCountdown === 0) {
+                document.getElementById('jsCountdown').textContent = '即将跳转...';
+            }
+        }
+        
+        // 启动倒计时
+        setInterval(updateCountdowns, 1000);
+        
+        // JavaScript 重定向 - 15秒后触发
+        setTimeout(() => {
+            if (!jsCancelled) {
+                console.log('JavaScript 重定向触发');
+                window.location.href = '/target?from=javascript&time=' + Date.now();
+            }
+        }, 15000);
+        
+        // 测试 HTTP 重定向
+        function testHttpRedirect(statusCode = 302) {
+            console.log(`测试 HTTP ${statusCode} 重定向`);
+            // 访问一个会返回 HTTP 重定向的端点
+            window.location.href = `/redirect/${statusCode}/get?test=priority`;
+        }
+        
+        // 同时触发所有重定向
+        function testAllRedirects() {
+            console.log('同时触发所有重定向方式');
+            alert('将同时触发 HTTP 重定向、Meta Refresh 和 JavaScript 重定向。HTTP 重定向应该会优先生效。');
+            
+            // 立即触发 HTTP 重定向
+            testHttpRedirect();
+        }
+        
+        // 仅测试 JavaScript 重定向
+        function testJsOnly() {
+            console.log('仅测试 JavaScript 重定向');
+            
+            // 取消 Meta Refresh
+            const metaRefresh = document.querySelector('meta[http-equiv="Refresh"]');
+            if (metaRefresh) {
+                metaRefresh.remove();
+                metaCancelled = true;
+                document.getElementById('metaCountdown').textContent = '已取消';
+            }
+            
+            // 立即触发 JavaScript 重定向
+            setTimeout(() => {
+                if (!jsCancelled) {
+                    window.location.href = '/target?from=javascript-only&time=' + Date.now();
+                }
+            }, 2000);
+            
+            alert('已取消 Meta Refresh，将在 2 秒后执行 JavaScript 重定向');
+        }
+        
+        // 取消所有重定向
+        function cancelAllRedirects() {
+            console.log('取消所有重定向');
+            
+            // 取消 Meta Refresh
+            const metaRefresh = document.querySelector('meta[http-equiv="Refresh"]');
+            if (metaRefresh) {
+                metaRefresh.remove();
+            }
+            
+            metaCancelled = true;
+            jsCancelled = true;
+            
+            document.getElementById('metaCountdown').textContent = '已取消';
+            document.getElementById('jsCountdown').textContent = '已取消';
+            
+            alert('所有自动重定向已取消');
+        }
+        
+        // 页面加载日志
+        console.log('重定向优先级测试页面已加载');
+        console.log('Meta Refresh:', document.querySelector('meta[http-equiv="Refresh"]'));
+        console.log('JavaScript 重定向将在 15 秒后触发');
+        
+        // 监听页面卸载事件
+        window.addEventListener('beforeunload', (event) => {
+            console.log('页面即将卸载 - 重定向生效');
+        });
+    </script>
+</body>
+</html>

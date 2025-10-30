@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript 重定向示例</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: linear-gradient(135deg, #ff7e5f 0%, #feb47b 100%);
+            color: #333;
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .method-section {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007acc;
+        }
+        .countdown {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #e91e63;
+            margin: 15px 0;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #005fa3;
+        }
+        .danger {
+            background: #dc3545;
+        }
+        .danger:hover {
+            background: #c82333;
+        }
+        .success {
+            background: #28a745;
+        }
+        .success:hover {
+            background: #218838;
+        }
+        .warning {
+            background: #ffc107;
+            color: #333;
+        }
+        .warning:hover {
+            background: #e0a800;
+        }
+        .code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        .progress {
+            height: 100%;
+            background: linear-gradient(45deg, #007acc, #0056b3);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 JavaScript 重定向示例</h1>
+        
+        <div class="method-section">
+            <h2>📚 JavaScript 重定向的三种方法</h2>
+            
+            <h3>1. window.location.href (推荐)</h3>
+            <div class="code">window.location.href = "http://example.com/";</div>
+            <p>✅ 最常用的方法，会在浏览器历史中添加记录</p>
+            
+            <h3>2. window.location.replace()</h3>
+            <div class="code">window.location.replace("http://example.com/");</div>
+            <p>🔄 替换当前页面，不会在历史记录中留下当前页面</p>
+            
+            <h3>3. window.location.assign()</h3>
+            <div class="code">window.location.assign("http://example.com/");</div>
+            <p>📝 类似于 href，但更明确地表示要导航到新页面</p>
+        </div>
+
+        <div class="method-section">
+            <h2>⏱️ 自动重定向测试</h2>
+            <p>页面将在 <span class="countdown" id="countdown">10</span> 秒后使用 <span id="currentMethod">window.location.href</span> 自动跳转</p>
+            
+            <div class="progress-bar">
+                <div class="progress" id="progress"></div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <button class="success" onclick="skipRedirect()">⚡ 立即跳转 (href)</button>
+                <button class="warning" onclick="replaceRedirect()">🔄 替换跳转 (replace)</button>
+                <button class="success" onclick="assignRedirect()">📝 分配跳转 (assign)</button>
+                <button class="danger" onclick="cancelRedirect()">❌ 取消跳转</button>
+            </div>
+        </div>
+
+        <div class="method-section">
+            <h2>🎯 各种重定向方法测试</h2>
+            
+            <button onclick="testHref()">测试 location.href</button>
+            <button onclick="testReplace()">测试 location.replace</button>
+            <button onclick="testAssign()">测试 location.assign</button>
+            <button onclick="testWindowOpen()">测试 window.open (新窗口)</button>
+            
+            <h3>延时重定向测试:</h3>
+            <button onclick="delayedRedirect(3, 'href')">3秒后 href 跳转</button>
+            <button onclick="delayedRedirect(5, 'replace')">5秒后 replace 跳转</button>
+            <button onclick="delayedRedirect(2, 'assign')">2秒后 assign 跳转</button>
+        </div>
+
+        <div class="method-section">
+            <h2>📊 方法对比</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: #e9ecef;">
+                    <th style="padding: 10px; border: 1px solid #ddd;">方法</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">历史记录</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">后退按钮</th>
+                    <th style="padding: 10px; border: 1px solid #ddd;">使用场景</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>location.href</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">✅ 添加</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">✅ 可返回</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">常规页面跳转</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>location.replace</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">❌ 替换</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">❌ 不可返回</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">登录后跳转</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><code>location.assign</code></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">✅ 添加</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">✅ 可返回</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">编程式导航</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="method-section">
+            <h2>🔗 重定向优先级</h2>
+            <ol>
+                <li><strong>HTTP 状态码重定向</strong> (301, 302, 303, 307, 308) - 服务器端，最高优先级</li>
+                <li><strong>Meta Refresh 重定向</strong> - HTML 标签，中等优先级</li>
+                <li><strong>JavaScript 重定向</strong> - 客户端脚本，最低优先级</li>
+            </ol>
+            <p><strong>注意:</strong> 如果多种重定向方式同时存在，HTTP 状态码重定向会覆盖其他方式。</p>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 10;
+        let interval;
+        let cancelled = false;
+        let currentMethod = 'href';
+
+        function updateCountdown() {
+            const countdownElement = document.getElementById('countdown');
+            const progressElement = document.getElementById('progress');
+            const methodElement = document.getElementById('currentMethod');
+            
+            if (cancelled) return;
+            
+            countdownElement.textContent = countdown;
+            methodElement.textContent = `window.location.${currentMethod}`;
+            progressElement.style.width = ((10 - countdown) / 10 * 100) + '%';
+            
+            if (countdown <= 0) {
+                clearInterval(interval);
+                executeRedirect(currentMethod);
+                return;
+            }
+            
+            countdown--;
+        }
+
+        function executeRedirect(method) {
+            console.log(`执行重定向: window.location.${method}`);
+            
+            switch(method) {
+                case 'href':
+                    window.location.href = '/target';
+                    break;
+                case 'replace':
+                    window.location.replace('/target');
+                    break;
+                case 'assign':
+                    window.location.assign('/target');
+                    break;
+            }
+        }
+
+        function startCountdown() {
+            interval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+        }
+
+        function skipRedirect() {
+            clearInterval(interval);
+            executeRedirect('href');
+        }
+
+        function replaceRedirect() {
+            clearInterval(interval);
+            executeRedirect('replace');
+        }
+
+        function assignRedirect() {
+            clearInterval(interval);
+            executeRedirect('assign');
+        }
+
+        function cancelRedirect() {
+            cancelled = true;
+            clearInterval(interval);
+            document.getElementById('countdown').textContent = '已取消';
+            document.getElementById('progress').style.width = '0%';
+            document.getElementById('progress').style.background = '#dc3545';
+        }
+
+        // 各种测试方法
+        function testHref() {
+            console.log('测试 window.location.href');
+            if (confirm('确定要跳转吗？(使用 location.href)')) {
+                window.location.href = '/target';
+            }
+        }
+
+        function testReplace() {
+            console.log('测试 window.location.replace');
+            if (confirm('确定要跳转吗？(使用 location.replace，无法后退)')) {
+                window.location.replace('/target');
+            }
+        }
+
+        function testAssign() {
+            console.log('测试 window.location.assign');
+            if (confirm('确定要跳转吗？(使用 location.assign)')) {
+                window.location.assign('/target');
+            }
+        }
+
+        function testWindowOpen() {
+            console.log('测试 window.open');
+            window.open('/target', '_blank');
+        }
+
+        function delayedRedirect(seconds, method) {
+            console.log(`${seconds}秒后使用 ${method} 方法跳转`);
+            setTimeout(() => {
+                executeRedirect(method);
+            }, seconds * 1000);
+            
+            alert(`将在 ${seconds} 秒后使用 ${method} 方法跳转到目标页面`);
+        }
+
+        // 页面加载时开始倒计时
+        startCountdown();
+
+        // 日志记录
+        console.log('JavaScript 重定向页面已加载');
+        console.log('支持的重定向方法:', ['href', 'replace', 'assign']);
+        
+        // 展示当前页面信息
+        console.log('当前页面 URL:', window.location.href);
+        console.log('页面协议:', window.location.protocol);
+        console.log('页面主机:', window.location.host);
+        console.log('页面路径:', window.location.pathname);
+    </script>
+</body>
+</html>

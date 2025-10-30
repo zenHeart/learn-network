@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meta Refresh 重定向示例</title>
+    <!-- Meta refresh 重定向，5秒后跳转 -->
+    <meta http-equiv="Refresh" content="5; URL=/target">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 40px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        .countdown {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ffeb3b;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress {
+            height: 100%;
+            background: linear-gradient(45deg, #4caf50, #8bc34a);
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 1em;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .cancel {
+            background: #f44336;
+        }
+        .cancel:hover {
+            background: #da190b;
+        }
+        .info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Meta Refresh 重定向示例</h1>
+        
+        <div class="info">
+            <h3>📝 知识点说明:</h3>
+            <p><strong>Meta Refresh 重定向</strong>是通过 HTML 的 &lt;meta&gt; 标签实现的客户端重定向</p>
+            <p><strong>语法:</strong> <code>&lt;meta http-equiv="Refresh" content="秒数; URL=目标地址"&gt;</code></p>
+            <p><strong>特点:</strong></p>
+            <ul>
+                <li>客户端重定向，在浏览器端执行</li>
+                <li>优先级低于 HTTP 状态码重定向</li>
+                <li>支持延时跳转，用户体验较好</li>
+                <li>SEO 友好性一般</li>
+            </ul>
+        </div>
+        
+        <p>页面将在 <span class="countdown" id="countdown">5</span> 秒后自动跳转到目标页面</p>
+        
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+        
+        <div class="controls">
+            <button onclick="skipRedirect()">🚀 立即跳转</button>
+            <button class="cancel" onclick="cancelRedirect()">❌ 取消跳转</button>
+            <button onclick="restartCountdown()">🔄 重新开始</button>
+        </div>
+        
+        <div class="info">
+            <h3>🔗 优先级对比:</h3>
+            <p>1. <strong>HTTP 状态码重定向</strong> (最高优先级)</p>
+            <p>2. <strong>Meta Refresh 重定向</strong> (中等优先级)</p>
+            <p>3. <strong>JavaScript 重定向</strong> (最低优先级)</p>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 5;
+        let interval;
+        let cancelled = false;
+
+        function updateCountdown() {
+            const countdownElement = document.getElementById('countdown');
+            const progressElement = document.getElementById('progress');
+            
+            if (cancelled) return;
+            
+            countdownElement.textContent = countdown;
+            progressElement.style.width = ((5 - countdown) / 5 * 100) + '%';
+            
+            if (countdown <= 0) {
+                clearInterval(interval);
+                window.location.href = '/target';
+                return;
+            }
+            
+            countdown--;
+        }
+
+        function startCountdown() {
+            interval = setInterval(updateCountdown, 1000);
+            updateCountdown();
+        }
+
+        function skipRedirect() {
+            clearInterval(interval);
+            window.location.href = '/target';
+        }
+
+        function cancelRedirect() {
+            cancelled = true;
+            clearInterval(interval);
+            document.getElementById('countdown').textContent = '已取消';
+            document.getElementById('progress').style.width = '0%';
+            document.getElementById('progress').style.background = '#f44336';
+            
+            // 移除 meta refresh 标签
+            const metaRefresh = document.querySelector('meta[http-equiv="Refresh"]');
+            if (metaRefresh) {
+                metaRefresh.remove();
+            }
+        }
+
+        function restartCountdown() {
+            cancelled = false;
+            countdown = 5;
+            clearInterval(interval);
+            document.getElementById('progress').style.background = 'linear-gradient(45deg, #4caf50, #8bc34a)';
+            
+            // 重新添加 meta refresh 标签
+            const metaRefresh = document.createElement('meta');
+            metaRefresh.setAttribute('http-equiv', 'Refresh');
+            metaRefresh.setAttribute('content', '5; URL=/target');
+            document.head.appendChild(metaRefresh);
+            
+            startCountdown();
+        }
+
+        // 页面加载时开始倒计时
+        startCountdown();
+
+        // 日志记录
+        console.log('Meta Refresh 重定向页面已加载');
+        console.log('Meta 标签内容:', document.querySelector('meta[http-equiv="Refresh"]').getAttribute('content'));
+    </script>
+</body>
+</html>

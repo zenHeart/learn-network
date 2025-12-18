@@ -1,0 +1,17 @@
+{
+  "name": "node",
+  "version": "1.0.0",
+  "main": "request.js",
+  "scripts": {
+    "ga": "GLOBAL_AGENT_HTTP_PROXY=http://127.0.0.1:8888 node -r global-agent/bootstrap ./request.js",
+    "ga:off": "node ./request.js",
+    "bp": "HTTPS_PROXY=http://127.0.0.1:8888 node --use-env-proxy  ./request.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "global-agent": "^3.0.0"
+  }
+}

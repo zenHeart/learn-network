@@ -107,15 +107,24 @@ function createGuide() {
     },
     {
       text: "宿主环境",
-      items: [{
-        text: "浏览器",
-        items: [
-          { text: "XMLHttpRequest", link: "/guide/03.agent/01.browser/01.XMLHttpRequest" },
-          { text: "Fetch", link: "/guide/03.agent/01.browser/02.fetch" },
-          { text: "sendBeacon", link: "/guide/03.agent/01.browser/03.sendBeacon" },
-          { text: "SSE", link: "/guide/03.agent/01.browser/04.sse" },
-        ]
-      }]
+      items: [
+        {
+          text: "浏览器",
+          items: [
+            { text: "XMLHttpRequest", link: "/guide/03.agent/01.browser/01.XMLHttpRequest" },
+            { text: "Fetch", link: "/guide/03.agent/01.browser/02.fetch" },
+            { text: "sendBeacon", link: "/guide/03.agent/01.browser/03.sendBeacon" },
+            { text: "SSE", link: "/guide/03.agent/01.browser/04.sse" },
+          ]
+        },
+        {
+          text: "node",
+          items: [
+            { text: "http", link: "/guide/03.agent/02.node/01.http" },
+            { text: "https", link: "/guide/03.agent/02.node/02.https" },
+          ]
+        }
+      ]
     },
     {
       text: "安全",
@@ -139,10 +148,13 @@ function createGuide() {
         { text: "OpenSSL", link: "/guide/05.tools/04.openssl" },
         { text: "lsof", link: "/guide/05.tools/05.lsof" },
         { text: "弱网测试", link: "/guide/05.tools/06.weaknet" },
+        { text: "charles", link: "/guide/05.tools/07.charles" },
+        { text: "fiddler", link: "/guide/05.tools/08.fiddler" },
+        { text: "postman", link: "/guide/05.tools/09.postman" },
         { text: "CheatSheet", link: "/guide/05.tools/cheatsheet" },
       ],
     },
-    { text: "其他", link: "/guide/06.other/" },
+    { text: "实战", items: [{ text: "抓包", link: "/guide/06.practice/00.sniff" }] },
   ];
 }
 

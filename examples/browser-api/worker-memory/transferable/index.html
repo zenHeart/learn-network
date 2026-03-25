@@ -172,14 +172,14 @@
       let currentBuffer = null;
 
       function testNormalPostMessage() {
-        // 创建普通数组（会被拷贝）
+        // 创建普通数组（会被结构化克隆算法拷贝）
         const data = new Array(12.5 * 1024 * 1024); // 模拟 100MB (8 bytes * 12.5M ≈ 100MB)
         data.fill(1);
 
         appendResult('copyResult', '正在传递 100MB 数组（触发拷贝）...');
 
         const w = getWorker();
-        w.postMessage({ type: 'normal-copy', data }, [data]); // 注意：这里传了 transfer 但 data 不是 Transferable
+        w.postMessage({ type: 'normal-copy', data }); // 普通对象被拷贝传递
       }
 
       function testTransferable() {

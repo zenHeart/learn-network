@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fetch Cache Mode 交互演示</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --border: #1e1e2e;
+      --text: #e0e0e0;
+      --text-dim: #8888a0;
+      --accent: #6c63ff;
+      --accent-dim: #3d3a6b;
+      --green: #4ade80;
+      --orange: #fb923c;
+      --red: #f87171;
+      --blue: #60a5fa;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.85rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Tab Navigation */
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 0.5rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      border-color: var(--accent-dim);
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Tab Panels */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title .badge {
+      font-size: 0.65rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      background: var(--accent-dim);
+      color: #a78bfa;
+      font-weight: 400;
+    }
+
+    /* Info Grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .info-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .info-item .label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.25rem;
+    }
+
+    .info-item .value {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      border: none;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      opacity: 0.85;
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    /* Code Blocks */
+    .code-block {
+      background: #0d0d14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.8rem;
+      overflow-x: auto;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .code-block .comment { color: #6a737d; }
+    .code-block .keyword { color: #ff7b72; }
+    .code-block .string { color: #a5d6ff; }
+    .code-block .function { color: #d2a8ff; }
+    .code-block .variable { color: #ffa657; }
+
+    /* Result Display */
+    .result-box {
+      background: #0d0d14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      min-height: 100px;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+
+    .result-box .meta {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .result-box .status-net { color: var(--green); }
+    .result-box .status-cache { color: var(--orange); }
+    .result-box .status-error { color: var(--red); }
+
+    /* Comparison Table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+
+    .compare-table th {
+      background: var(--surface);
+      color: var(--text-dim);
+      font-weight: 500;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    .compare-table td {
+      color: var(--text);
+    }
+
+    .compare-table .check { color: var(--green); }
+    .compare-table .cross { color: var(--red); }
+
+    /* Mode Selector */
+    .mode-selector {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .mode-option {
+      padding: 0.4rem 0.8rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: inherit;
+      color: var(--text-dim);
+      transition: all 0.2s;
+    }
+
+    .mode-option:hover {
+      border-color: var(--accent-dim);
+    }
+
+    .mode-option.selected {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* Log */
+    .log-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .log-item {
+      padding: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.75rem;
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    .log-mode {
+      background: var(--accent-dim);
+      color: #a78bfa;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .log-status {
+      white-space: nowrap;
+    }
+
+    .log-status.success { color: var(--green); }
+    .log-status.cache { color: var(--orange); }
+    .log-status.error { color: var(--red); }
+
+    /* Mini Demo Buttons */
+    .demo-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .small-btn {
+      padding: 0.35rem 0.7rem;
+      font-size: 0.7rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+
+    .small-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    .small-btn.cache-btn { border-color: var(--orange); color: var(--orange); }
+    .small-btn.cache-btn:hover { background: rgba(251, 146, 60, 0.15); }
+
+    /* FAQ */
+    .faq-item {
+      margin-bottom: 1.5rem;
+    }
+
+    .faq-q {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .faq-a {
+      font-size: 0.82rem;
+      line-height: 1.7;
+      color: var(--text-dim);
+    }
+
+    .faq-a code {
+      background: var(--accent-dim);
+      padding: 0.1rem 0.3rem;
+      border-radius: 3px;
+      color: #a78bfa;
+      font-size: 0.78rem;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Fetch Cache Mode 交互演示</h1>
+<p class="subtitle">理解 fetch API 六种缓存模式的行为差异</p>
+
+<!-- Tab Navigation -->
+<div class="tabs">
+  <button class="tab-btn active" data-tab="demo">缓存行为演示</button>
+  <button class="tab-btn" data-tab="compare">模式对比表</button>
+  <button class="tab-btn" data-tab="code">代码示例</button>
+  <button class="tab-btn" data-tab="faq">常见问题</button>
+</div>
+
+<!-- Tab: Demo -->
+<div class="tab-content active" id="tab-demo">
+  <div class="card">
+    <div class="card-title">
+      <span>🎯 选择 Cache Mode</span>
+      <span class="badge">点击切换</span>
+    </div>
+    <div class="mode-selector">
+      <button class="mode-option" data-mode="default">default</button>
+      <button class="mode-option selected" data-mode="no-store">no-store</button>
+      <button class="mode-option" data-mode="reload">reload</button>
+      <button class="mode-option" data-mode="no-cache">no-cache</button>
+      <button class="mode-option" data-mode="force-cache">force-cache</button>
+      <button class="mode-option" data-mode="only-if-cached">only-if-cached</button>
+    </div>
+
+    <div class="card-title">📡 发送请求</div>
+    <div class="demo-actions">
+      <button class="btn" id="btn-fetch">发起 fetch 请求</button>
+      <button class="small-btn cache-btn" id="btn-verify-cache">检查缓存状态</button>
+      <button class="small-btn" id="btn-clear-log">清空日志</button>
+    </div>
+
+    <div id="mode-description" style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem; padding: 0.75rem; background: var(--surface); border-radius: 6px; border-left: 3px solid var(--accent);">
+      <strong style="color: var(--accent)">no-store</strong> — 完全忽略缓存，不检查不存储。每次都发真实网络请求。
+    </div>
+
+    <div class="card-title">📋 请求日志</div>
+    <div class="result-box log-list" id="request-log">
+      <div style="color: var(--text-dim); text-align: center; padding: 2rem;">
+        点击「发起 fetch 请求」观察不同 cache 模式的行为差异
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔍 模拟 HTTP 缓存状态</div>
+    <div class="info-grid">
+      <div class="info-item">
+        <div class="label">缓存 Key</div>
+        <div class="value" id="cache-key">—</div>
+      </div>
+      <div class="info-item">
+        <div class="label">缓存状态</div>
+        <div class="value" id="cache-status">—</div>
+      </div>
+      <div class="info-item">
+        <div class="label">请求数量</div>
+        <div class="value" id="request-count">0</div>
+      </div>
+      <div class="info-item">
+        <div class="label">304 响应数</div>
+        <div class="value" id="not-modified-count">0</div>
+      </div>
+    </div>
+    <p style="font-size: 0.75rem; color: var(--text-dim); line-height: 1.6;">
+      注：本演示使用内存模拟 HTTP 缓存。在真实浏览器中，缓存状态由 DevTools Network 面板查看。
+      点击「no-cache」后立即点击「force-cache」，可观察后者跳过验证直接返回缓存的行为。
+    </p>
+  </div>
+</div>
+
+<!-- Tab: Compare -->
+<div class="tab-content" id="tab-compare">
+  <div class="card">
+    <div class="card-title">📊 Cache Mode 对比表</div>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Mode</th>
+          <th>检查缓存</th>
+          <th>发送验证</th>
+          <th>存储响应</th>
+          <th>缓存未命中</th>
+          <th>典型场景</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>default</code></td>
+          <td class="check">✅</td>
+          <td class="check">✅ 按 HTTP 规则</td>
+          <td class="check">✅</td>
+          <td>发请求</td>
+          <td>普通 API 请求</td>
+        </tr>
+        <tr>
+          <td><code>no-store</code></td>
+          <td class="cross">❌</td>
+          <td class="cross">❌</td>
+          <td class="cross">❌</td>
+          <td>发请求</td>
+          <td>实时数据、敏感信息</td>
+        </tr>
+        <tr>
+          <td><code>reload</code></td>
+          <td class="cross">❌</td>
+          <td class="cross">❌</td>
+          <td class="check">✅</td>
+          <td>发请求</td>
+          <td>强制刷新资源</td>
+        </tr>
+        <tr>
+          <td><code>no-cache</code></td>
+          <td class="cross">❌ 跳过</td>
+          <td class="check">✅ 强制</td>
+          <td class="check">✅</td>
+          <td>发请求</td>
+          <td>CDN 缓存但需验证</td>
+        </tr>
+        <tr>
+          <td><code>force-cache</code></td>
+          <td class="check">✅</td>
+          <td class="cross">❌ 不验证</td>
+          <td class="check">✅</td>
+          <td>发请求</td>
+          <td>离线优先、不在意过时</td>
+        </tr>
+        <tr>
+          <td><code>only-if-cached</code></td>
+          <td class="check">✅</td>
+          <td class="cross">❌</td>
+          <td class="cross">❌</td>
+          <td class="cross">❌ 返回错误</td>
+          <td>Service Worker 离线策略</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">💡 关键区别速记</div>
+    <div class="info-grid">
+      <div class="info-item" style="border-left: 3px solid var(--orange);">
+        <div class="label">no-cache vs no-store</div>
+        <div class="value">no-cache = 用缓存但每次验证<br>no-store = 完全不看也不存</div>
+      </div>
+      <div class="info-item" style="border-left: 3px solid var(--red);">
+        <div class="label">force-cache 风险</div>
+        <div class="value">缓存命中但过期时，直接返回缓存<br><strong>不会</strong>向服务器验证 — 可能返回过期数据</div>
+      </div>
+      <div class="info-item" style="border-left: 3px solid var(--blue);">
+        <div class="label">only-if-cached</div>
+        <div class="value">必须配合 <code>mode: 'same-origin'</code><br>未命中时返回网络错误而非请求</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: Code -->
+<div class="tab-content" id="tab-code">
+  <div class="card">
+    <div class="card-title">🖥️ 基础代码示例</div>
+    <div class="code-block">
+<span class="comment">// 1. default — 遵循 HTTP 缓存规则</span>
+<span class="keyword">const</span> r1 = <span class="keyword">await</span> fetch(<span class="string">'/api/data'</span>)
+
+<span class="comment">// 2. no-store — 完全不碰缓存（实时数据）</span>
+<span class="keyword">const</span> r2 = <span class="keyword">await</span> fetch(<span class="string">'/api/stock'</span>, {
+  cache: <span class="string">'no-store'</span>
+})
+
+<span class="comment">// 3. no-cache — 每次都验证缓存有效性</span>
+<span class="keyword">const</span> r3 = <span class="keyword">await</span> fetch(<span class="string">'/api/config'</span>, {
+  cache: <span class="string">'no-cache'</span>
+})
+
+<span class="comment">// 4. force-cache — 有缓存就用，没有才请求</span>
+<span class="keyword">const</span> r4 = <span class="keyword">await</span> fetch(<span class="string">'/static/app.js'</span>, {
+  cache: <span class="string">'force-cache'</span>
+})
+
+<span class="comment">// 5. only-if-cached — 只用缓存（离线场景）</span>
+<span class="keyword">try</span> {
+  <span class="keyword">const</span> r5 = <span class="keyword">await</span> fetch(<span class="string">'/api/data'</span>, {
+    cache: <span class="string">'only-if-cached'</span>,
+    mode: <span class="string">'same-origin'</span>
+  })
+} <span class="keyword">catch</span> (e) {
+  console.log(<span class="string">'离线且无缓存'</span>)
+}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🛠️ Service Worker 中的缓存策略</div>
+    <div class="code-block">
+<span class="comment">// sw.js — 典型缓存策略组合</span>
+self.addEventListener(<span class="string">'fetch'</span>, (event) => {
+  <span class="keyword">const</span> url = <span class="keyword">new</span> URL(event.request.url)
+
+  <span class="comment">// API 请求：网络优先，失败时 fallback 到缓存</span>
+  <span class="keyword">if</span> (url.pathname.startsWith(<span class="string">'/api/'</span>)) {
+    event.respondWith(
+      fetch(event.request, { cache: <span class="string">'no-store'</span> })
+        .catch(() => caches.match(event.request))
+    )
+  }
+
+  <span class="comment">// 静态资源：缓存优先，验证更新（Stale-While-Revalidate）</span>
+  <span class="keyword">if</span> (url.pathname.startsWith(<span class="string">'/static/'</span>)) {
+    event.respondWith(
+      caches.match(event.request).then(cached =>
+        fetch(event.request, { cache: <span class="string">'no-cache'</span> }).then(response => {
+          <span class="keyword">if</span> (response.ok) {
+            caches.open(<span class="string">'static-v1'</span>)
+              .then(cache => cache.put(event.request, response.clone()))
+          }
+          <span class="keyword">return</span> cached || response
+        })
+      )
+    )
+  }
+})
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🌐 模拟服务端条件请求（Node.js）</div>
+    <div class="code-block">
+<span class="keyword">const</span> http = require(<span class="string">'http'</span>)
+<span class="keyword">const</span> server = http.createServer((req, res) => {
+  <span class="keyword">const</span> ifNoneMatch = req.headers[<span class="string">'if-none-match'</span>]
+  <span class="keyword">const</span> etag = <span class="string">'"v2-'</span> + Date.now() + <span class="string">'"'</span>
+
+  <span class="comment">// 当客户端带 ETag 发来 no-cache 请求时</span>
+  <span class="keyword">if</span> (ifNoneMatch === etag) {
+    res.writeHead(<span class="string">304</span>, { <span class="string">'ETag'</span>: etag })
+    res.end()  <span class="comment">// 告诉客户端用缓存</span>
+  } <span class="keyword">else</span> {
+    res.writeHead(<span class="string">200</span>, {
+      <span class="string">'Content-Type'</span>: <span class="string">'application/json'</span>,
+      <span class="string">'ETag'</span>: etag,
+      <span class="string">'Cache-Control'</span>: <span class="string">'max-age=3600'</span>
+    })
+    res.end(JSON.stringify({ <span class="string">data</span>: <span class="string">'new content'</span> }))
+  }
+})
+server.listen(<span class="string">3000</span>)
+    </div>
+  </div>
+</div>
+
+<!-- Tab: FAQ -->
+<div class="tab-content" id="tab-faq">
+  <div class="card">
+    <div class="card-title">❓ 常见问题解答</div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: fetch 默认会先检查缓存吗？</div>
+      <div class="faq-a">
+        <strong>不会。</strong> 默认 <code>cache: 'default'</code> 对于普通脚本中的 fetch 请求，<strong>不会先查缓存</strong>，直接发网络请求。
+        只有导航请求（地址栏回车）或请求带条件头（<code>If-None-Match</code>）时，才会利用 HTTP 缓存。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: 如何让 fetch 先检查缓存，没有再发请求？</div>
+      <div class="faq-a">
+        目前 fetch API <strong>没有</strong> "先检查，发现过期才请求" 的单一选项。
+        <code>force-cache</code> 会优先用缓存（但不验证是否过期）。
+        要实现"缓存优先，过期再请求"，需要配合 <strong>Cache API</strong> 或 <strong>Service Worker</strong>。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: no-cache 和 no-store 到底有什么区别？</div>
+      <div class="faq-a">
+        <code>no-cache</code>：请求时强制发验证（带 <code>If-None-Match</code>），如果服务器返回 304 就用缓存。
+        <code>no-store</code>：完全不看缓存、不存缓存，每次都是全新请求。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: force-cache 会返回过期数据吗？</div>
+      <div class="faq-a">
+        <strong>会。</strong> 当缓存命中但不新鲜（过期）时，<code>force-cache</code> <strong>直接返回缓存</strong>，
+        不会向服务器验证。如果你的数据频繁变化，用 <code>force-cache</code> 可能导致用户看到过期内容。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: only-if-cached 有什么用？</div>
+      <div class="faq-a">
+        主要在 <strong>Service Worker</strong> 中实现<strong>离线优先</strong>策略。
+        当用户离线时，用 <code>only-if-cached</code> 可以避免发起真实网络请求，
+        直接从缓存返回数据，未命中则返回网络错误。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: POST 请求会被缓存吗？</div>
+      <div class="faq-a">
+        默认<strong>不会</strong>。HTTP 规范不建议缓存 POST 请求。
+        如果需要手动缓存 POST 响应，可以通过 <strong>Cache API</strong> 或在 <strong>Service Worker</strong> 中拦截并存储。
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">Q: fetch 的 cache 选项和 HTTP 缓存是一回事吗？</div>
+      <div class="faq-a">
+        不是完全相同。<strong>HTTP 缓存</strong>：浏览器对 HTTP 响应的存储，受 <code>Cache-Control</code>、<code>ETag</code> 等 HTTP 头控制。
+        <strong>fetch cache 选项</strong>：控制 fetch 请求如何与 HTTP 缓存交互。两层层叠，共同决定最终行为。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Tab Navigation ──────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'))
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
+      btn.classList.add('active')
+      document.getElementById('tab-' + btn.dataset.tab).classList.add('active')
+    })
+  })
+
+  // ── Mode Selector ───────────────────────────────────────
+  const modeDescriptions = {
+    'default':     '<strong style="color: var(--accent)">default</strong> — 遵循 HTTP 缓存规则。有新鲜缓存直接返回，过期则发验证请求。',
+    'no-store':    '<strong style="color: var(--accent)">no-store</strong> — 完全忽略缓存，不检查不存储。每次都发真实网络请求。',
+    'reload':      '<strong style="color: var(--accent)">reload</strong> — 跳过缓存检查直接请求，但响应会更新缓存。常用于强制刷新。',
+    'no-cache':    '<strong style="color: var(--accent)">no-cache</strong> — 强制添加 <code>If-None-Match</code> 验证头。304 时用缓存，200 时用新数据并更新缓存。',
+    'force-cache': '<strong style="color: var(--accent)">force-cache</strong> — 有缓存就用缓存（即使过期也不验证）。无缓存才发请求。<strong style="color: var(--orange)">⚠️ 可能返回过期数据</strong>',
+    'only-if-cached': '<strong style="color: var(--accent)">only-if-cached</strong> — 只从缓存返回。未命中返回网络错误。<strong style="color: var(--blue)">⚠️ 需配合 mode: same-origin</strong>',
+  }
+
+  document.querySelectorAll('.mode-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-option').forEach(b => b.classList.remove('selected'))
+      btn.classList.add('selected')
+      document.getElementById('mode-description').innerHTML = modeDescriptions[btn.dataset.mode]
+    })
+  })
+
+  // ── Demo State ──────────────────────────────────────────
+  let requestCount = 0
+  let notModifiedCount = 0
+
+  // Simulate HTTP cache
+  const simulatedCache = new Map()
+  const DEMO_URL = '/api/demo-data'
+
+  function simulateCacheCheck(mode) {
+    const entry = simulatedCache.get(DEMO_URL)
+    if (!entry) return { hit: false, fresh: false }
+
+    const now = Date.now()
+    const age = now - entry.timestamp
+    const maxAge = (entry.headers['cache-control'] || 'max-age=0').match(/max-age=(\d+)/)?.[1] || 0
+    const fresh = age < (maxAge * 1000)
+
+    switch (mode) {
+      case 'default':     return { hit: true, fresh }
+      case 'force-cache': return { hit: true, fresh: true } // 强制认为新鲜，不验证
+      case 'only-if-cached': return { hit: true, fresh: true }
+      case 'no-store':    return { hit: false, fresh: false }
+      case 'reload':      return { hit: false, fresh: false }
+      case 'no-cache':    return { hit: true, fresh: false } // no-cache 跳过检查直接发验证
+      default:            return { hit: false, fresh: false }
+    }
+  }
+
+  function addLog(mode, result) {
+    const log = document.getElementById('request-log')
+    if (log.querySelector('div[style*="center"]')) {
+      log.innerHTML = ''
+    }
+
+    const time = new Date().toLocaleTimeString('zh-CN', { hour12: false })
+    const statusClass = result.type === 'net' ? 'success' : result.type === 'cache' ? 'cache' : 'error'
+    const modeLabel = mode === 'only-if-cached' ? 'only-if-cached' : mode
+
+    const item = document.createElement('div')
+    item.className = 'log-item'
+    item.innerHTML = `
+      <span class="log-time">${time}</span>
+      <span class="log-mode">${modeLabel}</span>
+      <span class="log-status ${statusClass}">${result.message}</span>
+    `
+    log.insertBefore(item, log.firstChild)
+  }
+
+  document.getElementById('btn-fetch').addEventListener('click', async () => {
+    const mode = document.querySelector('.mode-option.selected').dataset.mode
+    requestCount++
+    document.getElementById('request-count').textContent = requestCount
+
+    const check = simulateCacheCheck(mode)
+    document.getElementById('cache-key').textContent = DEMO_URL
+    document.getElementById('cache-status').textContent = check.hit
+      ? (check.fresh ? '✅ 命中（新鲜）' : '⚠️ 命中（过期）')
+      : '❌ 未命中'
+
+    // Simulate network behavior based on mode
+    let result
+    switch (mode) {
+      case 'force-cache':
+        if (check.hit) {
+          result = { type: 'cache', message: `200 (缓存${check.fresh ? '新鲜' : '（已过期）'}) — ${check.fresh ? '直接返回' : '⚠️ 未验证直接返回过期缓存'}` }
+          simulatedCache.set(DEMO_URL, {
+            data: JSON.stringify({ from: 'cache', time: Date.now() }),
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=5' },
+            timestamp: Date.now() - 10000 // make it stale
+          })
+        } else {
+          result = { type: 'net', message: '200 (无缓存，发真实请求)' }
+        }
+        break
+
+      case 'no-cache':
+        if (check.hit) {
+          result = { type: 'net', message: '304 Not Modified ← 用了缓存（no-cache 强制验证，命中）' }
+          notModifiedCount++
+          document.getElementById('not-modified-count').textContent = notModifiedCount
+        } else {
+          result = { type: 'net', message: '200 (无缓存，发真实请求)' }
+        }
+        break
+
+      case 'only-if-cached':
+        if (check.hit) {
+          result = { type: 'cache', message: '200 (缓存) — from only-if-cached' }
+        } else {
+          result = { type: 'error', message: 'ERR_CACHE_MISS — 离线且无缓存' }
+        }
+        break
+
+      case 'no-store':
+        result = { type: 'net', message: '200 (no-store: 完全不碰缓存)' }
+        break
+
+      case 'reload':
+        result = { type: 'net', message: '200 (reload: 跳过检查，直接请求，更新缓存)' }
+        break
+
+      case 'default':
+      default:
+        if (check.hit && check.fresh) {
+          result = { type: 'cache', message: '200 (缓存新鲜) — default 规则直接返回' }
+        } else if (check.hit) {
+          result = { type: 'net', message: '200 (缓存过期) — default 规则带 If-None-Match 验证' }
+        } else {
+          result = { type: 'net', message: '200 (无缓存)' }
+        }
+        break
+    }
+
+    addLog(mode, result)
+
+    // Store in simulated cache
+    simulatedCache.set(DEMO_URL, {
+      data: JSON.stringify({ from: 'network', time: Date.now() }),
+      headers: { 'content-type': 'application/json', 'cache-control': 'max-age=5' },
+      timestamp: Date.now()
+    })
+  })
+
+  document.getElementById('btn-verify-cache').addEventListener('click', () => {
+    const entry = simulatedCache.get(DEMO_URL)
+    if (!entry) {
+      document.getElementById('cache-status').textContent = '❌ 缓存为空'
+      return
+    }
+    const age = Math.round((Date.now() - entry.timestamp) / 1000)
+    document.getElementById('cache-status').textContent = `缓存中（${age}s前），max-age=5`
+  })
+
+  document.getElementById('btn-clear-log').addEventListener('click', () => {
+    document.getElementById('request-log').innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 2rem;">日志已清空</div>'
+  })
+</script>
+
+</body>
+</html>

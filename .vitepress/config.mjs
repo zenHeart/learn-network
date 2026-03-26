@@ -115,6 +115,7 @@ function createGuide() {
             { text: "Fetch", link: "/guide/03.agent/01.browser/02.fetch" },
             { text: "sendBeacon", link: "/guide/03.agent/01.browser/03.sendBeacon" },
             { text: "SSE", link: "/guide/03.agent/01.browser/04.sse" },
+            { text: "Worker", link: "/guide/03.agent/01.browser/05.worker" },
           ]
         },
         {

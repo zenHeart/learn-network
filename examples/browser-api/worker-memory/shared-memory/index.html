@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>SharedArrayBuffer 共享内存示例</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      h1 { color: #333; border-bottom: 2px solid #9c27b0; padding-bottom: 10px; }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .card h3 { margin-top: 0; color: #9c27b0; }
+      button {
+        background: #9c27b0;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+      button:hover { background: #7b1fa2; }
+      button:disabled { background: #ccc; cursor: not-allowed; }
+      .result {
+        background: #f8f8f8;
+        border-left: 4px solid #9c27b0;
+        padding: 12px;
+        margin-top: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        min-height: 60px;
+      }
+      .info {
+        background: #f3e5f5;
+        border-left: 4px solid #9c27b0;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .warning {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .success {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .array-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 10px;
+      }
+      .array-cell {
+        width: 40px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #9c27b0;
+        color: white;
+        border-radius: 4px;
+        font-size: 12px;
+        font-family: monospace;
+      }
+      .array-cell.active {
+        background: #4caf50;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔗 SharedArrayBuffer 共享内存示例</h1>
+
+    <div class="info">
+      <strong>原理：</strong>SharedArrayBuffer 允许多个线程共享同一块内存，<strong>无需拷贝</strong>。
+      使用 Atomics API 保证原子性操作，避免竞态条件。
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ 安全要求：</strong>SharedArrayBuffer 需要 <code>Cross-Origin-Isolation</code>。
+      访问此页面需要服务器设置以下响应头：
+      <br><code>Cross-Origin-Embedder-Policy: require-corp</code>
+      <br><code>Cross-Origin-Opener-Policy: same-origin</code>
+      <br><br>
+      使用 Node.js 运行：<code>node server.js</code>，然后访问 <code>https://localhost:8443</code>
+    </div>
+
+    <div class="card">
+      <h3>1. 初始化共享内存</h3>
+      <button onclick="initSharedMemory()">初始化 SharedArrayBuffer (100个元素)</button>
+      <div id="initResult" class="result">点击按钮初始化共享内存...</div>
+    </div>
+
+    <div class="card">
+      <h3>2. 主线程写入，Worker 读取</h3>
+      <div style="margin: 10px 0;">
+        <input type="number" id="writeIndex" value="0" min="0" max="99" style="width:80px;padding:5px;" />
+        <input type="number" id="writeValue" value="100" style="width:80px;padding:5px;" />
+        <button onclick="writeToShared()" id="writeBtn" disabled>主线程写入</button>
+        <button onclick="workerRead()" id="readBtn" disabled>Worker 读取</button>
+      </div>
+      <div id="writeResult" class="result">等待初始化...</div>
+    </div>
+
+    <div class="card">
+      <h3>3. 原子递增测试</h3>
+      <p>多个 Worker 同时对同一位置原子递增，验证 Atomics 安全性</p>
+      <button onclick="atomicIncrement()" id="atomicBtn" disabled>Worker 原子递增 10 次</button>
+      <div id="atomicResult" class="result">等待初始化...</div>
+      <div id="arrayDisplay" class="array-display">等待初始化...</div>
+    </div>
+
+    <div class="card">
+      <h3>4. 内存对比</h3>
+      <button onclick="compareMemory()">对比 Transferable vs SharedArrayBuffer</button>
+      <div id="compareResult" class="result">点击按钮对比...</div>
+    </div>
+
+    <script>
+      let sharedBuffer = null;
+      let sharedArray = null;
+      let worker = null;
+
+      function checkSharedArrayBufferSupport() {
+        if (!window.SharedArrayBuffer) {
+          document.body.innerHTML = `
+            <h2 style="color:red;">❌ 您的浏览器不支持 SharedArrayBuffer</h2>
+            <p>SharedArrayBuffer 需要 Cross-Origin-Isolation。请通过 server.js 启动服务器访问。</p>
+          `;
+          return false;
+        }
+        return true;
+      }
+
+      checkSharedArrayBufferSupport();
+
+      function initSharedMemory() {
+        // 创建 SharedArrayBuffer
+        sharedBuffer = new SharedArrayBuffer(100 * 4); // 100 个 Int32 (4 bytes each)
+        sharedArray = new Int32Array(sharedBuffer);
+
+        // 初始化为 0
+        for (let i = 0; i < 100; i++) {
+          sharedArray[i] = 0;
+        }
+
+        // 发送给 Worker
+        worker = new Worker('worker.js');
+        worker.onmessage = function(e) {
+          const { type, ...data } = e.data;
+          if (type === 'init-done') {
+            document.getElementById('initResult').textContent =
+              `✅ 共享内存初始化成功！\nBuffer 大小: ${data.byteLength} bytes\n数组长度: ${data.arrayLength}`;
+            document.getElementById('writeBtn').disabled = false;
+            document.getElementById('readBtn').disabled = false;
+            document.getElementById('atomicBtn').disabled = false;
+            updateArrayDisplay();
+          }
+          if (type === 'incremented') {
+            document.getElementById('atomicResult').textContent =
+              `✅ Worker 递增完成！\n索引 ${data.index}: ${data.oldValue} → ${data.newValue}`;
+            updateArrayDisplay();
+          }
+          if (type === 'read-result') {
+            document.getElementById('writeResult').textContent =
+              `Worker 读取前 10 个值:\n[${data.values.join(', ')}]`;
+          }
+        };
+
+        // 传递 SharedArrayBuffer（无需拷贝，共享引用）
+        worker.postMessage({ type: 'init-shared', buffer: sharedBuffer }, [sharedBuffer]);
+
+        // ⚠️ 注意：sharedBuffer 在 postMessage 后仍可使用，因为是共享的
+        document.getElementById('initResult').textContent = '正在初始化共享内存...';
+      }
+
+      function writeToShared() {
+        if (!sharedArray) return;
+        const index = parseInt(document.getElementById('writeIndex').value);
+        const value = parseInt(document.getElementById('writeValue').value);
+        if (index >= 0 && index < 100) {
+          sharedArray[index] = value;
+          updateArrayDisplay();
+          document.getElementById('writeResult').textContent =
+            `主线程写入: sharedArray[${index}] = ${value}`;
+        }
+      }
+
+      function workerRead() {
+        if (!worker) return;
+        worker.postMessage({ type: 'read' });
+      }
+
+      async function atomicIncrement() {
+        if (!worker) return;
+        const index = parseInt(document.getElementById('writeIndex').value) || 0;
+        document.getElementById('atomicResult').textContent = '正在执行 10 次原子递增...';
+
+        for (let i = 0; i < 10; i++) {
+          worker.postMessage({ type: 'increment', index });
+          await new Promise(r => setTimeout(r, 100));
+        }
+      }
+
+      function updateArrayDisplay() {
+        if (!sharedArray) return;
+        const container = document.getElementById('arrayDisplay');
+        const count = Math.min(20, sharedArray.length);
+        let html = '';
+        for (let i = 0; i < count; i++) {
+          const val = sharedArray[i];
+          const active = val > 0 ? ' active' : '';
+          html += `<div class="array-cell${active}">[${i}]=${val}</div>`;
+        }
+        container.innerHTML = html;
+      }
+
+      async function compareMemory() {
+        const result = document.getElementById('compareResult');
+        result.textContent = '开始对比测试...\n';
+
+        // Test 1: Transferable (ArrayBuffer 转移)
+        const transferableBuffer = new ArrayBuffer(50 * 1024 * 1024); // 50MB
+        const transferWorker = new Worker('worker.js');
+        const t1 = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        transferWorker.postMessage({ type: 'transfer-buffer', buffer: transferableBuffer }, [transferableBuffer]);
+        await new Promise(r => setTimeout(r, 200));
+        const t2 = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        transferWorker.terminate();
+
+        result.textContent = `测试完成（需要 Chrome DevTools Memory 面板验证精确值）\n\n` +
+          `Transferable ArrayBuffer:\n` +
+          `  - 传递时无拷贝\n` +
+          `  - 主线程原 buffer 被清空 (byteLength=0)\n` +
+          `  - 适合一次性大数据传递\n\n` +
+          `SharedArrayBuffer:\n` +
+          `  - 主线程和 Worker 共享同一块内存\n` +
+          `  - 无需 postMessage 拷贝\n` +
+          `  - 适合频繁读写的场景\n` +
+          `  - 需要 Atomics 保证原子性\n\n` +
+          `推荐：\n` +
+          `  - 大数据一次性传递 → Transferable\n` +
+          `  - 频繁数据交换 → SharedArrayBuffer`;
+      }
+    </script>
+  </body>
+</html>

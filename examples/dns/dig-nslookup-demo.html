@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DNS dig/nslookup Interactive Demo</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-hover: #273549;
+      --border: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --code-bg: #020617;
+      --accent: #60a5fa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.6;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { text-align: center; color: var(--text-muted); margin-bottom: 28px; font-size: 0.95rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+    .card h2 { font-size: 1rem; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 2px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 10px 18px; cursor: pointer; border: none; background: transparent; font-size: 0.9rem; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; border-radius: 6px 6px 0 0; }
+    .tab:hover { color: var(--text); background: var(--card-hover); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .code-block { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'Cascadia Code','Fira Code',Consolas,monospace; font-size: 0.82rem; overflow-x: auto; white-space: pre; color: #e2e8f0; line-height: 1.5; }
+    .code-block .c-cmt { color: #64748b; }
+    .code-block .c-cmd { color: #f472b6; }
+    .code-block .c-arg { color: #fbbf24; }
+    .code-block .c-str { color: #86efac; }
+    .code-block .c-ip { color: #60a5fa; }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .data-table th, .data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .data-table th { background: var(--card-hover); color: var(--text-muted); font-weight: 600; font-size: 0.82rem; }
+    .data-table tr:hover td { background: var(--card-hover); }
+    .data-table td code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; color: var(--accent); }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+    .badge-green { background: #052e16; color: #86efac; }
+    .badge-yellow { background: #1c1a09; color: #fbbf24; }
+    .badge-red { background: #2d0f0f; color: #f87171; }
+    .badge-blue { background: #0c1f3d; color: #60a5fa; }
+
+    .flow-steps { display: flex; flex-direction: column; gap: 12px; }
+    .flow-step { display: flex; align-items: flex-start; gap: 14px; padding: 14px; background: var(--card-hover); border-radius: 8px; border-left: 3px solid var(--primary); }
+    .flow-step .step-num { width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; flex-shrink: 0; }
+    .flow-step .step-cmd { font-family: monospace; font-size: 0.82rem; color: var(--accent); margin-top: 4px; }
+    .flow-step .step-desc { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
+
+    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .compare-card { padding: 16px; border-radius: 8px; background: var(--card-hover); border: 1px solid var(--border); }
+    .compare-card.dig { border-left: 3px solid var(--success); }
+    .compare-card.dig h4 { color: var(--success); margin: 0 0 10px 0; font-size: 0.95rem; }
+    .compare-card.nslookup { border-left: 3px solid var(--warning); }
+    .compare-card.nslookup h4 { color: var(--warning); margin: 0 0 10px 0; font-size: 0.95rem; }
+    .compare-card ul { padding-left: 18px; font-size: 0.85rem; color: var(--text-muted); }
+    .compare-card ul li { margin-bottom: 4px; }
+
+    .dns-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .dns-chip { padding: 5px 12px; border-radius: 20px; font-size: 0.82rem; cursor: pointer; border: 1px solid var(--border); background: var(--card-hover); color: var(--text-muted); transition: all 0.2s; }
+    .dns-chip:hover { border-color: var(--accent); color: var(--text); }
+    .dns-chip.selected { border-color: var(--accent); color: var(--accent); background: rgba(96,165,250,0.1); }
+
+    .log-area { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; color: #cbd5e1; }
+    .log-entry { padding: 2px 0; }
+    .log-entry.info { color: #60a5fa; }
+    .log-entry.success { color: #4ade80; }
+    .log-entry.warning { color: #fbbf24; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.cmd { color: #f472b6; }
+
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .btn { padding: 7px 14px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.85rem; background: var(--card-hover); color: var(--text-muted); transition: all 0.2s; }
+    .btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .ref-list { list-style: none; padding: 0; }
+    .ref-list li { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.88rem; }
+    .ref-list li:last-child { border-bottom: none; }
+    .ref-list li code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; color: var(--accent); font-size: 0.85em; }
+
+    .query-builder { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+    .query-builder .field { display: flex; align-items: center; gap: 10px; }
+    .query-builder label { color: var(--text-muted); font-size: 0.88rem; min-width: 80px; }
+    .query-builder input, .query-builder select { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--card-hover); color: var(--text); font-size: 0.88rem; }
+    .query-builder input:focus, .query-builder select:focus { outline: none; border-color: var(--accent); }
+
+    @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } h1 { font-size: 1.4rem; } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>DNS Query Tools: dig &amp; nslookup</h1>
+  <p class="subtitle">Interactive reference guide — explore commands, comparisons, and troubleshooting flows</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('dig-ref')">dig Reference</button>
+    <button class="tab" onclick="switchTab('nslookup-ref')">nslookup Reference</button>
+    <button class="tab" onclick="switchTab('comparison')">Comparison</button>
+    <button class="tab" onclick="switchTab('troubleshoot')">Troubleshooting</button>
+  </div>
+
+  <!-- ============ OVERVIEW ============ -->
+  <div id="overview" class="tab-content active">
+
+    <div class="card">
+      <h2>What are dig and nslookup?</h2>
+      <p style="color: var(--text-muted); font-size: 0.92rem;">
+        DNS translates human-readable domain names (e.g. <code>example.com</code>) into IP addresses.
+        <code>dig</code> and <code>nslookup</code> are the two most common CLI tools for DNS queries and troubleshooting.
+      </p>
+      <table class="data-table" style="margin-top: 16px;">
+        <thead><tr><th>Tool</th><th>Platform</th><th>Best for</th><th>Recommendation</th></tr></thead>
+        <tbody>
+          <tr><td><strong>dig</strong></td><td>Linux/Unix/macOS (BIND)</td><td>Full-featured: +trace, +short, batch queries</td><td><span class="badge badge-green">Recommended</span></td></tr>
+          <tr><td><strong>nslookup</strong></td><td>Windows/Linux/macOS (built-in)</td><td>Quick lookups, interactive mode</td><td><span class="badge badge-yellow">Good for quick checks</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Common Public DNS Servers</h2>
+      <table class="data-table">
+        <thead><tr><th>Provider</th><th>Primary IP</th><th>Secondary IP</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge badge-blue">Google</span></td><td><code>8.8.8.8</code></td><td><code>8.8.4.4</code></td><td>Global coverage, high reliability</td></tr>
+          <tr><td><span class="badge badge-green">Cloudflare</span></td><td><code>1.1.1.1</code></td><td><code>1.0.0.1</code></td><td>Privacy-first, no query logging</td></tr>
+          <tr><td><span class="badge badge-yellow">OpenDNS</span></td><td><code>208.67.222.222</code></td><td><code>208.67.220.220</code></td><td>Cisco-owned, security filtering</td></tr>
+          <tr><td><span class="badge badge-red">Quad9</span></td><td><code>9.9.9.9</code></td><td><code>149.112.112.112</code></td><td>Security-first, blocks malware</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Quick Start</h2>
+      <div class="code-block"><span class="c-cmt"># dig basic queries</span>
+  <span class="c-cmd">dig</span> example.com <span class="c-arg">A</span>              <span class="c-cmt"># IPv4 address</span>
+  <span class="c-cmd">dig</span> example.com <span class="c-arg">MX</span>              <span class="c-cmt"># mail server</span>
+  <span class="c-cmd">dig</span> @8.8.8.8 example.com <span class="c-arg">A</span>     <span class="c-cmt"># query via Google DNS</span>
+  <span class="c-cmd">dig</span> example.com <span class="c-arg">A +short</span>       <span class="c-cmt"># short output only</span>
+  <span class="c-cmd">dig</span> example.com <span class="c-arg">A +trace</span>       <span class="c-cmt"># trace resolution path</span>
+
+<span class="c-cmt"># nslookup basic queries</span>
+  <span class="c-cmd">nslookup</span> example.com             <span class="c-cmt"># basic lookup</span>
+  <span class="c-cmd">nslookup</span> example.com 8.8.8.8    <span class="c-cmt"># use specific DNS server</span>
+  <span class="c-cmd">nslookup</span> -type=MX example.com   <span class="c-cmt"># MX record lookup</span></div>
+    </div>
+
+  </div>
+
+  <!-- ============ DIG REFERENCE ============ -->
+  <div id="dig-ref" class="tab-content">
+
+    <div class="card">
+      <h2>dig Syntax</h2>
+      <div class="code-block"><span class="c-cmd">dig</span> [@server] [name] [type]
+
+<span class="c-cmt"># @server — DNS server to query (optional, defaults to /etc/resolv.conf)</span>
+<span class="c-cmd">dig</span> @8.8.8.8 example.com
+
+<span class="c-cmt"># name — domain to query</span>
+<span class="c-cmd">dig</span> example.com
+
+<span class="c-cmt"># type — A / AAAA / MX / TXT / CNAME / NS / SOA / PTR / ANY</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">MX</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Common Options</h2>
+      <table class="data-table">
+        <thead><tr><th>Option</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>+short</code></td><td>Short output — answers only</td><td><code>dig example.com A +short</code></td></tr>
+          <tr><td><code>+trace</code></td><td>Trace full resolution path</td><td><code>dig example.com A +trace</code></td></tr>
+          <tr><td><code>+time=2</code></td><td>Set timeout in seconds</td><td><code>dig example.com +time=2</code></td></tr>
+          <tr><td><code>-x</code></td><td>Reverse lookup (IP to domain)</td><td><code>dig -x 93.184.216.34</code></td></tr>
+          <tr><td><code>-t &lt;type&gt;</code></td><td>Specify query type</td><td><code>dig -t MX example.com</code></td></tr>
+          <tr><td><code>+noall +answer</code></td><td>Show answer section only</td><td><code>dig example.com +noall +answer</code></td></tr>
+          <tr><td><code>+ttlid</code></td><td>Show TTL values</td><td><code>dig example.com +noall +answer +ttlid</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Common Examples</h2>
+      <div class="code-block"><span class="c-cmt"># A record (IPv4 address)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">A</span>
+
+<span class="c-cmt"># AAAA record (IPv6 address)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">AAAA</span>
+
+<span class="c-cmt"># MX record (mail server)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">MX</span>
+
+<span class="c-cmt"># TXT record (SPF/DKIM)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">TXT</span>
+
+<span class="c-cmt"># CNAME record (alias)</span>
+<span class="c-cmd">dig</span> www.example.com <span class="c-arg">CNAME</span>
+
+<span class="c-cmt"># NS record (nameserver)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">NS</span>
+
+<span class="c-cmt"># SOA record (authority)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">SOA</span>
+
+<span class="c-cmt"># ANY record (all records)</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">ANY</span>
+
+<span class="c-cmt"># Query via Cloudflare DNS</span>
+<span class="c-cmd">dig</span> @1.1.1.1 example.com <span class="c-arg">A +short</span>
+
+<span class="c-cmt"># Reverse lookup (PTR)</span>
+<span class="c-cmd">dig</span> -x 93.184.216.34
+
+<span class="c-cmt"># Trace resolution path</span>
+<span class="c-cmd">dig</span> example.com <span class="c-arg">A +trace</span>
+
+<span class="c-cmt"># Batch query multiple domains</span>
+<span class="c-cmd">dig</span> +short example.com <span class="c-arg">A</span> google.com <span class="c-arg">A</span> cloudflare.com <span class="c-arg">A</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Output Structure</h2>
+      <div class="code-block"><span class="c-cmt">; &lt;&lt;&gt;&gt; DiG 9.18.1 &lt;&lt;&gt;&gt; example.com A</span>
+<span class="c-cmt">;# global options: +cmd</span>
+<span class="c-cmt">;# HEADER section — query info and flags</span>
+<span class="c-cmt">;# QUESTION SECTION — query (domain + type)</span>
+<span class="c-cmt">;# ANSWER SECTION — the actual result (most important)</span>
+<span class="c-cmt">;# AUTHORITY SECTION — authoritative servers</span>
+<span class="c-cmt">;# ADDITIONAL SECTION — extra info</span>
+<span class="c-cmt">;# Query time — lookup duration</span>
+<span class="c-cmt">;# SERVER — responding DNS server</span>
+
+<span class="c-cmt">;; ANSWER SECTION:</span>
+example.com.        <span class="c-arg">86400</span>    IN    <span class="c-cmd">A</span>    <span class="c-ip">93.184.216.34</span>
+<span class="c-cmt">#  domain          TTL     class  type   IP address</span>
+<span class="c-cmt">#  (IN = Internet, 86400s = 24 hours)</span></div>
+      <div class="btn-row">
+        <button class="btn" onclick="simulateDig('A')">Simulate dig A</button>
+        <button class="btn" onclick="simulateDig('MX')">Simulate dig MX</button>
+        <button class="btn" onclick="simulateDig('NS')">Simulate dig NS</button>
+        <button class="btn" onclick="simulateDig('TXT')">Simulate dig TXT</button>
+      </div>
+      <div class="log-area" id="dig-output" style="margin-top: 12px;">
+        <div class="log-entry info">[System] Click a button above to simulate dig query output</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ NSLOOKUP REFERENCE ============ -->
+  <div id="nslookup-ref" class="tab-content">
+
+    <div class="card">
+      <h2>nslookup Syntax</h2>
+      <div class="code-block"><span class="c-cmt"># Non-interactive mode (one-shot query)</span>
+<span class="c-cmd">nslookup</span> [name] [server]
+
+<span class="c-cmt"># Examples</span>
+<span class="c-cmd">nslookup</span> example.com            <span class="c-cmt"># use default DNS</span>
+<span class="c-cmd">nslookup</span> example.com 8.8.8.8   <span class="c-cmt"># use Google DNS</span>
+
+<span class="c-cmt"># Interactive mode (multiple queries)</span>
+<span class="c-cmd">nslookup</span>
+<span class="c-cmd">&gt; server</span> 8.8.8.8              <span class="c-cmt"># switch DNS server</span>
+<span class="c-cmd">&gt; set</span> type=MX              <span class="c-cmt"># set query type</span>
+<span class="c-cmd">&gt; example.com</span>                <span class="c-cmt"># run query</span>
+<span class="c-cmd">&gt; exit</span>                      <span class="c-cmt"># exit</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Common Options</h2>
+      <table class="data-table">
+        <thead><tr><th>Command</th><th>Description</th><th>Example</th></tr></thead>
+        <tbody>
+          <tr><td><code>server &lt;DNS&gt;</code></td><td>Switch DNS server</td><td><code>server 8.8.8.8</code></td></tr>
+          <tr><td><code>set type=&lt;type&gt;</code></td><td>Set query type</td><td><code>set type=MX</code></td></tr>
+          <tr><td><code>set debug</code></td><td>Enable debug mode</td><td><code>set debug</code></td></tr>
+          <tr><td><code>set timeout=&lt;sec&gt;</code></td><td>Set query timeout</td><td><code>set timeout=5</code></td></tr>
+          <tr><td><code>-type=&lt;type&gt;</code></td><td>Specify type in non-interactive</td><td><code>nslookup -type=MX example.com</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Common Examples</h2>
+      <div class="code-block"><span class="c-cmt"># Basic lookup (default DNS)</span>
+<span class="c-cmd">nslookup</span> example.com
+
+<span class="c-cmt"># Use specific DNS server</span>
+<span class="c-cmd">nslookup</span> example.com 1.1.1.1
+
+<span class="c-cmt"># Query MX record</span>
+<span class="c-cmd">nslookup</span> -type=MX example.com
+
+<span class="c-cmt"># Query TXT record (SPF verification)</span>
+<span class="c-cmd">nslookup</span> -type=TXT example.com
+
+<span class="c-cmt"># Query NS record</span>
+<span class="c-cmd">nslookup</span> -type=NS example.com
+
+<span class="c-cmt"># Reverse lookup</span>
+<span class="c-cmd">nslookup</span> 93.184.216.34
+
+<span class="c-cmt"># Debug mode (full response)</span>
+<span class="c-cmd">nslookup</span> -debug example.com</div>
+    </div>
+
+    <div class="card">
+      <h2>Output Structure</h2>
+      <div class="code-block">Server:     <span class="c-ip">8.8.8.8</span>           <span class="c-cmt"># DNS server used</span>
+Address:    <span class="c-ip">8.8.8.8#53</span>       <span class="c-cmt"># DNS server IP and port</span>
+
+<span class="c-cmt"># Non-authoritative answer = from cache, not origin server</span>
+Non-authoritative answer:
+Name:    <span class="c-str">example.com</span>
+Address: <span class="c-ip">93.184.216.34</span>
+
+<span class="c-cmt"># MX record output:</span>
+<span class="c-cmt"># Non-authoritative answer:</span>
+<span class="c-cmt"># example.com   mail exchanger = 0 mail.example.com.</span></div>
+      <div class="btn-row">
+        <button class="btn" onclick="simulateNslookup('A')">Simulate nslookup A</button>
+        <button class="btn" onclick="simulateNslookup('MX')">Simulate nslookup MX</button>
+        <button class="btn" onclick="simulateNslookup('reverse')">Simulate reverse</button>
+      </div>
+      <div class="log-area" id="nslookup-output" style="margin-top: 12px;">
+        <div class="log-entry info">[System] Click a button above to simulate nslookup query output</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ COMPARISON ============ -->
+  <div id="comparison" class="tab-content">
+
+    <div class="card">
+      <h2>dig vs nslookup</h2>
+      <table class="data-table">
+        <thead><tr><th>Feature</th><th>dig</th><th>nslookup</th></tr></thead>
+        <tbody>
+          <tr><td>Cross-platform</td><td>Linux/Unix/macOS (BIND)</td><td>Win/Linux/macOS (built-in)</td></tr>
+          <tr><td>Output detail</td><td>Very detailed (stats, TTL, authority)</td><td>Relatively simple</td></tr>
+          <tr><td><code>+short</code> output</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">No</span></td></tr>
+          <tr><td><code>+trace</code> path tracing</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">No</span></td></tr>
+          <tr><td>Reverse lookup</td><td><code>dig -x &lt;IP&gt;</code></td><td><code>nslookup &lt;IP&gt;</code></td></tr>
+          <tr><td>Batch queries</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-red">No</span></td></tr>
+          <tr><td>Script-friendly</td><td><span class="badge badge-green">Yes</span></td><td><span class="badge badge-green">Yes</span></td></tr>
+          <tr><td>Maintenance</td><td>Active (BIND 9)</td><td>Being phased out</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>When to Use Which</h2>
+      <div class="compare-grid">
+        <div class="compare-card dig">
+          <h4>dig — Use when:</h4>
+          <ul>
+            <li>Deep troubleshooting — need TTL, authority info</li>
+            <li>Tracing resolution path (<code>+trace</code>)</li>
+            <li>Batch querying multiple domains in scripts</li>
+            <li>Need <code>+short</code> simplified output</li>
+            <li>Specifying timeout (<code>+time=2</code>)</li>
+            <li>Querying SOA, ANY, or exotic record types</li>
+          </ul>
+        </div>
+        <div class="compare-card nslookup">
+          <h4>nslookup — Use when:</h4>
+          <ul>
+            <li>Quickly verifying a domain resolves</li>
+            <li>No dig installed (e.g. Windows out of box)</li>
+            <li>Interactive session — multiple queries</li>
+            <li>Checking DNS server response time</li>
+            <li>Simple reverse lookups</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Equivalent Commands</h2>
+      <table class="data-table">
+        <thead><tr><th>Operation</th><th>dig</th><th>nslookup</th></tr></thead>
+        <tbody>
+          <tr><td>Basic lookup</td><td><code>dig example.com</code></td><td><code>nslookup example.com</code></td></tr>
+          <tr><td>Specific DNS server</td><td><code>dig @8.8.8.8 example.com</code></td><td><code>nslookup example.com 8.8.8.8</code></td></tr>
+          <tr><td>MX record</td><td><code>dig example.com MX</code></td><td><code>nslookup -type=MX example.com</code></td></tr>
+          <tr><td>Short output</td><td><code>dig example.com +short</code></td><td>N/A</td></tr>
+          <tr><td>Trace path</td><td><code>dig example.com +trace</code></td><td>N/A</td></tr>
+          <tr><td>Reverse lookup</td><td><code>dig -x 93.184.216.34</code></td><td><code>nslookup 93.184.216.34</code></td></tr>
+          <tr><td>Batch query</td><td><code>dig +short a.com A b.com A</code></td><td>N/A</td></tr>
+          <tr><td>With TTL</td><td><code>dig example.com +noall +answer +ttlid</code></td><td>N/A</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- ============ TROUBLESHOOTING ============ -->
+  <div id="troubleshoot" class="tab-content">
+
+    <div class="card">
+      <h2>DNS Troubleshooting Flow</h2>
+      <div class="flow-steps">
+        <div class="flow-step">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <div class="step-cmd">ping example.com</div>
+            <div class="step-desc">Verify DNS resolution. Success = domain resolves to IP. Failure = cannot resolve, continue to step 2.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <div class="step-cmd">nslookup example.com  or  dig example.com A +short</div>
+            <div class="step-desc">Confirm the DNS resolution result. Check if returned IP matches expectation.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <div class="step-cmd">dig @8.8.8.8 example.com A  vs  dig @1.1.1.1 example.com A</div>
+            <div class="step-desc">Compare results from multiple DNS servers. Different results = some server has stale/wrong cache.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">4</div>
+          <div class="step-body">
+            <div class="step-cmd">dig example.com A +trace</div>
+            <div class="step-desc">Trace resolution path from root servers. Identifies where resolution fails.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="step-num">5</div>
+          <div class="step-body">
+            <div class="step-cmd">dig example.com A +noall +answer +ttlid</div>
+            <div class="step-desc">Check TTL values. High TTL = changes take long to propagate. Low TTL = fast propagation but more frequent lookups.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Interactive Troubleshooting Simulator</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 14px;">
+
+      Select DNS server and domain, then run through the troubleshooting steps.
+      </p>
+      <div class="dns-selector">
+        <div class="dns-chip selected" data-dns="8.8.8.8" onclick="selectDns(this)">Google (8.8.8.8)</div>
+        <div class="dns-chip" data-dns="1.1.1.1" onclick="selectDns(this)">Cloudflare (1.1.1.1)</div>
+        <div class="dns-chip" data-dns="208.67.222.222" onclick="selectDns(this)">OpenDNS (208.67.222.222)</div>
+        <div class="dns-chip" data-dns="9.9.9.9" onclick="selectDns(this)">Quad9 (9.9.9.9)</div>
+      </div>
+      <div class="query-builder">
+        <div class="field">
+          <label>Domain:</label>
+          <input type="text" id="domain-input" value="example.com" placeholder="e.g. example.com" />
+        </div>
+        <div class="field">
+          <label>Record Type:</label>
+          <select id="record-type">
+            <option value="A">A (IPv4)</option>
+            <option value="AAAA">AAAA (IPv6)</option>
+            <option value="MX">MX (Mail)</option>
+            <option value="TXT">TXT (SPF/DKIM)</option>
+            <option value="NS">NS (Nameserver)</option>
+            <option value="CNAME">CNAME (Alias)</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="runTroubleshoot('ping')">Step 1: ping</button>
+        <button class="btn" onclick="runTroubleshoot('resolve')">Step 2: resolve</button>
+        <button class="btn" onclick="runTroubleshoot('compare')">Step 3: compare</button>
+        <button class="btn" onclick="runTroubleshoot('trace')">Step 4: +trace</button>
+        <button class="btn" onclick="runTroubleshoot('ttl')">Step 5: check TTL</button>
+        <button class="btn" onclick="clearTroubleshootLog()">Clear log</button>
+      </div>
+      <div class="log-area" id="troubleshoot-log" style="margin-top: 12px;">
+        <div class="log-entry info">[System] Select a DNS server, enter a domain, then run troubleshooting steps in order.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Flush DNS Cache</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 12px;">
+        After fixing DNS issues, you may need to flush local DNS cache to force fresh resolution.
+      </p>
+      <table class="data-table">
+        <thead><tr><th>OS</th><th>Command</th></tr></thead>
+        <tbody>
+          <tr><td>Windows</td><td><code>ipconfig /flushdns</code></td></tr>
+          <tr><td>macOS</td><td><code>sudo dscacheutil -flushcache</code></td></tr>
+          <tr><td>Linux (systemd)</td><td><code>sudo systemd-resolve --flush-caches</code></td></tr>
+          <tr><td>Linux (nscd)</td><td><code>sudo service nscd restart</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+  // ===== Tab switching =====
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('.tab[onclick="switchTab(\'' + tabId + '\')"]').classList.add('active');
+    document.getElementById(tabId).classList.add('active');
+  }
+
+  // ===== DNS server selection =====
+  let selectedDns = '8.8.8.8';
+  function selectDns(el) {
+    document.querySelectorAll('.dns-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedDns = el.dataset.dns;
+  }
+
+  // ===== Simulate dig output =====
+  const digSimData = {
+    A: [
+      ';; ANSWER SECTION:',
+      'example.com.        86400    IN    A    93.184.216.34',
+      '',
+      ';; Query time: 12 ms',
+      ';; SERVER: ' + selectedDns + '#53',
+      ';; WHEN: ' + new Date().toISOString(),
+    ],
+    MX: [
+      ';; ANSWER SECTION:',
+      'example.com.        3600    IN    MX    0 mail.example.com.',
+      '',
+      ';; Query time: 15 ms',
+      ';; SERVER: ' + selectedDns + '#53',
+    ],
+    NS: [
+      ';; ANSWER SECTION:',
+      'example.com.        86400    IN    NS    a.iana-servers.net.',
+      'example.com.        86400    IN    NS    b.iana-servers.net.',
+      '',
+      ';; Query time: 18 ms',
+      ';; SERVER: ' + selectedDns + '#53',
+    ],
+    TXT: [
+      ';; ANSWER SECTION:',
+      'example.com.        86400    IN    TXT    "v=spf1 -all"',
+      '',
+      ';; Query time: 10 ms',
+      ';; SERVER: ' + selectedDns + '#53',
+    ]
+  };
+
+  function simulateDig(type) {
+    const out = document.getElementById('dig-output');
+    out.innerHTML = '';
+    const lines = digSimData[type] || digSimData.A;
+    lines.forEach((line, i) => {
+      const el = document.createElement('div');
+      el.className = 'log-entry ' + (line.startsWith(';;') ? 'info' : 'success');
+      el.textContent = line || '\u00a0';
+      out.appendChild(el);
+    });
+    out.scrollTop = out.scrollHeight;
+  }
+
+  // ===== Simulate nslookup output =====
+  const nslookupSimData = {
+    A: [
+      'Server:     ' + selectedDns,
+      'Address:    ' + selectedDns + '#53',
+      '',
+      'Non-authoritative answer:',
+      'Name:    example.com',
+      'Address: 93.184.216.34',
+    ],
+    MX: [
+      'Server:     ' + selectedDns,
+      'Address:    ' + selectedDns + '#53',
+      '',
+      'Non-authoritative answer:',
+      'example.com        mail exchanger = 0 mail.example.com',
+    ],
+    reverse: [
+      'Server:     ' + selectedDns,
+      'Address:    ' + selectedDns + '#53',
+      '',
+      '34.216.184.93.in-addr.arpa      name = domain.example.com.',
+      '',
+      '34.216.184.93.in-addr.arpa      nameserver = ns1.example.com.',
+    ]
+  };
+
+  function simulateNslookup(type) {
+    const out = document.getElementById('nslookup-output');
+    out.innerHTML = '';
+    const lines = nslookupSimData[type] || nslookupSimData.A;
+    lines.forEach((line, i) => {
+      const el = document.createElement('div');
+      el.className = 'log-entry ' + (line.startsWith('Server') || line.startsWith('Address') || line.startsWith('Non') ? 'info' : 'success');
+      el.textContent = line || '\u00a0';
+      out.appendChild(el);
+    });
+    out.scrollTop = out.scrollHeight;
+  }
+
+  // ===== Troubleshooting simulator =====
+  const domain = () => document.getElementById('domain-input').value || 'example.com';
+  const rtype = () => document.getElementById('record-type').value;
+
+  function addLog(areaId, msg, type = 'info') {
+    const el = document.getElementById(areaId);
+    const line = document.createElement('div');
+    line.className = 'log-entry ' + type;
+    line.textContent = msg;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function runTroubleshoot(step) {
+    const dns = selectedDns;
+    const d = domain();
+    const t = rtype();
+    const logId = 'troubleshoot-log';
+
+    if (step === 'ping') {
+      addLog(logId, '> ping ' + d, 'cmd');
+      addLog(logId, 'PING ' + d + ' (93.184.216.34): 56 data bytes', 'success');
+      addLog(logId, '64 bytes from 93.184.216.34: icmp_seq=0 ttl=54 time=12.5 ms', 'success');
+      addLog(logId, '--- ' + d + ' ping statistics ---', 'info');
+      addLog(logId, '1 packets transmitted, 1 packets received, 0.0% packet loss', 'success');
+      addLog(logId, 'Result: DNS resolution OK, domain maps to 93.184.216.34', 'success');
+    }
+    else if (step === 'resolve') {
+      addLog(logId, '> dig @' + dns + ' ' + d + ' ' + t + ' +short', 'cmd');
+      addLog(logId, '93.184.216.34', 'success');
+      addLog(logId, 'Result: Query via ' + dns + ' returned 93.184.216.34', 'info');
+    }
+    else if (step === 'compare') {
+      addLog(logId, '> dig @8.8.8.8 ' + d + ' ' + t + ' +short', 'cmd');
+      addLog(logId, '93.184.216.34  (Google DNS)', 'success');
+      addLog(logId, '> dig @1.1.1.1 ' + d + ' ' + t + ' +short', 'cmd');
+      addLog(logId, '93.184.216.34  (Cloudflare DNS)', 'success');
+      addLog(logId, 'Result: All DNS servers return same IP — record is consistent', 'success');
+    }
+    else if (step === 'trace') {
+      addLog(logId, '> dig ' + d + ' ' + t + ' +trace', 'cmd');
+      addLog(logId, '.                       518400  IN  NS  a.root-server.net.', 'info');
+      addLog(logId, '.                       518400  IN  NS  b.root-server.net.', 'info');
+      addLog(logId, '[...] (root servers omitted for brevity)', 'warning');
+      addLog(logId, 'com.                    172800  IN  NS  a.gtld-server.net.', 'info');
+      addLog(logId, d + '.            86400  IN  A  93.184.216.34', 'success');
+      addLog(logId, 'Result: Resolution path complete — authoritative answer received', 'success');
+    }
+    else if (step === 'ttl') {
+      addLog(logId, '> dig ' + d + ' ' + t + ' +noall +answer +ttlid', 'cmd');
+      addLog(logId, d + '.            86400  IN  ' + t + '  93.184.216.34', 'success');
+      addLog(logId, 'TTL = 86400 seconds (24 hours)', 'info');
+      addLog(logId, 'Note: High TTL means DNS changes will take up to 24h to propagate globally', 'warning');
+    }
+  }
+
+  function clearTroubleshootLog() {
+    document.getElementById('troubleshoot-log').innerHTML =
+      '<div class="log-entry info">[System] Log cleared. Run troubleshooting steps again.</div>';
+  }
+</script>
+</body>
+</html>

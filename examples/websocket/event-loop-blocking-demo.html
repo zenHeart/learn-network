@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Input 事件阻塞 WebSocket — 事件流可视化</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #7d8590;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --yellow: #d29922;
+      --purple: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 24px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: var(--accent);
+    }
+
+    .desc {
+      color: var(--muted);
+      margin-bottom: 24px;
+      font-size: 0.9rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+
+    .tab:hover { border-color: var(--accent); color: var(--accent); }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .demo-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .card h3 {
+      font-size: 0.9rem;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h3::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .timeline {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 12px;
+      height: 180px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.75rem;
+      margin-bottom: 12px;
+    }
+
+    .timeline-event {
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .timeline-event.input { background: rgba(88, 166, 255, 0.15); border-left: 3px solid var(--accent); }
+    .timeline-event.ws { background: rgba(63, 185, 80, 0.15); border-left: 3px solid var(--green); }
+    .timeline-event.long-task { background: rgba(248, 81, 73, 0.15); border-left: 3px solid var(--red); }
+    .timeline-event.microtask { background: rgba(188, 140, 255, 0.15); border-left: 3px solid var(--purple); }
+    .timeline-event.raf { background: rgba(210, 153, 34, 0.15); border-left: 3px solid var(--yellow); }
+
+    .time { color: var(--muted); min-width: 55px; }
+    .label { flex: 1; }
+
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+    button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+    }
+
+    button:hover { border-color: var(--accent); }
+    button:active { transform: scale(0.97); }
+
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.danger { border-color: var(--red); color: var(--red); }
+    button.danger:hover { background: rgba(248, 81, 73, 0.15); }
+
+    input[type="text"] {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.9rem;
+      width: 100%;
+    }
+
+    input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+    .section-title {
+      font-size: 1rem;
+      color: var(--text);
+      margin: 24px 0 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin: 12px 0;
+    }
+
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+
+    th { background: var(--surface); color: var(--accent); }
+    td { background: var(--bg); }
+
+    code {
+      font-family: 'Fira Code', monospace;
+      background: var(--surface);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: var(--green);
+    }
+
+    .highlight { color: var(--yellow); }
+
+    .result-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+      min-height: 60px;
+      font-size: 0.85rem;
+    }
+
+    .status-bar {
+      display: flex;
+      gap: 16px;
+      background: var(--surface);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+    }
+
+    .status-item { display: flex; align-items: center; gap: 6px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.green { background: var(--green); }
+    .status-dot.yellow { background: var(--yellow); }
+    .status-dot.red { background: var(--red); }
+
+    .flow-diagram {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+      font-family: monospace;
+      font-size: 0.8rem;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+
+    .info-box {
+      background: rgba(88, 166, 255, 0.08);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 0.85rem;
+    }
+
+    .warning-box {
+      background: rgba(210, 153, 34, 0.08);
+      border: 1px solid rgba(210, 153, 34, 0.3);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      font-size: 0.85rem;
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .comparison-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .comparison-item h4 {
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .comparison-item p { font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<h1>Input 事件阻塞 WebSocket — Chrome 事件流可视化</h1>
+<p class="desc">演示 Input 事件与 WebSocket 消息在 Chrome 事件循环中的执行顺序与阻塞关系</p>
+
+<div class="status-bar">
+  <div class="status-item">
+    <div class="status-dot green"></div>
+    <span>Demo Ready</span>
+  </div>
+  <div class="status-item">
+    <span>WS Status: <span id="wsStatus">Not Connected</span></span>
+  </div>
+  <div class="status-item">
+    <span>Events Fired: <span id="eventCount">0</span></span>
+  </div>
+  <div class="status-item">
+    <span>Long Tasks: <span id="longTaskCount">0</span></span>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+  <button class="tab active" data-tab="demo">场景演示</button>
+  <button class="tab" data-tab="event-loop">事件循环</button>
+  <button class="tab" data-tab="timeline">时间线</button>
+  <button class="tab" data-tab="solutions">解决方案</button>
+  <button class="tab" data-tab="quiz">自测题</button>
+</div>
+
+<!-- ========== Tab: 场景演示 ========== -->
+<div id="tab-demo" class="panel active">
+  <div class="demo-grid">
+    <div class="card">
+      <h3>输入框（模拟 Input 事件）</h3>
+      <input type="text" id="testInput" placeholder="输入内容，观察时间线...">
+      <div class="controls" style="margin-top:12px">
+        <button id="btnSimInput">模拟 Input 事件</button>
+        <button id="btnSimWS">模拟 WS 消息</button>
+        <button id="btnLongTask" class="danger">模拟 Long Task (500ms)</button>
+      </div>
+      <div class="controls">
+        <button id="btnSimAlert" class="danger">模拟 alert() 阻塞</button>
+        <button id="btnReset">重置时间线</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>WS 消息处理区</h3>
+      <div id="wsMessage" class="result-box">
+        等待 WS 消息...
+      </div>
+      <div style="margin-top:12px">
+        <button id="btnConnectWS" class="primary">建立模拟 WS 连接</button>
+        <button id="btnDisconnectWS" class="danger" style="display:none">断开 WS</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>事件时间线（Task Queue 可视化）</h3>
+    <div id="timeline" class="timeline">
+      <div style="color:var(--muted);padding:8px">点击按钮产生事件，观察执行顺序...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Tab: 事件循环 ========== -->
+<div id="tab-event-loop" class="panel">
+  <div class="flow-diagram">
+    <div>┌─────────────────────────────────────────────────────────────┐</div>
+    <div>│                   Chrome 渲染主线程                         │</div>
+    <div>└─────────────────────────┬───────────────────────────────┘</div>
+    <div>                           ▼</div>
+    <div>  ┌─────────────────────────────────────────────────────────┐</div>
+    <div>  │              Macrotask Queue（任务队列）                 │</div>
+    <div>  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │</div>
+    <div>  │  │ Task 1  │→│ Task 2  │→│ Input   │→│ WS Msg  │→...   │</div>
+    <div>  │  └─────────┘ └─────────┘ │ Event   │ │         │       │</div>
+    <div>  │                          │ Handler │ │         │       │</div>
+    <div>  │  ⚠️ Long Task 会阻塞后续 Task 执行！                  │</div>
+    <div>  └──────────────────────────┼─────────┼───────────────────┘</div>
+    <div>                                │</div>
+    <div>                                ▼</div>
+    <div>  ┌─────────────────────────────────────────────────────────┐</div>
+    <div>  │           Microtask Queue（微任务队列）                 │</div>
+    <div>  │  Promise.then() → queueMicrotask() → MutationObserver  │</div>
+    <div>  └─────────────────────────┬───────────────────────────────┘</div>
+    <div>                              │</div>
+    <div>                              ▼</div>
+    <div>  ┌─────────────────────────────────────────────────────────┐</div>
+    <div>  │              Animation Frame（动画帧）                  │</div>
+    <div>  │  requestAnimationFrame callbacks                       │</div>
+    <div>  └─────────────────────────────────────────────────────────┘</div>
+  </div>
+
+  <h4 class="section-title">执行顺序规则</h4>
+  <table>
+    <tr><th>规则</th><th>说明</th></tr>
+    <tr><td>1. Task 优先</td><td>每轮事件循环处理 <strong>一个</strong> Macrotask</td></tr>
+    <tr><td>2. Microtasks 紧随</td><td>每个 Task 后清空所有 Microtasks</td></tr>
+    <tr><td>3. rAF 适时执行</td><td>Task + Microtasks 后触发（如果需要重绘）</td></tr>
+    <tr><td>4. Long Task 阻塞</td><td>>50ms 的 Task 阻塞所有后续事件</td></tr>
+    <tr><td>5. Input 与 WS 同级</td><td>都是 Task，没有内置优先级差异</td></tr>
+  </table>
+
+  <h4 class="section-title">为什么 Input 会"感觉"阻塞了 WS？</h4>
+  <div class="comparison-grid">
+    <div class="comparison-item">
+      <h4>场景 1：同步长任务</h4>
+      <p>Input handler 执行 <code>heavyComputation()</code>（500ms），WS 消息必须等待。</p>
+    </div>
+    <div class="comparison-item">
+      <h4>场景 2：alert() 模态框</h4>
+      <p><code>alert()</code> 完全暂停事件循环，WS 消息完全无法处理。</p>
+    </div>
+    <div class="comparison-item">
+      <h4>场景 3：大量微任务</h4>
+      <p>Input handler 中 <code>queueMicrotask()</code> 填满微任务队列。</p>
+    </div>
+    <div class="comparison-item">
+      <h4>场景 4：Compositor 优先级</h4>
+      <p>Linux 上 input 快速路径可能优先派发到 Task Queue。</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== Tab: 时间线 ========== -->
+<div id="tab-timeline" class="panel">
+  <h4 class="section-title">事件时间线分析</h4>
+  <div id="analysisTimeline" class="timeline" style="height:300px">
+    <div style="color:var(--muted);padding:8px">运行场景演示后自动生成分析...</div>
+  </div>
+
+  <h4 class="section-title">Task 执行记录</h4>
+  <div id="taskLog" style="font-family:monospace;font-size:0.75rem;background:var(--surface);padding:12px;border-radius:6px;max-height:200px;overflow-y:auto">
+    <div style="color:var(--muted)">等待事件记录...</div>
+  </div>
+
+  <div class="info-box" style="margin-top:16px">
+    <strong>关键观察：</strong>当你在输入框输入或点击「模拟 Long Task」按钮时，WS 消息的处理会被延迟。
+    这是因为同步代码占用了主线程，导致 Task Queue 中的后续任务（包括 WS 消息处理）无法执行。
+  </div>
+</div>
+
+<!-- ========== Tab: 解决方案 ========== -->
+<div id="tab-solutions" class="panel">
+  <h4 class="section-title">解决方案对比</h4>
+
+  <div class="comparison-grid">
+    <div class="comparison-item">
+      <h4>1. requestAnimationFrame</h4>
+      <pre style="font-size:0.75rem;margin-top:8px;overflow-x:auto"><code>input.addEventListener('input', () => {
+  requestAnimationFrame(() => {
+    processInput(value); // 异步处理
+  });
+});</code></pre>
+      <p style="margin-top:8px">将处理推迟到下一帧，不阻塞当前 Task</p>
+    </div>
+
+    <div class="comparison-item">
+      <h4>2. requestIdleCallback</h4>
+      <pre style="font-size:0.75rem;margin-top:8px;overflow-x:auto"><code>input.addEventListener('input', () => {
+  requestIdleCallback(() => {
+    processInput(value); // 空闲时处理
+  }, { timeout: 1000 });
+});</code></pre>
+      <p style="margin-top:8px">在浏览器空闲时处理，适合非紧急任务</p>
+    </div>
+
+    <div class="comparison-item">
+      <h4>3. Web Worker</h4>
+      <pre style="font-size:0.75rem;margin-top:8px;overflow-x:auto"><code>const worker = new Worker('worker.js');
+input.addEventListener('input', () => {
+  worker.postMessage(value); // 计算移到 Worker
+});</code></pre>
+      <p style="margin-top:8px">计算密集任务在 Worker 中执行，不影响主线程</p>
+    </div>
+
+    <div class="comparison-item">
+      <h4>4. 防抖 / 节流</h4>
+      <pre style="font-size:0.75rem;margin-top:8px;overflow-x:auto"><code>import { debounce } from 'lodash-es';
+const handleInput = debounce((v) => {
+  ws.send(v); // 节流发送
+}, 300);
+input.addEventListener('input', (e) => {
+  handleInput(e.target.value);
+});</code></pre>
+      <p style="margin-top:8px">减少事件触发频率，降低主线程负载</p>
+    </div>
+  </div>
+
+  <h4 class="section-title">方案选择指南</h4>
+  <table>
+    <tr><th>场景</th><th>推荐方案</th></tr>
+    <tr><td>UI 即时反馈（输入验证）</td><td><code>requestAnimationFrame</code></td></tr>
+    <tr><td>非紧急数据处理（分析、统计）</td><td><code>requestIdleCallback</code></td></tr>
+    <tr><td>计算密集任务（JSON 解析、加密）</td><td><code>Web Worker</code></td></tr>
+    <tr><td>减少网络请求（搜索建议）</td><td><code>debounce</code> / <code>throttle</code></td></tr>
+    <tr><td>高优先级 WS 消息</td><td><code>scheduler.postTask()</code>（如支持）</td></tr>
+  </table>
+
+  <div class="warning-box">
+    <strong>⚠️ alert()/confirm() 无法规避：</strong>模态对话框会完全暂停事件循环，这是浏览器内置行为。
+    解决方案：使用自定义 Modal（如 SweetAlert）替代原生 alert()。
+  </div>
+</div>
+
+<!-- ========== Tab: 自测题 ========== -->
+<div id="tab-quiz" class="panel">
+  <h4 class="section-title">自测题</h4>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="font-size:0.9rem;margin-bottom:12px">Q1: Input 事件和 WebSocket 消息在事件循环中是什么关系？</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><input type="radio" name="q1" value="a"> A. Input 事件优先级高于 WS 消息</label>
+      <label><input type="radio" name="q1" value="b"> B. WS 消息优先级高于 Input 事件</label>
+      <label><input type="radio" name="q1" value="c"> C. 两者都是普通 Task，没有内置优先级</label>
+      <label><input type="radio" name="q1" value="d"> D. 取决于浏览器的实现</label>
+    </div>
+    <button onclick="checkAnswer('q1','c')" style="margin-top:12px">提交答案</button>
+    <div id="q1-result" style="margin-top:8px;font-size:0.85rem"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="font-size:0.9rem;margin-bottom:12px">Q2: 以下哪种情况会导致 WS 消息被延迟处理？</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><input type="radio" name="q2" value="a"> A. Input handler 执行 500ms 同步计算</label>
+      <label><input type="radio" name="q2" value="b"> B. WS 消息到达时 Input handler 正在执行</label>
+      <label><input type="radio" name="q2" value="c"> C. alert() 在 Input handler 中被调用</label>
+      <label><input type="radio" name="q2" value="d"> D. 以上所有</label>
+    </div>
+    <button onclick="checkAnswer('q2','d')" style="margin-top:12px">提交答案</button>
+    <div id="q2-result" style="margin-top:8px;font-size:0.85rem"></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="font-size:0.9rem;margin-bottom:12px">Q3: 哪种 API 可以将任务推迟到浏览器空闲时执行？</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><input type="radio" name="q3" value="a"> A. setTimeout</label>
+      <label><input type="radio" name="q3" value="b"> B. queueMicrotask</label>
+      <label><input type="radio" name="q3" value="c"> C. requestIdleCallback</label>
+      <label><input type="radio" name="q3" value="d"> D. requestAnimationFrame</label>
+    </div>
+    <button onclick="checkAnswer('q3','c')" style="margin-top:12px">提交答案</button>
+    <div id="q3-result" style="margin-top:8px;font-size:0.85rem"></div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:0.9rem;margin-bottom:12px">Q4: Long Task 的定义是什么？</h3>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label><input type="radio" name="q4" value="a"> A. 执行时间 > 100ms 的任务</label>
+      <label><input type="radio" name="q4" value="b"> B. 执行时间 > 50ms 的任务</label>
+      <label><input type="radio" name="q4" value="c"> C. 包含 requestAnimationFrame 的任务</label>
+      <label><input type="radio" name="q4" value="d"> D. 包含 queueMicrotask 的任务</label>
+    </div>
+    <button onclick="checkAnswer('q4','b')" style="margin-top:12px">提交答案</button>
+    <div id="q4-result" style="margin-top:8px;font-size:0.85rem"></div>
+  </div>
+</div>
+
+<script>
+  // ========== Tab Navigation ==========
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ========== Timeline & State ==========
+  let eventCount = 0;
+  let longTaskCount = 0;
+  let wsConnected = false;
+  const taskLog = [];
+  const startTime = performance.now();
+
+  function getTime() {
+    return (performance.now() - startTime).toFixed(1) + 'ms';
+  }
+
+  function addEvent(type, label, detail = '') {
+    eventCount++;
+    document.getElementById('eventCount').textContent = eventCount;
+
+    const timeline = document.getElementById('timeline');
+    const event = document.createElement('div');
+    event.className = 'timeline-event ' + type;
+    event.innerHTML = `<span class="time">${getTime()}</span><span class="label">${label}</span>${detail ? `<span style="color:var(--muted);font-size:0.7rem">${detail}</span>` : ''}`;
+    timeline.appendChild(event);
+    timeline.scrollTop = timeline.scrollHeight;
+
+    taskLog.push({ time: getTime(), type, label, detail });
+    updateTaskLog();
+  }
+
+  function updateTaskLog() {
+    const logEl = document.getElementById('taskLog');
+    if (taskLog.length === 0) {
+      logEl.innerHTML = '<div style="color:var(--muted)">等待事件记录...</div>';
+      return;
+    }
+    logEl.innerHTML = taskLog.map(t =>
+      `<div style="margin-bottom:4px">
+        <span style="color:var(--muted)">[${t.time}]</span>
+        <span style="color:${getColor(t.type)}">${t.type.toUpperCase()}</span>
+        <span>${t.label}</span>
+        ${t.detail ? `<span style="color:var(--muted)"> — ${t.detail}</span>` : ''}
+      </div>`
+    ).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function getColor(type) {
+    const colors = { input: '#58a6ff', ws: '#3fb950', 'long-task': '#f85149', microtask: '#bc8cff', raf: '#d29922' };
+    return colors[type] || '#e6edf3';
+  }
+
+  // ========== Simulate Long Task ==========
+  function simulateLongTask(duration = 500, label = 'Long Task') {
+    const start = performance.now();
+    longTaskCount++;
+    document.getElementById('longTaskCount').textContent = longTaskCount;
+    addEvent('long-task', label + ` (${duration}ms)`, '⚠️ 阻塞 Task Queue');
+
+    function block() {
+      if (performance.now() - start < duration) {
+        // 空循环模拟同步阻塞
+        for (let i = 0; i < 10000; i++) { Math.sqrt(i); }
+        block();
+      }
+    }
+    block();
+    addEvent('long-task', label + ' 完成', 'Task Queue 解锁');
+  }
+
+  // ========== Input Event Simulation ==========
+  document.getElementById('btnSimInput').addEventListener('click', () => {
+    addEvent('input', 'input event handler', '同步执行中...');
+    // 模拟 Input handler 处理
+    const start = performance.now();
+    while (performance.now() - start < 50) { Math.random(); }
+    addEvent('input', 'input event 完成', 'Task 执行完毕');
+  });
+
+  document.getElementById('testInput').addEventListener('input', (e) => {
+    addEvent('input', `input: "${e.target.value.slice(-10)}"`, '同步处理中...');
+    // 模拟输入处理
+    const start = performance.now();
+    while (performance.now() - start < 30) { Math.random(); }
+  });
+
+  // ========== WS Simulation ==========
+  let wsSimInterval = null;
+
+  document.getElementById('btnConnectWS').addEventListener('click', () => {
+    wsConnected = true;
+    document.getElementById('wsStatus').textContent = 'Connected (Simulated)';
+    document.getElementById('wsStatus').style.color = 'var(--green)';
+    document.getElementById('btnConnectWS').style.display = 'none';
+    document.getElementById('btnDisconnectWS').style.display = 'inline-block';
+    addEvent('ws', 'WebSocket 连接建立', '连接成功');
+
+    // 模拟周期性 WS 消息
+    wsSimInterval = setInterval(() => {
+      if (wsConnected) {
+        const msg = 'MSG-' + Math.random().toString(36).slice(2, 6);
+        document.getElementById('wsMessage').innerHTML = `收到: <strong>${msg}</strong><br><span style="color:var(--muted);font-size:0.8rem">时间: ${getTime()}</span>`;
+      }
+    }, 3000);
+  });
+
+  document.getElementById('btnDisconnectWS').addEventListener('click', () => {
+    wsConnected = false;
+    clearInterval(wsSimInterval);
+    document.getElementById('wsStatus').textContent = 'Disconnected';
+    document.getElementById('wsStatus').style.color = 'var(--red)';
+    document.getElementById('btnConnectWS').style.display = 'inline-block';
+    document.getElementById('btnDisconnectWS').style.display = 'none';
+    document.getElementById('wsMessage').innerHTML = '连接已断开';
+    addEvent('ws', 'WebSocket 断开', '连接关闭');
+  });
+
+  document.getElementById('btnSimWS').addEventListener('click', () => {
+    if (!wsConnected) {
+      document.getElementById('wsMessage').innerHTML = '<span style="color:var(--yellow)">请先建立 WS 连接</span>';
+      return;
+    }
+    addEvent('ws', 'WS message 到达', '等待 Task Queue 处理...');
+
+    // 模拟消息处理（一个 Task）
+    queueMicrotask(() => {
+      addEvent('microtask', 'WS microtask', 'Promise.then() 执行');
+      setTimeout(() => {
+        addEvent('ws', 'WS message 处理完成', 'UI 更新');
+        document.getElementById('wsMessage').innerHTML = `收到: <strong>MSG-SIM</strong><br><span style="color:var(--muted);font-size:0.8rem">时间: ${getTime()}</span>`;
+      }, 0);
+    });
+  });
+
+  // ========== Long Task Simulation ==========
+  document.getElementById('btnLongTask').addEventListener('click', () => {
+    addEvent('long-task', 'Long Task 开始 (500ms)', '⚠️ 阻塞主线程');
+    setTimeout(() => {
+      simulateLongTask(500, 'Long Task');
+    }, 0);
+  });
+
+  // ========== Alert Simulation ==========
+  document.getElementById('btnSimAlert').addEventListener('click', () => {
+    addEvent('long-task', 'alert() 被调用', '⚠️ 事件循环完全暂停！');
+    // 模拟 alert 阻塞（使用 confirm 替代以免真的阻塞）
+    const result = confirm('这是一个模拟 alert() 的演示对话框。\n\n点击确定继续。\n\n在真实的 alert() 期间：\n- WS 消息无法处理\n- 页面完全冻结\n- 事件循环暂停');
+    addEvent('long-task', 'alert() 关闭', result ? '用户点击确定' : '用户点击取消');
+  });
+
+  // ========== Reset ==========
+  document.getElementById('btnReset').addEventListener('click', () => {
+    eventCount = 0;
+    longTaskCount = 0;
+    document.getElementById('eventCount').textContent = '0';
+    document.getElementById('longTaskCount').textContent = '0';
+    document.getElementById('timeline').innerHTML = '<div style="color:var(--muted);padding:8px">时间线已重置...</div>';
+    taskLog.length = 0;
+    updateTaskLog();
+  });
+
+  // ========== Quiz ==========
+  function checkAnswer(question, correct) {
+    const selected = document.querySelector(`input[name="${question}"]:checked`);
+    const resultEl = document.getElementById(question + '-result');
+    if (!selected) {
+      resultEl.innerHTML = '<span style="color:var(--yellow)">请先选择一个答案</span>';
+      return;
+    }
+    if (selected.value === correct) {
+      resultEl.innerHTML = '<span style="color:var(--green)">✅ 回答正确！</span>';
+    } else {
+      resultEl.innerHTML = '<span style="color:var(--red)">❌ 回答错误，正确答案是 ' + correct.toUpperCase() + '</span>';
+    }
+  }
+
+  // ========== Initial Demo ==========
+  addEvent('input', '页面加载完成', '初始化 Demo');
+  console.log('%c[Input-WS Demo] 事件循环可视化已启动', 'color:#58a6ff;font-weight:bold');
+</script>
+
+</body>
+</html>

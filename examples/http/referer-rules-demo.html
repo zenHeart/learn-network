@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Referer 字段规则演示</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+      --purple: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    tr:hover { background: var(--surface2); }
+
+    /* Code */
+    code {
+      background: var(--surface2);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', Consolas, monospace;
+      font-size: 0.85em;
+      color: var(--purple);
+    }
+
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: var(--accent-hover); }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-outline:hover { background: var(--surface2); }
+
+    /* Tags */
+    .tag {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .tag-safe { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .tag-warning { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .tag-danger { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+    /* Current Values */
+    .current-value {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .current-value .label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+
+    .current-value .value {
+      font-family: monospace;
+      font-size: 1.1rem;
+      color: var(--success);
+      word-break: break-all;
+    }
+
+    /* Policy Demo */
+    .policy-demo {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .policy-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .policy-name {
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 200px;
+    }
+
+    .policy-desc { color: var(--text-muted); font-size: 0.9rem; }
+
+    .policy-result {
+      font-size: 0.85rem;
+      padding: 0.3rem 0.7rem;
+      border-radius: 4px;
+      font-family: monospace;
+      max-width: 300px;
+      text-align: right;
+      word-break: break-all;
+    }
+
+    .result-send { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .result-partial { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .result-none { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+    /* Flow Diagram */
+    .flow-diagram {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      margin: 1rem 0;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .flow-box {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      text-align: center;
+      min-width: 160px;
+    }
+
+    .flow-box.source { border-color: var(--accent); }
+    .flow-box.target { border-color: var(--success); }
+    .flow-box.https { background: rgba(88, 166, 255, 0.1); }
+    .flow-box.http { background: rgba(210, 153, 34, 0.1); border-color: var(--warning); }
+
+    .flow-arrow {
+      color: var(--text-muted);
+      font-size: 1.5rem;
+    }
+
+    .flow-label {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .flow-label.send { color: var(--success); }
+    .flow-label.block { color: var(--danger); }
+
+    /* Scenario */
+    .scenario-list { display: grid; gap: 0.75rem; }
+
+    .scenario-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .scenario-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .scenario-icon.send { background: rgba(63, 185, 80, 0.2); }
+    .scenario-icon.block { background: rgba(248, 81, 73, 0.2); }
+    .scenario-icon.partial { background: rgba(210, 153, 34, 0.2); }
+
+    .scenario-text { font-size: 0.9rem; }
+
+    .scenario-desc {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Quiz */
+    .quiz-section { display: grid; gap: 1rem; }
+
+    .quiz-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .quiz-question {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .quiz-options { display: grid; gap: 0.5rem; }
+
+    .quiz-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .quiz-option:hover { background: var(--surface); }
+
+    .quiz-option input { accent-color: var(--accent); }
+
+    .quiz-result {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .quiz-result.correct { display: block; background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .quiz-result.wrong { display: block; background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+    /* Column Layout */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+    @media (max-width: 900px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* Summary */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .summary-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .summary-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .summary-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Referer 字段完全指南</h1>
+<p class="subtitle">理解 HTTP Referer 请求头的工作原理与安全策略</p>
+
+<div class="current-value">
+  <div class="label">当前页面 Referer（document.referrer）</div>
+  <div class="value" id="currentReferer">检测中...</div>
+</div>
+
+<div class="current-value">
+  <div class="label">当前页面 Referrer-Policy（document.referrerPolicy）</div>
+  <div class="value" id="currentPolicy">检测中...</div>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">📖 概念总览</button>
+  <button class="tab-btn" data-tab="policies">🛡️ 策略详解</button>
+  <button class="tab-btn" data-tab="scenarios">🔍 发送场景</button>
+  <button class="tab-btn" data-tab="flow">🔄 安全流程</button>
+  <button class="tab-btn" data-tab="quiz">📝 自测题</button>
+</div>
+
+<!-- Tab: Overview -->
+<div class="tab-content active" id="tab-overview">
+
+  <div class="card">
+    <h2>什么是 Referer？</h2>
+    <p style="margin-bottom: 1rem; color: var(--text-muted);">
+      <code>Referer</code> 是 HTTP 请求头之一，告诉服务器用户从哪个页面导航过来。
+      注意：这是 <strong>Referrer 的拼写错误</strong>，历史上一直沿用。
+    </p>
+    <pre><code>Referer: https://example.com/search?q=keyword</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>Referrer vs Referer</h2>
+    <table>
+      <thead>
+        <tr><th>术语</th><th>含义</th><th>使用场景</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Referrer</code></td>
+          <td>正确的拼写</td>
+          <td>描述网页访问的来源（名词）</td>
+        </tr>
+        <tr>
+          <td><code>Referer</code></td>
+          <td>HTTP 头部的错误拼写</td>
+          <td>HTTP 请求头字段名（历史原因）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>快速参考表</h2>
+    <table>
+      <thead>
+        <tr><th>场景</th><th>是否发送 Referer</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>HTTPS → HTTPS</td>
+          <td><span class="tag tag-safe">✅ 发送</span></td>
+          <td>发送完整 URL</td>
+        </tr>
+        <tr>
+          <td>HTTPS → HTTP</td>
+          <td><span class="tag tag-danger">❌ 不发送</span></td>
+          <td>安全限制，防止信息泄露</td>
+        </tr>
+        <tr>
+          <td>HTTP → HTTP</td>
+          <td><span class="tag tag-safe">✅ 发送</span></td>
+          <td>发送完整 URL</td>
+        </tr>
+        <tr>
+          <td>地址栏直接输入</td>
+          <td><span class="tag tag-danger">❌ 不发送</span></td>
+          <td>没有来源页面</td>
+        </tr>
+        <tr>
+          <td><code>rel="noreferrer"</code></td>
+          <td><span class="tag tag-danger">❌ 不发送</span></td>
+          <td>链接明确要求不发送</td>
+        </tr>
+        <tr>
+          <td>表单提交</td>
+          <td><span class="tag tag-safe">✅ 发送</span></td>
+          <td>POST 请求也会携带</td>
+        </tr>
+        <tr>
+          <td>fetch / XHR</td>
+          <td><span class="tag tag-safe">✅ 发送</span></td>
+          <td>JavaScript 请求默认携带</td>
+        </tr>
+        <tr>
+          <td><code>file://</code> 协议</td>
+          <td><span class="tag tag-danger">❌ 不发送</span></td>
+          <td>本地文件安全限制</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>关键结论</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-title">安全边界</div>
+        <div class="summary-desc">HTTPS → HTTP 不发送 Referer，防止敏感信息泄露到不安全连接</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">历史遗留</div>
+        <div class="summary-desc">Referer 是 HTTP 头部的拼写错误，正确拼写是 Referrer</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">可控性</div>
+        <div class="summary-desc">通过 Referrer-Policy 可精确控制 Referer 的发送范围和内容</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">不可信任</div>
+        <div class="summary-desc">Referer 可以被伪造，不要仅依赖它做安全验证</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tab: Policies -->
+<div class="tab-content" id="tab-policies">
+
+  <div class="card">
+    <h2>Referrer-Policy 9 种策略</h2>
+    <div class="policy-demo">
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">no-referrer</div>
+          <div class="policy-desc">从不发送 Referer</div>
+        </div>
+        <div class="policy-result result-none">不发送任何 Referer</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">no-referrer-when-downgrade</div>
+          <div class="policy-desc">HTTPS→HTTP 不发送；其他发送完整 URL（默认）</div>
+        </div>
+        <div class="policy-result result-partial">HTTPS→HTTP: 不发送<br>其他: 完整 URL</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">origin</div>
+          <div class="policy-desc">只发送 origin（协议+域名+端口）</div>
+        </div>
+        <div class="policy-result result-partial">https://example.com/</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">origin-when-cross-origin</div>
+          <div class="policy-desc">同源发送完整 URL；跨域只发送 origin</div>
+        </div>
+        <div class="policy-result result-partial">同源: 完整 URL<br>跨域: origin</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">same-origin</div>
+          <div class="policy-desc">同源发送完整 URL；跨域不发送</div>
+        </div>
+        <div class="policy-result result-partial">同源: 完整 URL<br>跨域: 不发送</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">strict-origin</div>
+          <div class="policy-desc">只发送 origin；HTTPS→HTTP 不发送</div>
+        </div>
+        <div class="policy-result result-none">HTTPS→HTTP: 不发送<br>其他: origin</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">strict-origin-when-cross-origin</div>
+          <div class="policy-desc">同源完整 URL；跨域 origin；HTTPS→HTTP 不发送</div>
+        </div>
+        <div class="policy-result result-none">同源: 完整<br>HTTPS→HTTP: 不发送<br>跨域: origin</div>
+      </div>
+      <div class="policy-item">
+        <div>
+          <div class="policy-name">unsafe-url</div>
+          <div class="policy-desc">始终发送完整 URL（不安全）</div>
+        </div>
+        <div class="policy-result result-send">完整 URL（含 query）</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>设置方法</h2>
+    <div class="grid-2">
+      <div>
+        <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.75rem;">HTTP 响应头</h3>
+        <pre><code>Referrer-Policy: strict-origin-when-cross-origin</code></pre>
+      </div>
+      <div>
+        <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.75rem;">HTML meta 标签</h3>
+        <pre><code>&lt;meta name="referrer" 
+   content="strict-origin-when-cross-origin"&gt;</code></pre>
+      </div>
+      <div>
+        <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.75rem;">链接属性</h3>
+        <pre><code>&lt;a href="..." 
+   referrerpolicy="strict-origin"
+   rel="noreferrer"&gt;链接&lt;/a&gt;</code></pre>
+      </div>
+      <div>
+        <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.75rem;">JavaScript</h3>
+        <pre><code>fetch(url, {
+  referrerPolicy: 'strict-origin'
+});</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>策略选择建议</h2>
+    <table>
+      <thead>
+        <tr><th>场景</th><th>推荐策略</th><th>原因</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>需要分析流量来源</td>
+          <td><code>no-referrer-when-downgrade</code></td>
+          <td>默认策略，兼顾安全和功能</td>
+        </tr>
+        <tr>
+          <td>敏感页面（金融、医疗）</td>
+          <td><code>strict-origin</code></td>
+          <td>只暴露域名，不暴露路径</td>
+        </tr>
+        <tr>
+          <td>需要完整 URL 做调试</td>
+          <td><code>origin-when-cross-origin</code></td>
+          <td>同源完整 URL，跨域保护</td>
+        </tr>
+        <tr>
+          <td>完全不需要 Referer</td>
+          <td><code>no-referrer</code></td>
+          <td>最大化隐私保护</td>
+        </tr>
+        <tr>
+          <td>内网系统（无 HTTPS→HTTP 场景）</td>
+          <td><code>unsafe-url</code></td>
+          <td>仅在内网使用，避免敏感泄露</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Tab: Scenarios -->
+<div class="tab-content" id="tab-scenarios">
+
+  <div class="card">
+    <h2>Referer 发送场景</h2>
+    <div class="scenario-list">
+
+      <div class="scenario-item">
+        <div class="scenario-icon send">✅</div>
+        <div>
+          <div class="scenario-text">点击链接跳转</div>
+          <div class="scenario-desc">从 A 页面点击 &lt;a&gt; 链接跳转到 B 页面</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon send">✅</div>
+        <div>
+          <div class="scenario-text">加载图片/脚本/CSS</div>
+          <div class="scenario-desc">页面 &lt;img&gt;、&lt;script&gt;、&lt;link&gt; 等资源加载</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon send">✅</div>
+        <div>
+          <div class="scenario-text">表单提交</div>
+          <div class="scenario-desc">&lt;form&gt; POST 提交到服务器</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon send">✅</div>
+        <div>
+          <div class="scenario-text">JavaScript 请求</div>
+          <div class="scenario-desc">fetch()、XMLHttpRequest、axios 等 AJAX 请求</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon block">❌</div>
+        <div>
+          <div class="scenario-text">地址栏直接输入 URL</div>
+          <div class="scenario-desc">没有来源页面的概念</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon block">❌</div>
+        <div>
+          <div class="scenario-text">HTTPS → HTTP 跳转</div>
+          <div class="scenario-desc">安全策略，不发送 Referer 防止敏感信息泄露</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon block">❌</div>
+        <div>
+          <div class="scenario-text">rel="noreferrer" 链接</div>
+          <div class="scenario-desc">链接明确要求不发送 Referer</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon block">❌</div>
+        <div>
+          <div class="scenario-text">file:// 协议</div>
+          <div class="scenario-desc">本地文件系统的安全限制</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon block">❌</div>
+        <div>
+          <div class="scenario-text">打开新标签输入 URL</div>
+          <div class="scenario-desc">没有来源页面，没有导航历史</div>
+        </div>
+      </div>
+
+      <div class="scenario-item">
+        <div class="scenario-icon partial">⚠️</div>
+        <div>
+          <div class="scenario-text">meta refresh 重定向</div>
+          <div class="scenario-desc">部分浏览器发送，部分浏览器不发送</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>常见使用场景</h2>
+    <div class="grid-3">
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 0.5rem;">📊 流量分析</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          统计用户从哪些来源页面访问，了解流量渠道（如 Google 搜索、社交媒体）
+        </p>
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 0.5rem;">🛡️ 防盗链</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          检查 Referer 防止其他网站直接链接你的图片、视频等资源，节省带宽
+        </p>
+      </div>
+      <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 1rem;">
+        <h3 style="font-size: 0.9rem; color: var(--accent); margin-bottom: 0.5rem;">🔒 安全验证</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          根据 Referer 设置访问权限（如 API 限制仅允许特定域名访问）
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tab: Flow -->
+<div class="tab-content" id="tab-flow">
+
+  <div class="card">
+    <h2>HTTPS → HTTP 安全限制示意</h2>
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-box source https">
+          <div>🔒 HTTPS 页面</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">https://secure.com/page?q=token123</div>
+        </div>
+        <div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-label block">Referer 被浏览器拦截</div>
+        </div>
+        <div class="flow-box target http">
+          <div>🔓 HTTP 页面</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">http://insecure.com/page</div>
+        </div>
+      </div>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">
+      <strong>原因：</strong>防止 HTTPS 页面中的敏感信息（如认证 token、查询参数中的用户数据）通过 Referer 泄露给不安全的 HTTP 连接。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>HTTPS → HTTPS 正常发送</h2>
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-box source https">
+          <div>🔒 HTTPS 页面</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">https://a.com/product?id=123</div>
+        </div>
+        <div>
+          <div class="flow-arrow">→</div>
+          <div class="flow-label send">Referer: https://a.com/product?id=123</div>
+        </div>
+        <div class="flow-box target https">
+          <div>🔒 HTTPS 页面</div>
+          <div style="font-size: 0.8rem; color: var(--text-muted);">https://b.com/checkout</div>
+        </div>
+      </div>
+    </div>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">
+      <strong>原因：</strong>两个安全连接之间没有信息泄露风险，Referer 可以正常传递。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>Referrer-Policy 控制流程</h2>
+    <pre><code>用户点击链接或发起请求
+         ↓
+浏览器检查 Referrer-Policy 设置
+         ↓
+    ┌─────┴─────┐
+    ↓           ↓
+策略配置？    无策略
+    ↓           ↓
+根据策略决定   使用默认策略
+发送什么       (no-referrer-when-downgrade)
+    ↓
+HTTPS→HTTP？ → 不发送
+    ↓ no
+发送 Referer（按策略格式）</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>安全注意事项</h2>
+    <div class="grid-2">
+      <div style="background: rgba(248, 81, 73, 0.1); border: 1px solid var(--danger); border-radius: 6px; padding: 1rem;">
+        <h3 style="color: var(--danger); font-size: 0.95rem; margin-bottom: 0.5rem;">⚠️ Referer 可被伪造</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          攻击者可以随意设置 Referer 头部。<strong>永远不要仅依赖 Referer 做安全验证！</strong>
+        </p>
+      </div>
+      <div style="background: rgba(210, 153, 34, 0.1); border: 1px solid var(--warning); border-radius: 6px; padding: 1rem;">
+        <h3 style="color: var(--warning); font-size: 0.95rem; margin-bottom: 0.5rem;">⚠️ URL 中的敏感信息</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          Referer 会暴露 URL 路径和查询参数。<code>?token=xxx</code>、<code>/user/123/profile</code> 等可能泄露。
+        </p>
+      </div>
+    </div>
+    <div style="margin-top: 1rem; padding: 1rem; background: rgba(63, 185, 80, 0.1); border: 1px solid var(--success); border-radius: 6px;">
+      <h3 style="color: var(--success); font-size: 0.95rem; margin-bottom: 0.5rem;">✅ 安全最佳实践</h3>
+      <ul style="font-size: 0.85rem; color: var(--text-muted); padding-left: 1.25rem;">
+        <li>使用 <code>no-referrer-when-downgrade</code>（默认）作为起点</li>
+        <li>敏感操作使用 POST 而非 URL 参数传递敏感数据</li>
+        <li>登录后 URL 避免包含 session ID 或 token</li>
+        <li>使用 CSRF Token 而非 Referer 验证</li>
+        <li>敏感页面设置 <code>strict-origin</code> Referrer-Policy</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tab: Quiz -->
+<div class="tab-content" id="tab-quiz">
+
+  <div class="card">
+    <h2>自测题</h2>
+    <div class="quiz-section">
+
+      <div class="quiz-item">
+        <div class="quiz-question">1. 从 HTTPS 页面跳转到 HTTP 页面，Referer 会发送吗？</div>
+        <div class="quiz-options">
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="a">
+            <span>会发送，发送完整 URL</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="b">
+            <span>不会发送（安全限制）</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="c">
+            <span>会发送，但只发送 origin 部分</span>
+          </label>
+        </div>
+        <div class="quiz-result" data-answer="b">
+          ✅ 正确！HTTPS → HTTP 不发送 Referer，防止敏感信息泄露。
+        </div>
+      </div>
+
+      <div class="quiz-item">
+        <div class="quiz-question">2.

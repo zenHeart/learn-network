@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图床过期处理策略 - 交互演示</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #f5f5f5;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px 20px;
+      text-align: center;
+      border-radius: 8px;
+      margin-bottom: 30px;
+    }
+    
+    header h1 {
+      font-size: 2em;
+      margin-bottom: 10px;
+    }
+    
+    header p {
+      opacity: 0.9;
+      font-size: 1.1em;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .tab-btn {
+      padding: 12px 24px;
+      border: none;
+      background: #e0e0e0;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .tab-btn:hover {
+      background: #d0d0d0;
+    }
+    
+    .tab-btn.active {
+      background: #667eea;
+      color: white;
+    }
+    
+    .tab-content {
+      display: none;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .card h3 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 1.2em;
+    }
+    
+    .code-block {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 20px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Fira Code', 'Monaco', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    
+    .code-block code {
+      white-space: pre-wrap;
+    }
+    
+    .code-block .comment { color: #6272a4; }
+    .code-block .keyword { color: #ff79c6; }
+    .code-block .string { color: #f1fa8c; }
+    .code-block .function { color: #50fa7b; }
+    .code-block .number { color: #bd93f9; }
+    
+    button {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+    
+    button:hover {
+      background: #5a6fd6;
+    }
+    
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    input, textarea, select {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .result-box {
+      background: #f0f0f0;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .success { color: #28a745; }
+    .error { color: #dc3545; }
+    .warning { color: #ffc107; }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    
+    .status-valid { background: #28a745; }
+    .status-invalid { background: #dc3545; }
+    .status-checking { background: #ffc107; animation: pulse 1s infinite; }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    
+    .image-card {
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .image-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .image-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      background: #eee;
+    }
+    
+    .image-info {
+      padding: 10px;
+      font-size: 12px;
+    }
+    
+    .image-info .url {
+      color: #666;
+      word-break: break-all;
+      margin-bottom: 5px;
+    }
+    
+    .image-info .status {
+      font-weight: bold;
+    }
+    
+    .flow-diagram {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    
+    .flow-step {
+      background: #667eea;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+    }
+    
+    .flow-arrow {
+      color: #667eea;
+      font-size: 20px;
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    
+    .comparison-table th {
+      background: #667eea;
+      color: white;
+    }
+    
+    .comparison-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    
+    .badge-good { background: #d4edda; color: #155724; }
+    .badge-bad { background: #f8d7da; color: #721c24; }
+    .badge-warning { background: #fff3cd; color: #856404; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🖼️ 图床过期处理策略</h1>
+      <p>检测、替换、预防 — 保障 Markdown 图片链接可靠性</p>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="detection">URL 检测</button>
+      <button class="tab-btn" data-tab="fallback">多级降级</button>
+      <button class="tab-btn" data-tab="batch">批量替换</button>
+      <button class="tab-btn" data-tab="tools">工具对比</button>
+      <button class="tab-btn" data-tab="strategy">策略选择</button>
+    </div>
+    
+    <!-- URL 检测演示 -->
+    <div id="detection" class="tab-content active">
+      <h2>1. 图片 URL 有效性检测</h2>
+      
+      <div class="card">
+        <h3>🔍 单个 URL 检测</h3>
+        <input type="text" id="singleUrl" placeholder="输入图片 URL，例如: https://example.com/image.png">
+        <button onclick="checkSingleUrl()">检测</button>
+        <div id="singleResult" class="result-box" style="display:none;"></div>
+      </div>
+      
+      <div class="card">
+        <h3>📋 批量 URL 检测</h3>
+        <textarea id="batchUrls" rows="4" placeholder="每行一个 URL：
+https://picsum.photos/200
+https://this-url-does-not-exist.com/image.png
+https://httpbin.org/image"></textarea>
+        <button onclick="checkBatchUrls()">批量检测</button>
+        <div id="batchResult" class="result-box" style="display:none;"></div>
+      </div>
+      
+      <div class="card">
+        <h3>💡 检测原理</h3>
+        <div class="code-block">
+<code>// 使用 HEAD 请求检测（不下载完整图片）
+async function checkImageUrl(url) {
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      mode: 'cors'
+    });
+    
+    if (response.ok) {
+      return { valid: true, status: response.status };
+    }
+    
+    return { 
+      valid: false, 
+      status: response.status,
+      error: response.statusText 
+    };
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
+}</code>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>⚠️ 检测局限性</h3>
+        <table class="comparison-table">
+          <tr>
+            <th>URL 类型</th>
+            <th>检测结果</th>
+            <th>说明</th>
+          </tr>
+          <tr>
+            <td>完整 URL（如 <code>https://cdn.com/a.png</code>）</td>
+            <td><span class="badge badge-good">可靠</span></td>
+            <td>HEAD 请求正常工作</td>
+          </tr>
+          <tr>
+            <td>相对路径（如 <code>/images/a.png</code>）</td>
+            <td><span class="badge badge-warning">需配置</span></td>
+            <td>需要 base URL 前缀</td>
+          </tr>
+          <tr>
+            <td>带签名 URL（如 <code>?signature=xxx</code>）</td>
+            <td><span class="badge badge-warning">需额外检查</span></td>
+            <td>需验证签名过期时间</td>
+          </tr>
+          <tr>
+            <td>CORS 受限的 URL</td>
+            <td><span class="badge badge-bad">不可靠</span></td>
+            <td>浏览器限制导致检测失败</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    
+    <!-- 多级降级演示 -->
+    <div id="fallback" class="tab-content">
+      <h2>2. 图片多级降级策略</h2>
+      
+      <div class="card">
+        <h3>🔄 降级流程</h3>
+        <div class="flow-diagram">
+          <div class="flow-step">CDN A</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">CDN B</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">GitHub Raw</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-step">本地 Fallback</div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>⚙️ 配置示例</h3>
+        <div class="code-block">
+<code>const imageFallback = new ImageFallback({
+  cdns: [
+    { 
+      name: 'primary', 
+      baseUrl: 'https://cdn.example.com/images' 
+    },
+    { 
+      name: 'secondary', 
+      baseUrl: 'https://backup.example.com/static' 
+    },
+    { 
+      name: 'github', 
+      baseUrl: 'https://raw.githubusercontent.com/user/repo/main/assets' 
+    }
+  ],
+  cacheTTL: 24 * 60 * 60 * 1000 // 缓存 24 小时
+});
+
+// 使用
+const validUrl = await imageFallback.getValidImageUrl('photo.jpg');
+console.log(validUrl); // 'https://backup.example.com/static/photo.jpg'</code>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>🧪 实时测试</h3>
+        <input type="text" id="fallbackPath" placeholder="输入图片路径，如: logo.png">
+        <button onclick="testFallback()">测试降级</button>
+        <div id="fallbackResult" class="result-box" style="display:none;"></div>
+      </div>
+      
+      <div class="card">
+        <h3>📊 降级策略对比</h3>
+        <table class="comparison-table">
+          <tr>
+            <th>策略</th>
+            <th>可用性</th>
+            <th>延迟</th>
+            <th>成本</th>
+            <th>适用场景</th>
+          </tr>
+          <tr>
+            <td>单 CDN</td>
+            <td><span class="badge badge-bad">低</span></td>
+            <td>低</td>
+            <td>低</td>
+            <td>个人项目</td>
+          </tr>
+          <tr>
+            <td>双 CDN</td>
+            <td><span class="badge badge-warning">中</span></td>
+            <td>低</td>
+            <td>中</td>
+            <td>中小企业</td>
+          </tr>
+          <tr>
+            <td>多级降级 + GitHub</td>
+            <td><span class="badge badge-good">高</span></td>
+            <td>中</td>
+            <td>低</td>
+            <td>开源项目</td>
+          </tr>
+          <tr>
+            <td>自建存储 + CDN</td>
+            <td><span class="badge badge-good">最高</span></td>
+            <td>最低</td>
+            <td>高</td>
+            <td>企业级</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+    
+    <!-- 批量替换演示 -->
+    <div id="batch" class="tab-content">
+      <h2>3. Markdown URL 批量替换</h2>
+      
+      <div class="card">
+        <h3>📝 输入 Markdown</h3>
+        <textarea id="inputMarkdown" rows="8" placeholder="输入包含图片的 Markdown：
+![img1](https://old-cdn.com/images/photo1.jpg)
+![img2](https://old-cdn.com/images/photo2.png)
+![img3](https://httpbin.org/image)"></textarea>
+        
+        <h4 style="margin-top:15px;">URL 映射表</h4>
+        <textarea id="urlMapping" rows="4" placeholder="格式：旧前缀 -> 新前缀
+https://old-cdn.com/images/ -> https://new-cdn.com/assets/
+https://httpbin.org/image -> https://picsum.photos/200"></textarea>
+        
+        <button onclick="replaceUrls()">替换</button>
+        <button onclick="clearBatch()" style="background:#6c757d;margin-left:10px;">清空</button>
+      </div>
+      
+      <div class="card">
+        <h3>✨ 替换结果</h3>
+        <div id="replacedMarkdown" class="result-box"></div>
+      </div>
+      
+      <div class="card">
+        <h3>🔧 替换函数实现</h3>
+        <div class="code-block">
+<code>/**
+ * 替换 Markdown 中的图片 URL
+ * @param {string} markdown - 原始 Markdown
+ * @param {Map} replacements - URL 前缀映射
+ */
+function replaceMarkdownUrls(markdown, replacements) {
+  let result = markdown;
+  
+  for (const [oldPrefix, newPrefix] of replacements) {
+    // 处理 URL 前缀替换
+    const urlPattern = new RegExp(
+      '!\\[.*?\\]\\(' + escapeRegex(oldPrefix) + '([^)]*)\\)', 
+      'g'
+    );
+    
+    result = result.replace(
+      urlPattern,
+      `![$1](${newPrefix}$1)`
+    );
+  }
+  
+  return result;
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}</code>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>⚠️ 替换注意事项</h3>
+        <ul style="padding-left:20px;">
+          <li>确保新 URL 指向的图片与原图内容一致</li>
+          <li>替换前建议备份原文</li>
+          <li>替换后验证新链接可访问</li>
+          <li>相对路径需要额外处理 base URL</li>
+        </ul>
+      </div>
+    </div>
+    
+    <!-- 工具对比 -->
+    <div id="tools" class="tab-content">
+      <h2>4. 工具与方法对比</h2>
+      
+      <div class="card">
+        <h3>🛠️ URL 检测工具</h3>
+        <table class="comparison-table">
+          <tr>
+            <th>工具/方法</th>
+            <th>类型</th>
+            <th>优点</th>
+            <th>缺点</th>
+            <th>适用场景</th>
+          </tr>
+          <tr>
+            <td><code>fetch HEAD</code></td>
+            <td>浏览器 API</td>
+            <td>简单、无依赖</td>
+            <td>CORS 限制</td>
+            <td>前端检测</td>
+          </tr>
+          <tr>
+            <td><code>curl</code></td>
+            <td>命令行</td>
+            <td>功能强大</td>
+            <td>需安装</td>
+            <td>服务器/CI</td>
+          </tr>
+          <tr>
+            <td><code>axios</code></td>
+            <td>Node.js</td>
+            <td>Promise、支持并发</td>
+            <td>需 Node 环境</td>
+            <td>自动化脚本</td>
+          </tr>
+          <tr>
+            <td>PicGo</td>
+            <td>桌面应用</td>
+            <td>图床管理、可视化</td>
+            <td>本地安装</td>
+            <td>本地写作</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div class="card">
+        <h3>☁️ 图床服务对比</h3>
+        <table class="comparison-table">
+          <tr>
+            <th>服务</th>
+            <th>免费额度</th>
+            <th>CDN</th>
+            <th>稳定性</th>
+            <th>国内访问</th>
+          </tr>
+          <tr>
+            <td>GitHub Raw</td>
+            <td>无限</td>
+            <td>Cloudflare</td>
+            <td><span class="badge badge-good">高</span></td>
+            <td><span class="badge badge-warning">一般</span></td>
+          </tr>
+          <tr>
+            <td>Cloudflare R2</td>
+            <td>10GB/月</td>
+            <td>内置</td>
+            <td><span class="badge badge-good">高</span></td>
+            <td><span class="badge badge-good">好</span></td>
+          </tr>
+          <tr>
+            <td>Imgur</td>
+            <td>匿名有限</td>
+            <td>有</td>
+            <td><span class="badge badge-warning">中</span></td>
+            <td><span class="badge badge-bad">差</span></td>
+          </tr>
+          <tr>
+            <td>七牛云</td>
+            <td>有限</td>
+            <td>国内</td>
+            <td><span class="badge badge-good">高</span></td>
+            <td><span class="badge badge-good">好</span></td>
+          </tr>
+        </table>
+      </div>
+      
+      <div class="card">
+        <h3>🔄 GitHub Actions 模板</h3>
+        <div class="code-block">
+<code>name: Check Image URLs
+on:
+  schedule:
+    - cron: '0 2 * * *'  # 每天凌晨
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install axios glob
+      - run: node scripts/check-images.js
+      - if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              title: 'Broken Image URLs Detected',
+              body: 'Some images are no longer accessible.'
+            })</code>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 策略选择 -->
+    <div id="strategy" class="tab-content">
+      <h2>5. 策略选择指南</h2>
+      
+      <div class="card">
+        <h3>🎯 根据场景选择</h3>
+        <table class="comparison-table">
+          <tr>
+            <th>场景</th>
+            <th>推荐策略</th>
+            <th>实现成本</th>
+            <th>效果</th>
+          </tr>
+          <tr>
+            <td>个人博客</td>
+            <td>GitHub Raw + 定期检测</td>
+            <td><span class="badge badge-good">低</span></td>
+            <td><span class="badge badge-good">好</span></td>
+          </tr>
+          <tr>
+            <td>开源文档</td>
+            <td>多级 CDN 降级 + CI</td>
+            <td><span class="badge badge-warning">中</span></td>
+            <td><span class="badge badge-good">好</span></td>
+          </tr>
+          <tr>
+            <td>企业内部</td>
+            <td>自建存储 + CDN</td>
+            <td><span class="badge badge-bad">高</span></td>
+            <td><span class="badge badge-good">最好</span></td>
+          </tr>
+          <tr>
+            <td>快速迁移</td>
+            <td>批量替换脚本</td>
+            <td><span class="badge badge-good">低</span></td>
+            <td><span class="badge badge-warning">一般</span></td>
+          </tr>
+        </table>
+      </div>
+      
+      <div class="card">
+        <h3>✅ 推荐实践清单</h3>
+        <div style="padding-left:20px;">
+          <p>☐ <strong>优先使用相对路径</strong> — 减少迁移时的 URL 更新工作量</p>
+          <p>☐ <strong>重要图片本地备份</strong> — 防止第三方服务不可用</p>
+          <p>☐ <strong>CI/CD 集成检测</strong> — 自动化发现失效链接</p>
+          <p>☐ <strong>多级降级策略</strong> — 关键图片配置备用 CDN</p>
+          <p>☐ <strong>定期巡检</strong> — 预防胜于补救</p>
+          <p>☐ <strong>使用稳定域名</strong> — 避免频繁更换图床</p>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>📚 延伸阅读</h3>
+        <ul style="padding-left:20px;">
+          <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Request/cache" target="_blank">MDN: Request.cache</a></li>
+          <li><a href="https://docs.github.com/en/repositories/working-with-files/using-files/working-with-non-code-files" target="_blank">GitHub: Working with non-code files</a></li>
+          <li><a href="https://www.cloudflare.com/developer-platform/r2/" target="_blank">Cloudflare R2</a></li>
+          <li><a href="https://picgo.github.io/PicGo-Doc/" target="_blank">PicGo 图床工具</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Tab 切换
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+    
+    // 单个 URL 检测
+    async function checkSingleUrl() {
+      const url = document.getElementById('singleUrl').value.trim();
+      const resultBox = document.getElementById('singleResult');
+      
+      if (!url) {
+        alert('请输入 URL');
+        return;
+      }
+      
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = '<span class="status-checking">⏳ 检测中...</span>';
+      
+      const result = await checkImageUrl(url);
+      
+      if (result.valid) {
+        resultBox.innerHTML = `<span class="status-valid">✅ 有效</span> HTTP ${result.status || 'ok'}`;
+        resultBox.style.color = '#28a745';
+      } else {
+        resultBox.innerHTML = `<span class="status-invalid">❌ 无效</span> ${result.error || 'HTTP ' + result.status}`;
+        resultBox.style.color = '#dc3545';
+      }
+    }
+    
+    // 批量 URL 检测
+    async function checkBatchUrls() {
+      const urls = document.getElementById('batchUrls').value.split('\n').filter(u => u.trim());
+      const resultBox = document.getElementById('batchResult');
+      
+      if (urls.length === 0) {
+        alert('请输入 URL');
+        return;
+      }
+      
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = '<span class="status-checking">⏳ 批量检测中...</span>';
+      
+      const results = [];
+      for (const url of urls) {
+        const result = await checkImageUrl(url);
+        results.push({ url, ...result });
+      }
+      
+      const valid = results.filter(r => r.valid).length;
+      const invalid = results.filter(r => !r.valid).length;
+      
+      let html = `检测完成: ${valid} 有效, ${invalid} 无效\n\n`;
+      results.forEach(r => {
+        const status = r.valid ? '✅' : '❌';
+        const info = r.valid ? `HTTP ${r.status}` : (r.error || `HTTP ${r.status}`);
+        html += `${status} ${r.url}\n   └─ ${info}\n`;
+      });
+      
+      resultBox.textContent = html;
+      resultBox.style.color = invalid > 0 ? '#333' : '#28a745';
+    }
+    
+    // 检测函数
+    async function checkImageUrl(url) {
+      try {
+        const response = await fetch(url, {
+          method: 'HEAD',
+          mode: 'cors'
+        });
+        
+        if (response.ok) {
+          return { valid: true, status: response.status };
+        }
+        
+        return { valid: false, status: response.status, error: response.statusText };
+      } catch (err) {
+        return { valid: false, error: err.message };
+      }
+    }
+    
+    // 降级测试
+    async function testFallback() {
+      const path = document.getElementById('fallbackPath').value.trim();
+      const resultBox = document.getElementById('fallbackResult');
+      
+      if (!path) {
+        alert('请输入图片路径');
+        return;
+      }
+      
+      const cdns = [
+        'https://httpbin.org/image',  // 可用
+        'https://httpbin.org/status/404',  // 会失败
+        'https://picsum.photos/200'  // 备用
+      ];
+      
+      resultBox.style.display = 'block';
+      resultBox.innerHTML = '<span class="status-checking">⏳ 测试降级中...</span>';
+      
+      for (const base of cdns) {
+        const url = base;
+        const result = await checkImageUrl(url);
+        
+        if (result.valid) {
+          resultBox.innerHTML = `<span class="success">✅ 降级成功</span>\n使用: ${url}\n路径: ${path}`;
+          return;
+        }
+      }
+      
+      resultBox.innerHTML = `<span class="error">❌ 所有 CDN 都失败</span>`;
+    }
+    
+    // URL 替换
+    function replaceUrls() {
+      const markdown = document.getElementById('inputMarkdown').value;
+      const mappingText = document.getElementById('urlMapping').value;
+      const resultBox = document.getElementById('replacedMarkdown');
+      
+      if (!markdown || !mappingText) {
+        alert('请输入 Markdown 和映射表');
+        return;
+      }
+      
+      // 解析映射表
+      const lines = mappingText.split('\n').filter(l => l.trim());
+      const replacements = [];
+      
+      for (const line of lines) {
+        const match = line.match(/^(.+?)\s*->\s*(.+)$/);
+        if (match) {
+          replacements.push([match[1].trim(), match[2].trim()]);
+        }
+      }
+      
+      let result = markdown;
+      for (const [oldPrefix, newPrefix] of replacements) {
+        // 提取路径部分进行替换
+        const regex = new RegExp('!\\[([^\\]]*)\\]\\(' + escapeRegex(oldPrefix) + '([^)]*)\\)', 'g');
+        result = result.replace(regex, `![$1](${newPrefix}$2)`);
+      }
+      
+      resultBox.textContent = result || '无变化';
+    }
+    
+    function escapeRegex(str) {
+      return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    function clearBatch() {
+      document.getElementById('inputMarkdown').value = '';
+      document.getElementById('urlMapping').value = '';
+      document.getElementById('replacedMarkdown').textContent = '';
+    }
+  </script>
+</body>
+</html>

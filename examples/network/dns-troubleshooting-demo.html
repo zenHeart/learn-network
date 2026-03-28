@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DNS 问题排查工具</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+    h1 { font-size: 1.8rem; color: #fff; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.2rem; color: #00d4ff; margin: 1.5rem 0 0.8rem; }
+    h3 { font-size: 1rem; color: #ffd700; margin: 1rem 0 0.5rem; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tab-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-size: 0.85rem; transition: all 0.2s; }
+    .tab-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+    .tab-btn.active { background: #00d4ff; color: #0a0a0a; font-weight: bold; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 1rem 0; }
+    .mini-card { background: #111; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; }
+    .mini-card h4 { font-size: 0.85rem; color: #00d4ff; margin-bottom: 6px; }
+    .mini-card p { font-size: 0.8rem; color: #aaa; line-height: 1.5; }
+
+    .highlight { color: #00d4ff; font-weight: bold; }
+    .warning { color: #ff6b6b; }
+    .success { color: #4ade80; }
+
+    pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; margin: 0.8rem 0; }
+    code { font-family: 'Fira Code', 'Cascadia Code', monospace; }
+    .comment { color: #666; }
+    .keyword { color: #ff79c6; }
+    .string { color: #f1fa8c; }
+    .cmd { color: #50fa7b; }
+
+    table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.85rem; }
+    th { background: #111; color: #00d4ff; padding: 8px 12px; text-align: left; border: 1px solid #2a2a2a; }
+    td { padding: 8px 12px; border: 1px solid #2a2a2a; color: #ccc; }
+
+    .input-group { display: flex; gap: 8px; margin: 1rem 0; flex-wrap: wrap; }
+    .input-group input, .input-group select { background: #111; border: 1px solid #333; color: #e0e0e0; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; flex: 1; min-width: 200px; }
+    .input-group input:focus, .input-group select:focus { outline: none; border-color: #00d4ff; }
+    .btn { background: #00d4ff; color: #0a0a0a; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; }
+    .btn:hover { opacity: 0.9; }
+    .btn.danger { background: #ff6b6b; color: white; }
+    .btn.success { background: #4ade80; color: #0a0a0a; }
+    .btn.secondary { background: #333; color: #e0e0e0; }
+
+    .terminal { background: #0d0d0d; border: 1px solid #333; border-radius: 6px; padding: 12px; font-family: 'Fira Code', monospace; font-size: 0.8rem; min-height: 150px; max-height: 300px; overflow-y: auto; }
+    .terminal-line { padding: 2px 0; }
+    .terminal-line.cmd { color: #4ade80; }
+    .terminal-line.output { color: #aaa; }
+    .terminal-line.error { color: #ff6b6b; }
+    .terminal-line.info { color: #00d4ff; }
+    .terminal-line.success { color: #4ade80; }
+    .prompt { color: #ffd700; }
+
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .status-badge.ok { background: #001400; color: #4ade80; border: 1px solid #4ade80; }
+    .status-badge.warn { background: #1a1a00; color: #ffd700; border: 1px solid #ffd700; }
+    .status-badge.error { background: #1a0000; color: #ff6b6b; border: 1px solid #ff6b6b; }
+
+    .alert { background: #1a1a00; border-left: 3px solid #ffd700; padding: 10px 14px; margin: 8px 0; border-radius: 0 4px 4px 0; font-size: 0.85rem; }
+    .alert.error { background: #1a0000; border-color: #ff6b6b; }
+    .alert.success { background: #001400; border-color: #4ade80; }
+    .alert.info { background: #001a1a; border-color: #00d4ff; }
+
+    .mt-1 { margin-top: 1rem; }
+    .text-sm { font-size: 0.85rem; }
+    .color-gray { color: #888; }
+    .mb-1 { margin-bottom: 1rem; }
+
+    /* Flow diagram */
+    .flow { display: flex; flex-direction: column; gap: 8px; padding: 1rem; }
+    .flow-step { background: #111; border: 1px solid #333; border-radius: 6px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; }
+    .flow-step.active { border-color: #00d4ff; background: #001a1a; }
+    .flow-step.error { border-color: #ff6b6b; background: #1a0000; }
+    .flow-step.ok { border-color: #4ade80; background: #001400; }
+    .flow-num { background: #333; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: bold; flex-shrink: 0; }
+    .flow-step.active .flow-num { background: #00d4ff; color: #0a0a0a; }
+    .flow-step.error .flow-num { background: #ff6b6b; }
+    .flow-step.ok .flow-num { background: #4ade80; color: #0a0a0a; }
+    .flow-arrow { color: #444; text-align: center; font-size: 1.2rem; }
+
+    /* Progress */
+    .progress-bar { height: 4px; background: #333; border-radius: 2px; overflow: hidden; margin: 8px 0; }
+    .progress-fill { height: 100%; background: #00d4ff; transition: width 0.3s; }
+  </style>
+</head>
+<body>
+  <h1>🔍 DNS 问题排查工具</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('lookup')">DNS 查询</button>
+    <button class="tab-btn" onclick="switchTab('troubleshoot')">排查流程</button>
+    <button class="tab-btn" onclick="switchTab('compare')">记录类型</button>
+    <button class="tab-btn" onclick="switchTab('cheatsheet')">命令速查</button>
+  </div>
+
+  <!-- DNS 查询 -->
+  <div id="tab-lookup" class="tab-content active">
+    <div class="card">
+      <h2>DNS 查询模拟器</h2>
+      <div class="input-group">
+        <input type="text" id="domainInput" placeholder="输入域名，如 example.com" value="example.com">
+        <select id="recordType">
+          <option value="A">A (IPv4)</option>
+          <option value="AAAA">AAAA (IPv6)</option>
+          <option value="MX">MX (邮件)</option>
+          <option value="CNAME">CNAME (别名)</option>
+          <option value="TXT">TXT (文本)</option>
+          <option value="NS">NS (域名服务器)</option>
+          <option value="PTR">PTR (反向)</option>
+        </select>
+        <select id="dnsServer">
+          <option value="google">Google DNS (8.8.8.8)</option>
+          <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+          <option value="quad9">Quad9 (9.9.9.9)</option>
+          <option value="system">系统默认</option>
+        </select>
+        <button class="btn" onclick="simulateDig()">🔍 查询</button>
+      </div>
+
+      <div class="progress-bar" id="queryProgress" style="display:none">
+        <div class="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>模拟 dig 输出</h2>
+      <div class="terminal" id="digOutput">
+<span class="prompt">$</span> dig example.com A
+
+<span class="comment">; <<>> DiG 9.18.1 <<>> example.com A</span>
+<span class="comment">;; global options: +cmd</span>
+<span class="comment">;; Got answer:</span>
+<span class="comment">;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12345</span>
+<span class="comment">;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0</span>
+
+<span class="comment">;; QUESTION SECTION:</span>
+<span class="output">;example.com.                     IN      A</span>
+
+<span class="comment">;; ANSWER SECTION:</span>
+<span class="success">example.com.              86400   IN      A       93.184.216.34</span>
+
+<span class="comment">;; Query time: 12 msec</span>
+<span class="comment">;; SERVER: 8.8.8.8#53(8.8.8.8)</span>
+<span class="comment">;; WHEN: Thu Mar 26 2026 11:00:00 CST</span>
+<span class="comment">;; MSG SIZE  rcvd: 45</span>
+      </div>
+      <div class="mt-1">
+        <button class="btn secondary" onclick="copyOutput()">📋 复制命令</button>
+        <button class="btn secondary" onclick="clearOutput()">🗑️ 清空</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>状态码说明</h2>
+      <div class="card-grid">
+        <div class="mini-card">
+          <h4>NOERROR <span class="status-badge ok">✅</span></h4>
+          <p>查询成功，返回结果</p>
+        </div>
+        <div class="mini-card">
+          <h4>NXDOMAIN <span class="status-badge error">❌</span></h4>
+          <p>域名不存在</p>
+        </div>
+        <div class="mini-card">
+          <h4>SERVFAIL <span class="status-badge warn">⚠️</span></h4>
+          <p>DNS 服务器内部错误</p>
+        </div>
+        <div class="mini-card">
+          <h4>REFUSED <span class="status-badge warn">⚠️</span></h4>
+          <p>服务器拒绝查询</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 排查流程 -->
+  <div id="tab-troubleshoot" class="tab-content">
+    <div class="card">
+      <h2>DNS 问题排查流程</h2>
+      <div class="flow" id="troubleshootFlow">
+        <div class="flow-step" id="step1">
+          <div class="flow-num">1</div>
+          <div>
+            <strong>确认问题现象</strong>
+            <p class="text-sm color-gray">网站打不开？邮件发不出？速度慢？</p>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step" id="step2">
+          <div class="flow-num">2</div>
+          <div>
+            <strong>检查基本连通性</strong>
+            <p class="text-sm color-gray">ping 域名、telnet 端口</p>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step" id="step3">
+          <div class="flow-num">3</div>
+          <div>
+            <strong>查询 DNS 记录</strong>
+            <p class="text-sm color-gray">dig / nslookup 检查解析结果</p>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step" id="step4">
+          <div class="flow-num">4</div>
+          <div>
+            <strong>对比多个 DNS 服务器</strong>
+            <p class="text-sm color-gray">Google / Cloudflare / Quad9</p>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step" id="step5">
+          <div class="flow-num">5</div>
+          <div>
+            <strong>清除本地缓存</strong>
+            <p class="text-sm color-gray">ipconfig /flushdns</p>
+          </div>
+        </div>
+        <div class="flow-arrow">↓</div>
+        <div class="flow-step" id="step6">
+          <div class="flow-num">6</div>
+          <div>
+            <strong>检查 DNS 传播（全球一致性）</strong>
+            <p class="text-sm color-gray">dnschecker.org</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>常见问题场景</h2>
+
+      <h3>场景 1：域名解析失败（NXDOMAIN）</h3>
+      <pre><code><span class="prompt">$</span> dig example.com
+
+<span class="comment">;; ->>HEADER<<- opcode: QUERY, status: <span class="warning">NXDOMAIN</span>, id: 12345</span>
+
+<span class="comment">可能原因：</span>
+<span class="cmd">1. 域名未注册或过期</span>
+<span class="cmd">2. 域名拼写错误</span>
+<span class="cmd">3. DNS 服务器配置错误</span>
+
+<span class="comment">排查命令：</span>
+<span class="cmd">whois example.com</span>  <span class="comment"># 检查域名状态</span>
+<span class="cmd">dig @ns1.example.com example.com</span>  <span class="comment"># 查询权威 DNS</span></code></pre>
+
+      <h3>场景 2：DNS 污染/劫持</h3>
+      <pre><code><span class="prompt">$</span> dig example.com +short
+<span class="error">203.0.113.1</span>  <span class="comment"># 返回了错误的 IP！</span>
+
+<span class="comment">可能原因：</span>
+<span class="cmd">1. ISP DNS 劫持</span>
+<span class="cmd">2. /etc/hosts 被篡改</span>
+<span class="cmd">3. DNS 缓存中毒</span>
+
+<span class="comment">排查命令：</span>
+<span class="cmd">cat /etc/hosts | grep example</span>  <span class="comment"># 检查 hosts 文件</span>
+<span class="cmd">dig @1.1.1.1 example.com</span>  <span class="comment"># 对比 Cloudflare DNS</span>
+<span class="cmd">dig @8.8.8.8 example.com</span>  <span class="comment"># 对比 Google DNS</span></code></pre>
+
+      <h3>场景 3：解析缓慢</h3>
+      <pre><code><span class="prompt">$</span> dig example.com +stats
+
+<span class="comment">;; Query time: <span class="warning">2500 msec</span></span>  <span class="comment"># 太慢了！</span>
+
+<span class="comment">可能原因：</span>
+<span class="cmd">1. DNS 服务器响应慢</span>
+<span class="cmd">2. 网络延迟高</span>
+<span class="cmd">3. CNAME 链过长</span>
+
+<span class="comment">排查命令：</span>
+<span class="cmd">time dig @1.1.1.1 example.com</span>  <span class="comment"># 测试不同 DNS</span>
+<span class="cmd">dig example.com +trace</span>  <span class="comment"># 追踪完整路径</span></code></pre>
+    </div>
+  </div>
+
+  <!-- 记录类型 -->
+  <div id="tab-compare" class="tab-content">
+    <div class="card">
+      <h2>DNS 记录类型对比</h2>
+      <table>
+        <thead>
+          <tr><th>类型</th><th>名称</th><th>用途</th><th>示例</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="highlight">A</span></td>
+            <td>地址记录</td>
+            <td>域名 → IPv4</td>
+            <td><code>example.com → 93.184.216.34</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">AAAA</span></td>
+            <td>IPv6 地址</td>
+            <td>域名 → IPv6</td>
+            <td><code>example.com → 2606:2800:220:1::</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">CNAME</span></td>
+            <td>别名记录</td>
+            <td>域名 → 另一个域名</td>
+            <td><code>www.example.com → example.com</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">MX</span></td>
+            <td>邮件交换</td>
+            <td>邮件服务器地址</td>
+            <td><code>example.com → mail.example.com (优先级 10)</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">TXT</span></td>
+            <td>文本记录</td>
+            <td>SPF、验证等</td>
+            <td><code>v=spf1 include:_spf.example.com ~all</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">NS</span></td>
+            <td>域名服务器</td>
+            <td>域名由谁解析</td>
+            <td><code>example.com → ns1.example.com</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">SOA</span></td>
+            <td>起始授权</td>
+            <td>区域管理信息</td>
+            <td><code>serial: 2026032601, refresh: 3600</code></td>
+          </tr>
+          <tr>
+            <td><span class="highlight">PTR</span></td>
+            <td>指针记录</td>
+            <td>IP → 域名（反向）</td>
+            <td><code>8.8.8.8 → dns.google</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>查询示例</h2>
+      <pre><code><span class="comment"># A 记录（最常用）</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com A +short</span>
+<span class="output">93.184.216.34</span>
+
+<span class="comment"># AAAA 记录（IPv6）</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com AAAA +short</span>
+<span class="output">2606:2800:220:1:2470:3c:2e:46</span>
+
+<span class="comment"># MX 记录（邮件）</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com MX +short</span>
+<span class="output">0 mail.example.com.</span>
+
+<span class="comment"># CNAME 记录（别名）</span>
+<span class="prompt">$</span> <span class="cmd">dig www.example.com CNAME +short</span>
+<span class="output">example.com.</span>
+
+<span class="comment"># TXT 记录（SPF 等）</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com TXT +short</span>
+<span class="output">"v=spf1 -all"</span>
+
+<span class="comment"># NS 记录（域名服务器）</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com NS +short</span>
+<span class="output">a.iana-servers.net.
+b.iana-servers.net.</span>
+
+<span class="comment"># 反向查询（PTR）</span>
+<span class="prompt">$</span> <span class="cmd">dig -x 8.8.8.8 +short</span>
+<span class="output">dns.google.</span></code></pre>
+    </div>
+  </div>
+
+  <!-- 命令速查 -->
+  <div id="tab-compare" class="tab-content">
+  </div>
+
+  <div id="tab-cheatsheet" class="tab-content">
+    <div class="card">
+      <h2>dig 命令速查</h2>
+      <pre><code><span class="comment"># 基础查询</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com</span>                  <span class="comment"># 查询 A 记录</span>
+<span class="prompt">$</span> <span class="cmd">dig @8.8.8.8 example.com</span>         <span class="comment"># 指定 DNS 服务器</span>
+<span class="prompt">$</span> <span class="cmd">dig example.com AAAA</span>            <span class="comment"># 查询 IPv6</span>
+
+<span class="comment"># 输出控制</span>
+<span class="prompt">$</span> <span class="cmd">dig +short example.com</span>           <span class="comment"># 只显示结果</span>
+<span class="prompt">$</span> <span class="cmd">dig +noall +answer</span>              <span class="comment"># 只显示答案</span>
+<span class="prompt">$</span> <span class="cmd">dig +stats example.com</span>          <span class="comment"># 显示统计</span>
+<span class="prompt">$</span> <span class="cmd">dig +trace example.com</span>           <span class="comment"># 追踪完整路径</span>
+<span class="prompt">$</span> <span class="cmd">dig +tcp example.com</span>            <span class="comment"># 强制 TCP</span>
+
+<span class="comment"># 反向查询</span>
+<span class="prompt">$</span> <span class="cmd">dig -x 8.8.8.8</span>                  <span class="comment"># PTR 记录</span></code></pre>
+    </div>
+
+    <div class="card">
+      <h2>nslookup 命令速查</h2>
+      <pre><code><span class="comment"># 基础查询</span>
+<span class="prompt">$</span> <span class="cmd">nslookup example.com</span>            <span class="comment"># 查询 A 记录</span>
+<span class="prompt">$</span> <span class="cmd">nslookup example.com 8.8.8.8</span>   <span class="comment"># 指定 DNS</span>
+<span class="prompt">$</span> <span class="cmd">nslookup -type=MX example.com</span>   <span class="comment"># 查询 MX</span>
+
+<span class="comment"># Windows 特定</span>
+<span class="prompt">$</span> <span class="cmd">ipconfig /displaydns</span>            <span class="comment"># 显示 DNS 缓存</span>
+<span class="prompt">$</span> <span class="cmd">ipconfig /flushdns</span>             <span class="comment"># 清除 DNS 缓存</span>
+
+<span class="comment"># 交互模式</span>
+<span class="prompt">$</span> <span class="cmd">nslookup</span>
+<span class="output">></span> <span class="cmd">set type=A</span>
+<span class="output">></span> <span class="cmd">example.com</span>
+<span class="output">></span> <span class="cmd">set type=MX</span>
+<span class="output">></span> <span class="cmd">example.com</span>
+<span class="output">></span> <span class="cmd">exit</span></code></pre>
+    </div>
+
+    <div class="card">
+      <h2>清除缓存命令</h2>
+      <table>
+        <thead>
+          <tr><th>系统</th><th>命令</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Windows</td>
+            <td><code>ipconfig /flushdns</code></td>
+          </tr>
+          <tr>
+            <td>macOS</td>
+            <td><code>sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder</code></td>
+          </tr>
+          <tr>
+            <td>Linux (systemd)</td>
+            <td><code>sudo systemd-resolve --flush-caches</code></td>
+          </tr>
+          <tr>
+            <td>Linux (dnsmasq)</td>
+            <td><code>sudo systemctl restart dnsmasq</code></td>
+          </tr>
+          <tr>
+            <td>Chrome</td>
+            <td>访问 <code>chrome://net-internals/#dns</code> → Clear host cache</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // DNS mock data
+    const dnsData = {
+      'example.com': {
+        A: '93.184.216.34',
+        AAAA: '2606:2800:220:1:2470:3c:2e:46',
+        MX: '0 mail.example.com.',
+        CNAME: null,
+        TXT: '"v=spf1 -all"',
+        NS: 'a.iana-servers.net.\nb.iana-servers.net.',
+        SOA: 'a.iana-servers.net. dns.icann.org. 2026032601 7200 3600 1209600 3600'
+      },
+      'google.com': {
+        A: '142.250.80.46',
+        AAAA: '2607:f8b0:4004:800::200e',
+        MX: '10 smtp.google.com.',
+        CNAME: null,
+        TXT: '"v=spf1 include:_spf.google.com ~all"',
+        NS: 'ns1.google.com.\nns2.google.com.',
+        SOA: 'ns1.google.com. dns-admin.google.com. 2026032501 7200 3600 1209600 3600'
+      },
+      'baidu.com': {
+        A: '220.181.38.149',
+        AAAA: null,
+        MX: '10 mx.na.baidu.com.',
+        CNAME: null,
+        TXT: '"v=spf1 include:spf1.baidu.com include:spf2.baidu.com ~all"',
+        NS: 'ns1.baidu.com.\nns2.baidu.com.',
+        SOA: 'ns1.baidu.com. sa.baidu.com. 2026032601 300 300 2592000 7200'
+      }
+    };
+
+    const dnsServers = {
+      google: '8.8.8.8',
+      cloudflare: '1.1.1.1',
+      quad9: '9.9.9.9',
+      system: '192.168.1.1'
+    };
+
+    function simulateDig() {
+      const domain = document.getElementById('domainInput').value || 'example.com';
+      const recordType = document.getElementById('recordType').value;
+      const dnsServer = document.getElementById('dnsServer').value;
+      const serverIp = dnsServers[dnsServer];
+
+      // Show progress
+      const progress = document.getElementById('queryProgress');
+      progress.style.display = 'block';
+      const fill = progress.querySelector('.progress-fill');
+
+      let width = 0;
+      const interval = setInterval(() => {
+        width += Math.random() * 30;
+        if (width > 90) width = 90;
+        fill.style.width = width + '%';
+      }, 100);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        fill.style.width = '100%';
+        progress.style.display = 'none';
+
+        // Generate output
+        const output = document.getElementById('digOutput');
+        const data = dnsData[domain] || { A: '93.184.216.34', AAAA: null, MX: null, CNAME: null, TXT: null, NS: null, SOA: null };
+        const result = data[recordType] || null;
+
+        const timestamp = new Date().toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+        let outputHtml = `<span class="prompt">$</span> dig ${domain} ${recordType}
+
+<span class="comment">; <<>> DiG 9.18.1 <<>> ${domain} ${recordType}</span>
+<span class="comment">;; global options: +cmd</span>
+<span class="comment">;; Got answer:</span>
+<span class="comment">;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: ${Math.floor(Math.random() * 99999)}</span>
+<span class="comment">;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0</span>
+
+<span class="comment">;; QUESTION SECTION:</span>
+<span class="output">;${domain}.                     IN      ${recordType}</span>`;
+
+        if (result) {
+          const ttl = Math.floor(Math.random() * 86400);
+          outputHtml += `
+
+<span class="comment">;; ANSWER SECTION:</span>
+<span class="success">${domain}.              ${ttl}   IN      ${recordType}       ${result}</span>`;
+        } else {
+          outputHtml += `
+
+<span class="comment">;; ANSWER SECTION:</span>
+<span class="comment">(0 records found)</span>`;
+        }
+
+        const queryTime = Math.floor(Math.random() * 50) + 5;
+        outputHtml += `
+
+<span class="comment">;; Query time: ${queryTime} msec</span>
+<span class="comment">;; SERVER: ${serverIp}#53(${serverIp})</span>
+<span class="comment">;; WHEN: ${timestamp} CST</span>
+<span class="comment">;; MSG SIZE  rcvd: ${Math.floor(Math.random() * 200) + 30}</span>`;
+
+        output.innerHTML = outputHtml;
+        output.scrollTop = output.scrollHeight;
+      }, 800);
+    }
+
+    function copyOutput() {
+      const output = document.getElementById('digOutput').innerText;
+      navigator.clipboard.writeText(output).then(() => {
+        alert('已复制到剪贴板');
+      });
+    }
+
+    function clearOutput() {
+      document.getElementById('digOutput').innerHTML = '<span class="color-gray">点击"查询"按钮开始...</span>';
+    }
+
+    // Init
+    document.getElementById('domainInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') simulateDig();
+    });
+  </script>
+</body>
+</html>

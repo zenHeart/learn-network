@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wireshark + WebSocket 调试演示</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #16213e;
+      --accent: #00d9ff;
+      --accent-hover: #00b8d9;
+      --text-primary: #e0e0e0;
+      --text-secondary: #a0a0a0;
+      --success: #00e676;
+      --warning: #ffab00;
+      --error: #ff5252;
+      --border: #2a2a4a;
+      --code-bg: #0d1117;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    header { text-align: center; padding: 40px 20px; background: linear-gradient(135deg, var(--bg-secondary), var(--bg-card)); border-bottom: 1px solid var(--border); margin-bottom: 30px; }
+    header h1 { font-size: 2rem; color: var(--accent); margin-bottom: 10px; }
+    header p { color: var(--text-secondary); }
+    .tab-nav { display: flex; gap: 8px; flex-wrap: wrap; background: var(--bg-secondary); padding: 15px; border-radius: 12px; margin-bottom: 25px; border: 1px solid var(--border); }
+    .tab-btn { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .tab-btn:hover { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent); }
+    .tab-btn.active { background: var(--accent); color: var(--bg-primary); border-color: var(--accent); font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 25px; margin-bottom: 20px; }
+    .card h2 { font-size: 1.3rem; color: var(--accent); margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+    .card h3 { font-size: 1.1rem; color: var(--text-primary); margin: 20px 0 10px; }
+    .card p, .card li { color: var(--text-secondary); font-size: 0.95rem; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 15px; overflow-x: auto; font-family: 'JetBrains Mono', Consolas, monospace; font-size: 0.85rem; line-height: 1.5; margin: 10px 0; }
+    code { font-family: inherit; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    th, td { border: 1px solid var(--border); padding: 12px 15px; text-align: left; }
+    th { background: var(--bg-secondary); color: var(--accent); font-weight: 600; }
+    tr:hover { background: rgba(0, 217, 255, 0.05); }
+    .diagram { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 15px 0; font-family: monospace; white-space: pre; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; }
+    .filter-input { display: flex; gap: 10px; margin: 15px 0; }
+    .filter-input input { flex: 1; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 15px; color: var(--text-primary); font-family: monospace; font-size: 0.9rem; }
+    .filter-input button { background: var(--accent); color: var(--bg-primary); border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+    .filter-input button:hover { background: var(--accent-hover); }
+    .highlight { background: rgba(0, 217, 255, 0.1); padding: 2px 6px; border-radius: 4px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .badge-success { background: var(--success); color: #000; }
+    .quiz-question { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin: 15px 0; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+    .quiz-option { background: var(--bg-card); border: 1px solid var(--border); padding: 12px 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+    .quiz-option:hover { border-color: var(--accent); }
+    .quiz-option.selected { border-color: var(--accent); background: rgba(0, 217, 255, 0.1); }
+    .quiz-option.correct { border-color: var(--success); background: rgba(0, 230, 118, 0.1); }
+    .quiz-option.incorrect { border-color: var(--error); background: rgba(255, 82, 82, 0.1); }
+    .quiz-result { margin-top: 15px; padding: 15px; border-radius: 8px; display: none; }
+    .quiz-result.show { display: block; }
+    .quiz-result.correct { background: rgba(0, 230, 118, 0.1); border: 1px solid var(--success); color: var(--success); }
+    .quiz-result.incorrect { background: rgba(255, 82, 82, 0.1); border: 1px solid var(--error); color: var(--error); }
+    @media (max-width: 768px) { header h1 { font-size: 1.5rem; } .tab-nav { gap: 6px; } .tab-btn { padding: 8px 12px; font-size: 0.85rem; } .card { padding: 15px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Wireshark + WebSocket 调试演示</h1>
+    <p>交互式学习 Wireshark 抓包分析 WebSocket 协议的全流程</p>
+  </header>
+
+  <div class="container">
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="overview">概念总览</button>
+      <button class="tab-btn" data-tab="handshake">握手分析</button>
+      <button class="tab-btn" data-tab="frame">帧结构解析</button>
+      <button class="tab-btn" data-tab="filter">过滤器语法</button>
+      <button class="tab-btn" data-tab="practice">实战演练</button>
+      <button class="tab-btn" data-tab="quiz">自测题</button>
+    </nav>
+
+    <!-- Tab 1: Overview -->
+    <div class="tab-content active" id="overview">
+      <div class="card">
+        <h2>WebSocket 协议基础</h2>
+        <p>WebSocket 是一种在单个 TCP 连接上进行<strong>全双工</strong>通信的协议。与 HTTP 不同，WebSocket 建立连接后，客户端和服务端可以随时互相发送数据。</p>
+        <h3>WebSocket vs HTTP 对比</h3>
+        <table>
+          <thead><tr><th>维度</th><th>HTTP/1.1</th><th>HTTP/2</th><th>WebSocket</th></tr></thead>
+          <tbody>
+            <tr><td>通信方式</td><td>请求-响应</td><td>请求-响应</td><td class="highlight">全双工</td></tr>
+            <tr><td>连接</td><td>短连接</td><td>多路复用</td><td class="highlight">长连接</td></tr>
+            <tr><td>服务端推送</td><td>轮询</td><td>Server Push</td><td class="highlight">原生支持</td></tr>
+            <tr><td>适用场景</td><td>REST API</td><td>资源加载</td><td class="highlight">实时数据</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>Wireshark 简介</h2>
+        <p>Wireshark 是功能强大的<strong>开源网络协议分析工具</strong>，支持实时捕获和离线分析数百种网络协议。</p>
+        <h3>核心功能</h3>
+        <ul>
+          <li>实时网络流量捕获</li>
+          <li>支持多种协议解析（TCP/IP/UDP/HTTP/WebSocket）</li>
+          <li>强大的过滤器（Capture Filter / Display Filter）</li>
+          <li>数据包详细信息查看</li>
+          <li>统计分析和可视化</li>
+        </ul>
+        <h3>安装说明</h3>
+        <pre><code># Windows: https://www.wireshark.org/download.html
+# 需要安装 Npcap 驱动: https://npcap.com/
+
+# macOS
+brew install wireshark
+
+# Linux
+sudo apt install wireshark</code></pre>
+      </div>
+      <div class="card">
+        <h2>WebSocket 与 TCP/IP 层级</h2>
+        <div class="diagram">┌─────────────────────────────────────┐
+│         应用层: WebSocket 数据帧      │
+├─────────────────────────────────────┤
+│  传输层: TCP (可靠连接)              │
+├─────────────────────────────────────┤
+│  网络层: IP (路由转发)               │
+├─────────────────────────────────────┤
+│  链路层: Ethernet (MAC 地址)         │
+└─────────────────────────────────────┘
+
+WebSocket 运行在 TCP 之上，
+握手阶段使用 HTTP Upgrade 机制。</div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Handshake -->
+    <div class="tab-content" id="handshake">
+      <div class="card">
+        <h2>WebSocket 连接建立流程</h2>
+        <div class="diagram">客户端                              服务端
+   │                                  │
+   │─────── TCP 三次握手 ────────────▶│
+   │◀─────── SYN + ACK ───────────────│
+   │─────── ACK ─────────────────────▶│
+   │                                  │
+   │─────── HTTP Upgrade 请求 ────────▶│  ← Sec-WebSocket-Key
+   │◀─────── HTTP 101 响应 ───────────│  ← Sec-WebSocket-Accept
+   │                                  │
+   │══════════ 握手完成 ════════════════│
+   │                                  │
+   │─────── WebSocket 数据帧 ────────▶│  ← 双向通信
+   │◀─────── WebSocket 数据帧 ───────│
+   │                                  │
+   │─────── Close 帧 ────────────────▶│
+   │◀─────── Close 响应 ─────────────│</div>
+      </div>
+      <div class="card">
+        <h2>HTTP Upgrade 请求分析</h2>
+        <pre><code>GET /ws HTTP/1.1
+Host: example.com
+Connection: Upgrade
+Upgrade: websocket
+Sec-WebSocket-Version: 13
+Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==</code></pre>
+        <h3>关键 Header</h3>
+        <table>
+          <thead><tr><th>Header</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>Connection: Upgrade</td><td>表明需要协议升级</td></tr>
+            <tr><td>Upgrade: websocket</td><td>升级为 WebSocket 协议</td></tr>
+            <tr><td>Sec-WebSocket-Version: 13</td><td>协议版本，标准为 13</td></tr>
+            <tr><td>Sec-WebSocket-Key</td><td>随机 Base64 密钥，用于验证握手</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>服务端响应</h2>
+        <pre><code>HTTP/1.1 101 Switching Protocols
+Connection: Upgrade
+Upgrade: websocket
+Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=</code></pre>
+        <p>状态码 <span class="badge badge-success">101</span> 表示协议切换成功。</p>
+        <h3>Sec-WebSocket-Accept 计算</h3>
+        <pre><code>Sec-WebSocket-Accept = Base64(
+  SHA1(Sec-WebSocket-Key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+)</code></pre>
+      </div>
+      <div class="card">
+        <h2>Wireshark 过滤器</h2>
+        <div class="filter-input">
+          <input type="text" value='http.response.code == 101' readonly>
+          <button onclick="navigator.clipboard.writeText('http.response.code == 101')">复制</button>
+        </div>
+        <table>
+          <thead><tr><th>过滤器</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td><code>http.response.code == 101</code></td><td>过滤 101 响应</td></tr>
+            <tr><td><code>http.connection == "Upgrade"</code></td><td>过滤协议升级请求</td></tr>
+            <tr><td><code>tcp.port == 8080</code></td><td>过滤指定端口</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3: Frame Structure -->
+    <div class="tab-content" id="frame">
+      <div class="card">
+        <h2>WebSocket 帧结构（RFC 6455）</h2>
+        <div class="diagram">┌──────────────────────────────────────────────────────┐
+│ FIN  RSV1 RSV2 RSV3 │ opcode (4bit) │ MASK │ payload  │
+│  1bit                │               │ 1bit │   len   │
+├──────────────────────────────────────────────────────┤
+│              Extended payload length (64bit)          │  ← 仅当 payload len > 125
+├──────────────────────────────────────────────────────┤
+│                  Masking-key (32bit)                  │  ← 仅当 MASK=1
+├──────────────────────────────────────────────────────┤
+│                     Payload Data                       │
+└──────────────────────────────────────────────────────┘</div>
+        <h3>各字段说明</h3>
+        <table>
+          <thead><tr><th>字段</th><th>长度</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>FIN</td><td>1 bit</td><td>是否为消息最后一帧</td></tr>
+            <tr><td>opcode</td><td>4 bits</td><td>帧类型</td></tr>
+            <tr><td>MASK</td><td>1 bit</td><td>数据是否掩码</td></tr>
+            <tr><td>Payload len</td><td>7 bits</td><td>数据长度</td></tr>
+            <tr><td>Masking-key</td><td>32 bits</td><td>掩码密钥</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>opcode 帧类型</h2>
+        <table>
+          <thead><tr><th>opcode</th><th>值</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr><td>0x0</td><td>0</td><td>继续帧</td></tr>
+            <tr><td class="highlight">0x1</td><td>1</td><td class="highlight">文本帧</td></tr>
+            <tr><td>0x2</td><td>2</td><td>二进制帧</td></tr>
+            <tr><td>0x8</td><td>8</td><td>关闭帧</td></tr>
+            <tr><td>0x9</td><td>9</td><td>Ping 帧</td></tr>
+            <tr><td>0xA</td><td>10</td><td>Pong 帧</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>为什么需要掩码？</h2>
+        <p>RFC 6455 规定：<strong>客户端发送的数据必须掩码，服务端返回的不需要。</strong></p>
+        <h3>安全原因：防止"缓存污染攻击"</h3>
+        <div class="diagram">攻击场景：
+1. 恶意客户端 → 代理服务器: 发送被掩码的请求
+2. 代理服务器: 不理解掩码，不缓存
+3. 若不掩码，代理服务器可能缓存恶意内容
+
+掩码后的数据不会被 HTTP 代理服务器缓存。</div>
+      </div>
+    </div>
+
+    <!-- Tab 4: Filters -->
+    <div class="tab-content" id="filter">
+      <div class="card">
+        <h2>Wireshark 过滤器类型</h2>
+        <table>
+          <thead><tr><th>类型</th><th>作用时机</th><th>特点</th></tr></thead>
+          <tbody>
+            <tr><td class="highlight">捕获过滤器 (Capture)</td><td>抓包时生效</td><td>BPF 语法</td></tr>
+            <tr><td>显示过滤器 (Display)</td><td>抓包后筛选</td><td>更强大，不丢数据</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h2>捕获过滤器 (BPF 语法)</h2>
+        <pre><code># 基本语法
+protocol direction host port
+
+# 示例
+tcp port 8080              # 捕获 8080 端口
+tcp dst port 8080           # 目标端口
+host 192.168.1.1            # 特定 IP
+net 192.168.0.0/24         # IP 段
+tcp port 8080 and host 127.0.0.1  # 组合</code></pre>
+      </div>
+      <div class="card">
+        <h2>显示过滤器</h2>
+        <h3>协议和 WebSocket 过滤</h3>
+        <div class="filter-input">
+          <input type="text" value="ws.payload.len > 0" readonly>
+          <button onclick="navigator.clipboard.writeText('ws.payload.len > 0')">复制</button>
+        </div>
+        <div class="filter-input">
+          <input type="text" value="ws.opcode == 1" readonly>
+          <button onclick="navigator.clipboard.writeText('ws.opcode == 1')">复制</button>
+        </div>
+        <div class="filter-input">
+          <input type="text" value="ws.opcode == 8" readonly>
+          <button onclick="navigator.clipboard.writeText('ws.opcode == 8')">复制</button>
+        </div>
+        <h3>逻辑组合</h3>
+        <pre><code>tcp.port == 8080 and ws.payload.len > 0
+http.response.code == 101 or ws.payload.len > 0</code></pre>
+      </div>
+    </div>
+
+    <!-- Tab 5: Practice -->
+    <div class="tab-content" id="practice">
+      <div class="card">
+        <h2>本地 WebSocket 抓包实战</h2>
+        <h3>步骤 1：准备环境</h3>
+        <ul>
+          <li>安装 Wireshark</li>
+          <li>启动本地 WebSocket 服务端（端口如 8080）</li>
+          <li>准备 WebSocket 客户端</li>
+        </ul>
+        <h3>步骤 2：开始抓包</h3>
+        <pre><code># 启动 Wireshark，选择 lo（Loopback）接口
+# 点击开始捕获</code></pre>
+        <h3>步骤 3：设置捕获过滤器</h3>
+        <div class="filter-input">
+          <input type="text" value="tcp port 8080" readonly>
+          <button onclick="navigator.clipboard.writeText('tcp port 8080')">复制</button>
+        </div>
+        <h3>步骤 4：触发连接并分析</h3>
+        <pre><code>const ws = new WebSocket('ws://127.0.0.1:8080/echo');
+ws.onopen = () => ws.send('Hello');
+ws.onmessage = (e) => console.log(e.data);</code></pre>
+      </div>
+      <div class="card">
+        <h2>分析抓包结果</h2>
+        <h3>1. 找到 TCP 三次握手</h3>
+        <p>过滤器: <code>tcp.port == 8080</code></p>
+        <h3>2. 分析 HTTP Upgrade 握手</h3>
+        <p>过滤器: <code>http.response.code == 101</code></p>
+        <h3>3. 查看 WebSocket 数据帧</h3>
+        <p>过滤器: <code>ws.payload.len > 0</code></p>
+        <h3>4. 追踪 TCP 流</h3>
+        <p>右键包 → Follow → TCP Stream</p>
+      </div>
+    </div>
+
+    <!-- Tab 6: Quiz -->
+    <div class="tab-content" id="quiz">
+      <div class="card">
+        <h2>自测题</h2>
+
+        <div class="quiz-question" data-answer="C">
+          <p><strong>问题 1：</strong>WebSocket 握手的 HTTP 状态码是什么？</p>
+          <div class="quiz-options">
+            <div class="quiz-option" data-choice="A">A) 200</div>
+            <div class="quiz-option" data-choice="B">B) 301</div>
+            <div class="quiz-option" data-choice="C">C) 101</div>
+            <div class="quiz-option" data-choice="D">D) 404</div>
+          </div>
+          <div class="quiz-result"></div>
+        </div>
+
+        <div class="quiz-question" data-answer="B">
+          <p><strong>问题 2：</strong>opcode 为 8 的帧是什么类型？</p>
+          <div class="quiz-options">
+            <div class="quiz-option" data-choice="A">A) 文本帧</div>
+            <div class="quiz-option" data-choice="B">B) 关闭帧</div>
+            <div class="quiz-option" data-choice="C">C) 二进制帧</div>
+            <div class="quiz-option" data-choice="D">D) Ping 帧</div>
+          </div>
+          <div class="quiz-result"></div>
+        </div>
+
+        <div class="quiz-question" data-answer="A">
+          <p><strong>问题 3：</strong>哪个协议层运行在 WebSocket 之上？</p>
+          <div class="quiz-options">
+            <div class="quiz-option" data-choice="A">A) TCP</div>
+            <div class="quiz-option" data-choice="B">B) UDP</div>
+            <div class="quiz-option" data-choice="C">C) IP</div>
+            <div class="quiz-option" data-choice="D">D) HTTP</div>
+          </div>
+          <div class="quiz-result"></div>
+        </div>
+
+        <div class="quiz-question" data-answer="C">
+          <p><strong>问题 4：</strong>Wireshark 捕获过滤器使用什么语法？</p>
+          <div class="quiz-options">
+            <div class="quiz-option" data-choice="A">A) Display Filter 语法</div>
+            <div class="quiz-option" data-choice="B">B) Wireshark 专有语法</div>
+            <div class="quiz-option" data-choice="C">C) BPF (Berkeley Packet Filter) 语法</div>
+            <div class="quiz-option" data-choice="D">D) TCPdump 语法</div>
+          </div>
+          <div class="quiz-result"></div>
+        </div>
+
+        <div class="quiz-question" data-answer="B">
+          <p><strong>问题 5：</strong>为什么客户端发送的数据需要掩码？</p>
+          <div class="quiz-options">
+            <div class="quiz-option" data-choice="A">A) 加密传输</div>
+            <div class="quiz-option" data-choice="B">B) 防止 HTTP 代理缓存污染攻击</div>
+            <div class="quiz-option" data-choice="C">C) 提高传输效率</div>
+            <div class="quiz-option" data-choice="D">D) 标识数据来源</div>
+          </div>
+          <div class="quiz-result"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Quiz functionality
+    document.querySelectorAll('.quiz-question').forEach(question => {
+      const options = question.querySelectorAll('.quiz-option');
+      const result = question.querySelector('.quiz-result');
+      const correctAnswer = question.dataset.answer;
+
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          if (result.classList.contains('show')) return;
+          
+          options.forEach(o => o.classList.remove('selected'));
+          option.classList.add('selected');
+          
+          const chosen = option.dataset.choice;
+          if (chosen === correctAnswer) {
+            option.classList.add('correct');
+            result.classList.add('correct', 'show');
+            result.textContent = '正确！';
+          } else {
+            option.classList.add('incorrect');
+            result.classList.add('incorrect', 'show');
+            result.textContent = '错误。正确答案: ' + correctAnswer;
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>

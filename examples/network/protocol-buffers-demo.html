@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protocol Buffers 交互式演示</title>
+  <style>
+    :root {
+      --primary: #4285f4;
+      --secondary: #34a853;
+      --accent: #ea4335;
+      --warning: #fbbc04;
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --text: #202124;
+      --text-secondary: #5f6368;
+      --border: #dadce0;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    /* Tab Navigation */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      overflow-x: auto;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { background: var(--bg); color: var(--text); }
+    .tab-btn.active { background: var(--primary); color: white; }
+
+    .tab-content {
+      display: none;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card h3 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: var(--primary);
+    }
+
+    /* Code Blocks */
+    pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 16px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
+    }
+
+    .inline-code {
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: var(--accent);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+
+    tr:hover { background: var(--bg); }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover { background: #3367d6; }
+    .btn-secondary { background: var(--secondary); color: white; }
+    .btn-secondary:hover { background: #2d8e47; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-group { display: flex; gap: 8px; margin-top: 16px; }
+
+    /* Demo Areas */
+    .demo-section {
+      margin-bottom: 24px;
+    }
+
+    .demo-output {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 16px;
+      border-radius: var(--radius);
+      min-height: 100px;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Tags */
+    .tag {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-right: 4px;
+    }
+
+    .tag-good { background: #e6f4ea; color: var(--secondary); }
+    .tag-warning { background: #fef7e0; color: #b06000; }
+    .tag-bad { background: #fce8e6; color: var(--accent); }
+
+    /* Quiz */
+    .quiz-question {
+      margin-bottom: 20px;
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .quiz-option {
+      padding: 12px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quiz-option:hover { border-color: var(--primary); }
+    .quiz-option.correct { background: #e6f4ea; border-color: var(--secondary); }
+    .quiz-option.incorrect { background: #fce8e6; border-color: var(--accent); }
+
+    /* Comparison */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .comparison-card {
+      background: var(--bg);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .comparison-card h4 {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .badge-proto { background: #e8f0fe; color: var(--primary); }
+    .badge-json { background: #fce8e6; color: var(--accent); }
+
+    /* Flex utilities */
+    .flex { display: flex; }
+    .gap-8 { gap: 8px; }
+    .gap-16 { gap: 16px; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .flex-1 { flex: 1; }
+
+    /* Text utilities */
+    .text-sm { font-size: 0.875rem; }
+    .text-secondary { color: var(--text-secondary); }
+    .mt-16 { margin-top: 16px; }
+    .mb-16 { margin-bottom: 16px; }
+
+    /* Grid */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+    /* Highlight */
+    .highlight { background: #fff3cd; padding: 2px 4px; border-radius: 2px; }
+
+    /* Step indicator */
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      margin: 24px 0;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--border);
+      z-index: 0;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step-label { font-size: 13px; color: var(--text-secondary); text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔬 Protocol Buffers 交互式演示</h1>
+    <p class="subtitle">Protocol Buffers 是 Google 的结构化数据序列化协议，比 JSON 更小更快</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview">📖 概念总览</button>
+      <button class="tab-btn" data-tab="proto-syntax">📝 Proto 语法</button>
+      <button class="tab-btn" data-tab="js-demo">💻 JavaScript</button>
+      <button class="tab-btn" data-tab="workflow">🔄 工作流程</button>
+      <button class="tab-btn" data-tab="comparison">⚖️ JSON 对比</button>
+      <button class="tab-btn" data-tab="quiz">📝 自测题</button>
+    </div>
+
+    <!-- 概念总览 -->
+    <div class="tab-content active" id="tab-overview">
+      <h2 class="mb-16">什么是 Protocol Buffers？</h2>
+
+      <div class="card">
+        <h3>核心定义</h3>
+        <p>Protocol Buffers（Protobuf）是 Google 开发的一种<strong>语言无关、平台无关</strong>的结构化数据序列化协议。它使用二进制格式，比 JSON 更小、更快。</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-label">定义 .proto<br>文件</div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-label">编译生成<br>代码</div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-label">编码/解码<br>数据</div>
+        </div>
+      </div>
+
+      <h3 class="mb-16">常见使用场景</h3>
+      <div class="grid-3">
+        <div class="card">
+          <h3>🌐 gRPC 通信</h3>
+          <p class="text-sm text-secondary">gRPC 使用 Protobuf 作为默认序列化协议，服务间通信的首选</p>
+        </div>
+        <div class="card">
+          <h3>💾 数据持久化</h3>
+          <p class="text-sm text-secondary">存储结构化数据，比 JSON 更省空间，适合大型数据集</p>
+        </div>
+        <div class="card">
+          <h3>📡 消息队列</h3>
+          <p class="text-sm text-secondary">Kafka、RabbitMQ 等消息队列中使用 Protobuf 序列化消息</p>
+        </div>
+      </div>
+
+      <h3 class="mb-16 mt-16">支持的语言</h3>
+      <div class="flex flex-wrap gap-8">
+        <span class="tag" style="background:#e8f0fe">C++</span>
+        <span class="tag" style="background:#e8f0fe">Java</span>
+        <span class="tag" style="background:#e8f0fe">Python</span>
+        <span class="tag" style="background:#e8f0fe">Go</span>
+        <span class="tag" style="background:#e8f0fe">JavaScript</span>
+        <span class="tag" style="background:#e8f0fe">Ruby</span>
+        <span class="tag" style="background:#e8f0fe">PHP</span>
+        <span class="tag" style="background:#e8f0fe">C#</span>
+        <span class="tag" style="background:#e8f0fe">Kotlin</span>
+        <span class="tag" style="background:#e8f0fe">Dart</span>
+      </div>
+    </div>
+
+    <!-- Proto 语法 -->
+    <div class="tab-content" id="tab-proto-syntax">
+      <h2 class="mb-16">.proto 文件语法</h2>
+
+      <div class="card">
+        <h3>基本消息定义</h3>
+        <pre>// 指定 proto3 语法
+syntax = "proto3";
+
+message Person {
+  string name = 1;    // 字段编号 1
+  int32 id = 2;       // 字段编号 2
+  string email = 3;   // 字段编号 3
+}</pre>
+      </div>
+
+      <div class="card">
+        <h3>字段编号规则</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>编号范围</th>
+              <th>编码字节</th>
+              <th>适用场景</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="inline-code">1 ~ 15</span></td>
+              <td>1 字节</td>
+              <td>频繁使用的字段</td>
+            </tr>
+            <tr>
+              <td><span class="inline-code">16 ~ 2047</span></td>
+              <td>2+ 字节</td>
+              <td>不常用的字段</td>
+            </tr>
+            <tr>
+              <td><span class="inline-code">19000 ~ 19999</span></td>
+              <td>保留</td>
+              <td>Protocol Buffers 保留范围</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>标量类型对照表</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Proto 类型</th>
+              <th>JavaScript 类型</th>
+              <th>说明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>double</td><td>number</td><td>64 位浮点</td></tr>
+            <tr><td>float</td><td>number</td><td>32 位浮点</td></tr>
+            <tr><td>int32</td><td>number</td><td>变长编码整数</td></tr>
+            <tr><td>int64</td><td>BigInt</td><td>64 位整数</td></tr>
+            <tr><td>uint32</td><td>number</td><td>无符号整数</td></tr>
+            <tr><td>bool</td><td>boolean</td><td>布尔值</td></tr>
+            <tr><td>string</td><td>string</td><td>UTF-8 字符串</td></tr>
+            <tr><td>bytes</td><td>Uint8Array</td><td>字节序列</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>高级类型</h3>
+
+        <h4 style="margin: 16px 0 8px">枚举</h4>
+        <pre>enum PhoneType {
+  MOBILE = 0;
+  HOME = 1;
+  WORK = 2;
+}
+
+message Phone {
+  string number = 1;
+  PhoneType type = 2;
+}</pre>
+
+        <h4 style="margin: 16px 0 8px">嵌套消息</h4>
+        <pre>message Person {
+  string name = 1;
+  Address address = 2;  // 嵌套类型
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+}</pre>
+
+        <h4 style="margin: 16px 0 8px">数组（repeated）</h4>
+        <pre>message Person {
+  repeated string hobbies = 1;  // 数组字段
+}</pre>
+
+        <h4 style="margin: 16px 0 8px">Map（映射）</h4>
+        <pre>message Person {
+  map<string, string> phonebook = 1;
+}</pre>
+      </div>
+    </div>
+
+    <!-- JavaScript 演示 -->
+    <div class="tab-content" id="tab-js-demo">
+      <h2 class="mb-16">JavaScript 使用演示</h2>
+
+      <div class="demo-section">
+        <h3 class="mb-16">基础编码/解码</h3>
+        <div class="grid-2">
+          <div>
+            <div class="form-group">
+              <label>Person 对象</label>
+              <textarea id="js-input" rows="6">{
+  "name": "张三",
+  "id": 12345,
+  "email": "zhangsan@example.com"
+}</textarea>
+            </div>
+            <div class="btn-group">
+              <button class="btn btn-primary" onclick="runJsDemo()">🔄 模拟编码/解码</button>
+              <button class="btn btn-outline" onclick="clearJsDemo()">🗑️ 清空</button>
+            </div>
+          </div>
+          <div>
+            <label>输出结果</label>
+            <div class="demo-output" id="js-output">点击按钮开始演示...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <h3>使用 protobufjs 库</h3>
+        <pre>// 1. 安装
+// npm install protobufjs
+
+// 2. 加载 .proto 文件
+const protobuf = require('protobufjs');
+const root = await protobuf.load('person.proto');
+const Person = root.lookupType('Person');
+
+// 3. 编码
+const message = Person.create({
+  name: '张三',
+  id: 12345,
+  email: 'zhangsan@example.com'
+});
+const buffer = Person.encode(message).finish();
+
+// 4. 解码
+const decoded = Person.decode(buffer);
+console.log(decoded);
+// { name: '张三', id: 12345, email: 'zhangsan@example.com' }</pre>
+      </div>
+
+      <div class="card mt-16">
+        <h3>常见错误处理</h3>
+        <pre>// 验证（编码前自动验证）
+try {
+  const message = Person.create({ name: '张三' });
+  Person.verify(message);  // 返回错误信息或 null
+} catch (e) {
+  console.error('验证失败:', e.message);
+}
+
+// .required 字段检查
+const err = Person.verify({ id: 123 }); // name 是必需字段
+if (err) console.error(err);</pre>
+      </div>
+    </div>
+
+    <!-- 工作流程 -->
+    <div class="tab-content" id="tab-workflow">
+      <h2 class="mb-16">Protocol Buffers 工作流程</h2>
+
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-label">定义 .proto<br>文件</div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-label">安装<br>protoc</div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-label">编译生成<br>代码</div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-label">应用中使用</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>步骤 1: 定义 .proto 文件</h3>
+        <pre>// person.proto
+syntax = "proto3";
+
+package myapp;
+
+message Person {
+  string name = 1;
+  int32 id = 2;
+  string email = 3;
+
+  enum PhoneType {
+    MOBILE = 0;
+    HOME = 1;
+    WORK = 2;
+  }
+
+  message Phone {
+    string number = 1;
+    PhoneType type = 2;
+  }
+
+  repeated Phone phones = 4;
+}</pre>
+      </div>
+
+      <div class="card">
+        <h3>步骤 2 & 3: 安装 protoc 并编译</h3>
+
+        <h4 style="margin: 12px 0">安装 protoc 编译器</h4>
+        <pre># macOS
+brew install protobuf
+
+# Ubuntu/Debian
+sudo apt install protobuf-compiler
+
+# Windows (使用 chocolatey)
+choco install protobuf</pre>
+
+        <h4 style="margin: 16px 0 12px">编译为各语言</h4>
+        <pre># JavaScript (需要 @com_category_js 插件)
+protoc --js_out=import_style=commonjs,binary:. person.proto
+
+# Python
+protoc --python_out=. person.proto
+
+# Java
+protoc --java_out=. person.proto
+
+# Go
+protoc --go_out=. person.proto
+
+# 所有语言（一次生成）
+protoc --js_out=. --python_out=. --java_out=. --go_out=. person.proto</pre>
+      </div>
+
+      <div class="card">
+        <h3>步骤 4: 应用中使用</h3>
+        <pre>// JavaScript 中使用
+const protobuf = require('protobufjs');
+const root = protobuf.loadSync('person_pb.js');
+
+// 获取类型
+const Person = root.lookupType('myapp.Person');
+
+// 编码
+const msg = Person.create({ name: '张三', id: 1, email: 'test@example.com' });
+const bytes = Person.encode(msg).finish();
+
+// 解码
+const decoded = Person.decode(bytes);
+console.log(decoded);</pre>
+      </div>
+
+      <div class="card">
+        <h3>Proto 文件最佳实践</h3>
+        <ul style="margin-left: 20px">
+          <li>使用 <span class="inline-code">proto3</span> 语法（最新版本）</li>
+          <li>频繁字段使用 1~15 编号（更省空间）</li>
+          <li>不要删除或重用字段编号</li>
+          <li>使用 <span class="inline-code">package</span> 避免命名冲突</li>
+          <li>为枚举定义零值（默认选项）</li>
+          <li>使用 <span class="inline-code">repeated</span> 而非数组包装类型</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- JSON 对比 -->
+    <div class="tab-content" id="tab-comparison">
+      <h2 class="mb-16">Protocol Buffers vs JSON 对比</h2>
+
+      <div class="comparison-grid">
+        <div class="comparison-card">
+          <h4>📦 体积</h4>
+          <div style="margin: 12px 0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>JSON</span><span>较大</span>
+            </div>
+            <div style="background:#e0e0e0;height:12px;border-radius:6px;width:100%"></div>
+          </div>
+          <div style="margin: 12px 0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>Protobuf</span><span>小 30%~70%</span>
+            </div>
+            <div style="background:#4285f4;height:12px;border-radius:6px;width:50%"></div>
+          </div>
+        </div>
+
+        <div class="comparison-card">
+          <h4>⚡ 速度</h4>
+          <div style="margin: 12px 0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>JSON 解析</span><span>基准</span>
+            </div>
+            <div style="background:#e0e0e0;height:12px;border-radius:6px;width:100%"></div>
+          </div>
+          <div style="margin: 12px 0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span>Protobuf 解析</span><span>快 5~10x</span>
+            </div>
+            <div style="background:#34a853;height:12px;border-radius:6px;width:15%"></div>
+          </div>
+        </div>
+
+        <div class="comparison-card">
+          <h4>🛡️ 类型安全</h4>
+          <div style="margin: 12px 0">
+            <span class="tag tag-warning">弱类型</span>
+            <span class="tag tag-good">强类型</span>
+          </div>
+          <p class="text-sm text-secondary">Protobuf 通过 .proto 定义提供编译时类型检查</p>
+        </div>
+
+        <div class="comparison-card">
+          <h4>🔍 可读性</h4>
+          <div style="margin: 12px 0">
+            <span class="tag tag-good">JSON 高</span>
+            <span class="tag tag-bad">Protobuf 低</span>
+          </div>
+          <p class="text-sm text-secondary">调试时 JSON 更方便阅读，Protobuf 需解码</p>
+        </div>
+      </div>
+
+      <div class="card mt-16">
+        <h3>选择指南</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>场景</th>
+              <th>推荐</th>
+              <th>原因</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>HTTP API（浏览器）</td>
+              <td><span class="badge badge-json">JSON</span></td>
+              <td>原生支持，无需额外解析</td>
+            </tr>
+            <tr>
+              <td>gRPC 服务间通信</td>
+              <td><span class="badge badge-proto">Protobuf</span></td>
+              <td>高性能，二进制更高效</td>
+            </tr>
+            <tr>
+              <td>数据持久化</td>
+              <td><span class="badge badge-proto">Protobuf</span></td>
+              <td>更小存储空间，更快读写</td>
+            </tr>
+            <tr>
+              <td>开放 API（公开）</td>
+              <td><span class="badge badge-json">JSON</span></td>
+              <td>更广泛的客户端支持</td>
+            </tr>
+            <tr>
+              <td>大型数据集</td>
+              <td><span class="badge badge-proto">Protobuf</span></td>
+              <td>显著节省带宽和存储</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card mt-16">
+        <h3>格式对比示例</h3>
+        <div class="grid-2">
+          <div>
+            <h4>JSON 格式</h4>
+            <pre>{
+  "name": "张三",
+  "id": 12345,
+  "email": "zhangsan@example.com",
+  "phones": [
+    { "number": "13800138000", "type": "MOBILE" }
+  ]
+}</pre>
+          </div>
+          <div>
+            <h4>Protobuf 二进制（示意）</h4>
+            <pre>0A 05 E5 BC A0 E4 BA BA  // name="张三"
+10 B9 60        // id=12345
+1A 14 7A 68 61... // email
+2A 12 0A 0B 31 33 38... // phones</pre>
+            <p class="text-sm text-secondary mt-16">二进制格式不可读，但更紧凑</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自测题 -->
+    <div class="tab-content" id="tab-quiz">
+      <h2 class="mb-16">📝 自测题</h2>
+
+      <div id="quiz-container">
+        <div class="quiz-question" data-correct="1">
+          <h4>1. Protocol Buffers 使用什么格式序列化数据？</h4>
+          <div class="quiz-options">
+            <div class="quiz-option" data-index="0">A. 文本（类似 JSON）</div>
+            <div class="quiz-option" data-index="1">B. 二进制</div>
+            <div class="quiz-option" data-index="2">C. XML</div>
+            <div class="quiz-option" data-index="3">D. YAML</div>
+          </div>
+        </div>
+
+        <div class="quiz-question" data-correct="2">
+          <h4>2. 在 .proto 文件中，字段编号 1~15 使用几个字节编码？</h4>
+          <div class="quiz-options">
+            <div class="quiz-option" data-index="0">A. 0 字节</div>
+            <div class="quiz-option" data-index="1">B. 2 字节</div>
+            <div class="quiz-option" data-index="2">C. 1 字节</div>
+            <div class="quiz-option" data-index="3">D. 4 字节</div>
+          </div>
+        </div>
+
+        <div class="quiz-question" data-correct="1">
+          <h4>3. 哪个不是 Protocol Buffers 的优势？</h4>
+          <div class="quiz-options">
+            <div class="quiz-option" data-index="0">A. 体积小、速度快</div>
+            <div class="quiz-option" data-index="1">B. 完全可读，无需解码</div>
+            <div class="quiz-option" data-index="2">C. 语言无关</div>
+            <div class="quiz-option" data-index="3">D. 支持 Schema 演进</div>
+          </div>
+        </div>
+
+        <div class="quiz-question" data-correct="0">
+          <h4>4. JavaScript 中 int64 类型对应什么？</h4>
+          <div class="quiz-options">
+            <div class="quiz-option" data-index="0">A. BigInt</div>
+            <div class="quiz-option" data-index="1">B. number</div>
+            <div class="quiz-option" data-index="2">C. string</div>
+            <div class="quiz-option" data-index="3">D. Uint8Array</div>
+          </div>
+        </div>
+
+        <div class="quiz-question" data-correct="3">
+          <h4>5. 在 .proto 文件中，如何定义数组字段？</h4>
+          <div class="quiz-options">
+            <div class="quiz-option" data-index="0">A. 使用 array 关键字</div>
+            <div class="quiz-option" data-index="1">B. 使用 list 关键字</div>
+            <div class="quiz-option" data-index="2">C. 使用 brackets []</div>
+            <div class="quiz-option" data-index="3">D. 使用 repeated 关键字</div>
+          </div>
+        </div>
+
+        <div class="btn-group mt-16">
+          <button class="btn btn-primary" onclick="checkAllAnswers()">📊 检查所有答案</button>
+          <button class="btn btn-outline" onclick="resetQuiz()">🔄 重置</button>
+        </div>
+      </div>
+
+      <div id="quiz-result" class="mt-16" style="display:none">
+        <div class="card">
+          <h3>🎉 测试结果</h3>
+          <p id="quiz-score"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // JS Demo
+    function runJsDemo() {
+      const input = document.getElementById('js-input').value;
+      const output = document.getElementById('js-output');
+
+      try {
+        const obj = JSON.parse(input);
+
+        // Simulate Protobuf encoding (binary representation)
+        const nameBytes = new TextEncoder().encode(obj.name);
+        const emailBytes = new TextEncoder().encode(obj.email || '');
+
+        // Simulated Protobuf message format
+        const buffer = [];
+        // Field 1 (name): string
+        buffer.push(0x0A); // field tag (1, wire type 2)
+        buffer.push(nameBytes.length);
+        buffer.push(...nameBytes);
+        // Field 2 (id): int32
+        buffer.push(0x10); // field tag (2, wire type 0)
+        let id = obj.id || 0;
+        while (id > 0x7f) { buffer.push((id & 0x7f) | 0x80); id >>= 7; }
+        buffer.push(id & 0x7f);
+        // Field 3 (email): string
+        if (obj.email) {
+          buffer.push(0x1A); // field tag (3, wire type 2)
+          buffer.push(emailBytes.length);
+          buffer.push(...emailBytes);
+        }
+
+        const hexStr = Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join(' ').toUpperCase();
+        const base64 = btoa(String.fromCharCode(...buffer));
+
+        output.innerHTML = `<span style="color:#4caf50">✅ JSON 对象解析成功</span>
+
+<span style="color:#ff9800">📦 模拟 Protobuf 二进制编码:</span>
+Hex: ${hexStr}
+
+<span style="color:#2196f3">📊 Base64 编码:</span>
+${base64}
+
+<span style="color:#4caf50">✅ 解码后数据:</span>
+{
+  name: "${obj.name}",
+  id: ${obj.id},
+  email: "${obj.email || ''}"
+}`;
+      } catch (e) {
+        output.innerHTML = `<span style="color:#f44336">❌ 错误: ${e.message}</span>`;
+      }
+    }
+
+    function clearJsDemo() {
+      document.getElementById('js-input').value = '{\n  "name": "张三",\n  "id": 12345,\n  "email": "zhangsan@example.com"\n}';
+      document.getElementById('js-output').textContent = '点击按钮开始演示...';
+    }
+
+    // Quiz
+    document.querySelectorAll('.quiz-option').forEach(opt => {
+      opt.addEventListener('click', function() {
+        const question = this.closest('.quiz-question');
+        question.querySelectorAll('.quiz-option').forEach(o => {
+          o.classList.remove('correct', 'incorrect');
+        });
+      });
+    });
+
+    function checkAllAnswers() {
+      let correct = 0;
+      const questions = document.querySelectorAll('.quiz-question');
+
+      questions.forEach((q, i) => {
+        const correctIdx = parseInt(q.dataset.correct);
+        const selected = q.querySelector('.quiz-option:active') || q.querySelector('.quiz-option:hover');
+        const options = q.querySelectorAll('.quiz-option');
+
+        options.forEach((o, idx) => {
+          o.classList.remove('correct', 'incorrect');
+          if (idx === correctIdx) {
+            o.classList.add('correct');
+          }
+        });
+
+        if (selected && parseInt(selected.dataset.index) === correctIdx) {
+          correct++;
+        }
+      });
+
+      const result = document.getElementById('quiz-result');
+      const score = document.getElementById('quiz-score');
+      result.style.display = 'block';
+      score.innerHTML = `答对 ${correct}/${questions.length} 题 (${Math.round(correct/questions.length*100)}%)`;
+    }
+
+    function resetQuiz() {
+      document.querySelectorAll('.quiz-option').forEach(o => {
+        o.classList.remove('correct', 'incorrect');
+      });
+      document.getElementById('quiz-result').style.display = 'none';
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare 功能演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #c9d1d9; line-height: 1.6; padding: 20px; }
+    h1 { color: #f78166; font-size: 1.5rem; margin-bottom: 20px; border-bottom: 1px solid #30363d; padding-bottom: 10px; }
+    h2 { color: #d2a8ff; font-size: 1.1rem; margin: 24px 0 12px; }
+    h3 { color: #79c0ff; font-size: 0.95rem; margin: 16px 0 8px; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { padding: 8px 16px; background: #21262d; border: 1px solid #30363d; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 0.85rem; color: #8b949e; transition: all 0.2s; }
+    .tab:hover { background: #30363d; color: #c9d1d9; }
+    .tab.active { background: #161b22; color: #f78166; border-bottom-color: #161b22; }
+    .tab-content { display: none; background: #161b22; border: 1px solid #30363d; border-radius: 0 0 8px 8px; padding: 20px; }
+    .tab-content.active { display: block; }
+    .card { background: #21262d; border: 1px solid #30363d; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .card h3 { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 8px 12px; border: 1px solid #30363d; }
+    th { background: #21262d; color: #d2a8ff; }
+    tr:nth-child(even) { background: #161b22; }
+    code { background: #1c2128; padding: 2px 6px; border-radius: 4px; font-family: 'Fira Code', monospace; font-size: 0.85rem; color: #a5d6ff; }
+    pre { background: #1c2128; border: 1px solid #30363d; border-radius: 6px; padding: 16px; overflow-x: auto; margin: 12px 0; }
+    pre code { background: none; padding: 0; }
+    .btn { display: inline-block; padding: 8px 16px; background: #238636; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin: 4px; transition: background 0.2s; }
+    .btn:hover { background: #2ea043; }
+    .btn.secondary { background: #21262d; border: 1px solid #30363d; }
+    .btn.secondary:hover { background: #30363d; }
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; }
+    .status-yes { background: #238636; color: #fff; }
+    .status-limited { background: #9e6a03; color: #fff; }
+    .status-no { background: #da3633; color: #fff; }
+    .sim-panel { background: #0d1117; border: 1px dashed #30363d; border-radius: 6px; padding: 16px; margin: 12px 0; }
+    .sim-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .sim-label { min-width: 120px; font-size: 0.85rem; color: #8b949e; }
+    .sim-arrow { color: #f78166; }
+    .sim-node { background: #238636; color: #fff; padding: 4px 12px; border-radius: 4px; font-size: 0.8rem; }
+    .sim-cf { background: #f78166; color: #0d1117; }
+    .sim-user { background: #79c0ff; color: #0d1117; }
+    .quiz-question { margin-bottom: 16px; }
+    .quiz-question p { margin-bottom: 8px; }
+    .quiz-options { list-style: none; }
+    .quiz-options li { margin: 6px 0; }
+    .quiz-options label { display: flex; align-items: center; gap: 8px; padding: 8px; background: #21262d; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+    .quiz-options label:hover { background: #30363d; }
+    .quiz-result { margin-top: 12px; padding: 12px; border-radius: 6px; display: none; }
+    .quiz-result.correct { background: #238636; display: block; }
+    .quiz-result.incorrect { background: #da3633; display: block; }
+    .progress-bar { height: 6px; background: #30363d; border-radius: 3px; margin: 8px 0; overflow: hidden; }
+    .progress-fill { height: 100%; background: #238636; transition: width 0.3s; }
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 12px 0; }
+    .feature-item { background: #21262d; border: 1px solid #30363d; border-radius: 6px; padding: 12px; }
+    .feature-name { font-size: 0.85rem; color: #f78166; margin-bottom: 4px; }
+    .feature-desc { font-size: 0.75rem; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <h1>☁️ Cloudflare 功能演示</h1>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab(0)">功能总览</button>
+    <button class="tab" onclick="showTab(1)">上手流程</button>
+    <button class="tab" onclick="showTab(2)">DNS 配置</button>
+    <button class="tab" onclick="showTab(3)">SSL 模式</button>
+    <button class="tab" onclick="showTab(4)">缓存机制</button>
+    <button class="tab" onclick="showTab(5)">自测题</button>
+  </div>
+
+  <!-- Tab 0: 功能总览 -->
+  <div class="tab-content active">
+    <h2>核心功能对比表</h2>
+    <table>
+      <thead>
+        <tr><th>功能</th><th>免费</th><th>付费</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>CDN</td><td><span class="status-badge status-yes">✅ 200+节点</span></td><td><span class="status-badge status-yes">✅ 更多节点</span></td><td>全球内容分发加速</td></tr>
+        <tr><td>SSL/TLS</td><td><span class="status-badge status-yes">✅ 免费 DV</span></td><td><span class="status-badge status-yes">✅ OV/EV</span></td><td>自动 HTTPS</td></tr>
+        <tr><td>DDoS 防护</td><td><span class="status-badge status-yes">✅ L3/4/7</span></td><td><span class="status-badge status-yes">✅ 更强防护</span></td><td>自动缓解攻击</td></tr>
+        <tr><td>DNS</td><td><span class="status-badge status-yes">✅ Anycast</span></td><td><span class="status-badge status-yes">✅</span></td><td>全球分布解析</td></tr>
+        <tr><td>WAF</td><td><span class="status-badge status-limited">⚠️ 3条规则</span></td><td><span class="status-badge status-yes">✅ 无限</span></td><td>Web应用防火墙</td></tr>
+        <tr><td>Workers</td><td><span class="status-badge status-limited">⚠️ 10万/天</span></td><td><span class="status-badge status-yes">✅ 千万级</span></td><td>边缘计算</td></tr>
+        <tr><td>图片优化</td><td><span class="status-badge status-limited">⚠️ 基础</span></td><td><span class="status-badge status-yes">✅ Polish/Mini-ify</span></td><td>自动图片压缩</td></tr>
+        <tr><td>分析统计</td><td><span class="status-badge status-yes">✅ 基础</span></td><td><span class="status-badge status-yes">✅ 详细</span></td><td>流量分析</td></tr>
+      </tbody>
+    </table>
+
+    <h2>CDN 工作原理</h2>
+    <div class="sim-panel">
+      <div class="sim-row">
+        <span class="sim-label">🌍 用户请求</span>
+        <span class="sim-arrow">→</span>
+        <span class="sim-node sim-user">访问者</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">🌍 Cloudflare Edge</span>
+        <span class="sim-arrow">→</span>
+        <span class="sim-node sim-cf">全球 200+ 节点</span>
+      </div>
+      <div class="sim-row">
+        <span class="sim-label">🏠 源站服务器</span>
+        <span class="sim-arrow">←</span>
+        <span class="sim-node">返回内容 + 缓存</span>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#8b949e;">原理：用户请求先到最近 Edge 节点 → 命中缓存直接返回 → 未命中则回源获取 → 返回同时缓存到 Edge</p>
+  </div>
+
+  <!-- Tab 1: 上手流程 -->
+  <div class="tab-content">
+    <h2>快速上手 5 步走</h2>
+
+    <div class="card">
+      <h3>Step 1: 注册账号</h3>
+      <p>访问 <code>cloudflare.com</code>，使用邮箱注册账号。</p>
+    </div>
+
+    <div class="card">
+      <h3>Step 2: 添加网站</h3>
+      <p>点击 "Add a Site"，输入域名（如 <code>example.com</code>），Cloudflare 会自动扫描现有 DNS 记录。</p>
+    </div>
+
+    <div class="card">
+      <h3>Step 3: 修改 Nameservers</h3>
+      <p>在域名注册商（阿里云/腾讯云/GoDaddy 等）处，将 NS 记录改为 Cloudflare 提供地址：</p>
+      <pre><code>主 NS: main.ns.cloudflare.com
+副 NS: secondary.ns.cloudflare.com</code></pre>
+      <p style="margin-top:8px; font-size:0.85rem; color:#8b949e;">⏱️ 生效时间：几分钟到 48 小时不等</p>
+    </div>
+
+    <div class="card">
+      <h3>Step 4: 配置 DNS + CDN</h3>
+      <p>在 Cloudflare Dashboard 中配置 DNS 记录，状态选择：</p>
+      <table>
+        <thead><tr><th>状态</th><th>图标</th><th>效果</th></tr></thead>
+        <tbody>
+          <tr><td>DNS Only</td><td>☁️ 灰色</td><td>仅 DNS，不走 CDN</td></tr>
+          <tr><td>Proxied</td><td>☁️ 橙色</td><td>流量经过 Cloudflare（推荐）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Step 5: 配置 SSL</h3>
+      <p>推荐使用 <strong>Full (strict)</strong> 模式：</p>
+      <pre><code>SSL/TLS → Overview → Full (strict)</code></pre>
+    </div>
+  </div>
+
+  <!-- Tab 2: DNS 配置 -->
+  <div class="tab-content">
+    <h2>DNS 记录类型</h2>
+    <table>
+      <thead><tr><th>类型</th><th>用途</th><th>示例</th></tr></thead>
+      <tbody>
+        <tr><td><code>A</code></td><td>IPv4 地址映射</td><td><code>1.2.3.4</code></td></tr>
+        <tr><td><code>AAAA</code></td><td>IPv6 地址映射</td><td><code>2001:db8::1</code></td></tr>
+        <tr><td><code>CNAME</code></td><td>域名别名</td><td><code>www → @</code></td></tr>
+        <tr><td><code>MX</code></td><td>邮件服务器</td><td><code>mail.example.com</code></td></tr>
+        <tr><td><code>TXT</code></td><td>验证/SPF</td><td><code>v=spf1 include:_spf.google.com ~all</code></td></tr>
+        <tr><td><code>NS</code></td><td> nameserver</td><td><code>主.ns.cloudflare.com</code></td></tr>
+      </tbody>
+    </table>
+
+    <h2>DNS 传播验证</h2>
+    <div class="sim-panel">
+      <p style="margin-bottom:12px;">使用 <code>dig</code> 命令验证不同 DNS 服务器的解析结果：</p>
+      <pre><code># Cloudflare DNS
+dig @1.1.1.1 example.com
+
+# Google DNS
+dig @8.8.8.8 example.com
+
+# 本地 ISP DNS
+dig @dns.isp.com example.com</code></pre>
+    </div>
+
+    <h2>常见 DNS 问题</h2>
+    <table>
+      <thead><tr><th>问题</th><th>原因</th><th>解决</th></tr></thead>
+      <tbody>
+        <tr><td>解析到旧 IP</td><td>DNS 缓存未更新</td><td>等待传播或清除本地缓存</td></tr>
+        <tr><td>部分用户访问异常</td><td>DNS 记录配置错误</td><td>检查 A/AAAA/CNAME 记录</td></tr>
+        <tr><td>证书错误</td><td>DNS 未生效就配置 SSL</td><td>等 DNS 完全生效后再配置</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Tab 3: SSL 模式 -->
+  <div class="tab-content">
+    <h2>SSL/TLS 加密模式</h2>
+    <table>
+      <thead><tr><th>模式</th><th>客户端→CF</th><th>CF→源站</th><th>安全</th><th>推荐</th></tr></thead>
+      <tbody>
+        <tr><td>Off</td><td>❌ 不加密</td><td>❌ 不加密</td><td>❌</td><td>❌</td></tr>
+        <tr><td>Flexible</td><td>✅ 加密</td><td>❌ 不加密</td><td>⚠️</td><td>❌</td></tr>
+        <tr><td>Full</td><td>✅ 加密</td><td>✅ 加密</td><td>✅</td><td>⚠️</td></tr>
+        <tr><td>Full (strict)</td><td>✅ 加密</td><td>✅ 加密（需有效证书）</td><td>✅✅</td><td>✅</td></tr>
+      </tbody>
+    </table>
+
+    <h2>证书类型</h2>
+    <div class="feature-grid">
+      <div class="feature-item">
+        <div class="feature-name">DV（域名验证）</div>
+        <div class="feature-desc">仅验证域名所有权<br>Cloudflare 免费提供<br>绿色地址栏：无</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-name">OV（组织验证）</div>
+        <div class="feature-desc">验证域名 + 机构信息<br>通常 1-3 天<br>绿色地址栏：无</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-name">EV（扩展验证）</div>
+        <div class="feature-desc">严格验证<br>通常 3-7 天<br>绿色地址栏：✅</div>
+      </div>
+    </div>
+
+    <h2>HTTPS 重定向</h2>
+    <p>Cloudflare 可以强制 HTTP 请求跳转到 HTTPS：</p>
+    <pre><code># 在 SSL/TLS → Edge Certificates 中启用
+Always Use HTTPS: ON
+
+# 或使用 Page Rules（已弃用）
+Rule: http://*example.com/*
+Action: Always Use HTTPS</code></pre>
+  </div>
+
+  <!-- Tab 4: 缓存机制 -->
+  <div class="tab-content">
+    <h2>缓存机制</h2>
+    <p>Cloudflare 自动缓存静态资源：图片、CSS、JS、字体等。</p>
+
+    <h3>缓存级别</h3>
+    <table>
+      <thead><tr><th>级别</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>Bypass</td><td>不缓存，直接回源</td></tr>
+        <tr><td>No Query String</td><td>忽略查询字符串缓存</td></tr>
+        <tr><td>Standard</td><td>标准缓存（默认）</td></tr>
+        <tr><td>Cache Everything</td><td>缓存所有，包括动态内容</td></tr>
+      </tbody>
+    </table>
+
+    <h3>手动清理缓存</h3>
+    <pre><code># Dashboard: Caching → Configuration → Purge Everything
+
+# API 方式
+curl -X POST "https://api.cloudflare.com/client/v4/zones/{zone_id}/purge_cache" \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"purge_everything": true}'</code></pre>
+
+    <h3>Cache-Control 响应头</h3>
+    <table>
+      <thead><tr><th>指令</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>Cache-Control: max-age=3600</code></td><td>资源缓存 1 小时</td></tr>
+        <tr><td><code>Cache-Control: no-cache</code></td><td>每次都验证</td></tr>
+        <tr><td><code>Cache-Control: no-store</code></td><td>不缓存</td></tr>
+        <tr><td><code>Cache-Control: public</code></td><td>可被缓存</td></tr>
+        <tr><td><code>Cache-Control: private</code></td><td>仅浏览器缓存</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Always Online</h3>
+    <p>当源站宕机时，Cloudflare 可以显示缓存的旧内容：</p>
+    <pre><code>Caching → Configuration → Always Online: ON</code></pre>
+  </div>
+
+  <!-- Tab 5: 自测题 -->
+  <div class="tab-content">
+    <h2>自测题</h2>
+
+    <div class="quiz-question">
+      <p><strong>Q1: Cloudflare 免费套餐的 CDN 覆盖多少个节点？</strong></p>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q1" value="a"> A. 50+ 节点</label></li>
+        <li><label><input type="radio" name="q1" value="b"> B. 200+ 节点</label></li>
+        <li><label><input type="radio" name="q1" value="c"> C. 500+ 节点</label></li>
+        <li><label><input type="radio" name="q1" value="d"> D. 无限</label></li>
+      </ul>
+      <div class="quiz-result" data-answer="b">✅ 正确！Cloudflare 免费套餐提供全球 200+ CDN 节点。</div>
+    </div>
+
+    <div class="quiz-question">
+      <p><strong>Q2: DNS 记录状态"Proxied"（橙色云）和"DNS Only"（灰色云）的主要区别是什么？</strong></p>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q2" value="a"> A. 无区别，只是显示颜色不同</label></li>
+        <li><label><input type="radio" name="q2" value="b"> B. Proxied 流量经过 Cloudflare CDN 和安全防护，DNS Only 仅提供 DNS 解析</label></li>
+        <li><label><input type="radio" name="q2" value="c"> C. Proxied 收费，DNS Only 免费</label></li>
+        <li><label><input type="radio" name="q2" value="d"> D. DNS Only 可以防 DDoS，Proxied 不行</label></li>
+      </ul>
+      <div class="quiz-result" data-answer="b">✅ 正确！Proxied 模式流量经过 Cloudflare Edge，可享受 CDN 加速和安全防护。</div>
+    </div>
+
+    <div class="quiz-question">
+      <p><strong>Q3: Cloudflare Workers 免费套餐每天支持多少次请求？</strong></p>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q3" value="a"> A. 1 万次</label></li>
+        <li><label><input type="radio" name="q3" value="b"> B. 10 万次</label></li>
+        <li><label><input type="radio" name="q3" value="c"> C. 100 万次</label></li>
+        <li><label><input type="radio" name="q3" value="d"> D. 无限</label></li>
+      </ul>
+      <div class="quiz-result" data-answer="b">✅ 正确！免费套餐每天 10 万次 Workers 请求。</div>
+    </div>
+
+    <div class="quiz-question">
+      <p><strong>Q4: SSL/TLS 的"Full (strict)"模式要求源站有什么？</strong></p>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q4" value="a"> A. 不需要 SSL</label></li>
+        <li><label><input type="radio" name="q4" value="b"> B. 任何 SSL 证书即可</label></li>
+        <li><label><input type="radio" name="q4" value="c"> C. 有效的 SSL 证书</label></li>
+        <li><label><input type="radio" name="q4" value="d"> D. Cloudflare 签发的证书</label></li>
+      </ul>
+      <div class="quiz-result" data-answer="c">✅ 正确！Full (strict) 要求源站有有效 SSL 证书。</div>
+    </div>
+
+    <div class="quiz-question">
+      <p><strong>Q5: 修改 Nameservers 后，DNS 生效通常需要多长时间？</strong></p>
+      <ul class="quiz-options">
+        <li><label><input type="radio" name="q5" value="a"> A. 几分钟</label></li>
+        <li><label><input type="radio" name="q5" value="b"> B. 几分钟到 48 小时</label></li>
+        <li><label><input type="radio" name="q5" value="c"> C. 1 周</label></li>
+        <li><label><input type="radio" name="q5" value="d"> D. 立刻生效</label></li>
+      </ul>
+      <div class="quiz-result" data-answer="b">✅ 正确！DNS 传播通常需要几分钟到 48 小时。</div>
+    </div>
+
+    <button class="btn" onclick="checkAnswers()">提交答案</button>
+  </div>
+
+  <script>
+    function showTab(index) {
+      document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === index));
+      document.querySelectorAll('.tab-content').forEach((c, i) => c.classList.toggle('active', i === index));
+    }
+
+    function checkAnswers() {
+      const answers = { q1: 'b', q2: 'b', q3: 'b', q4: 'c', q5: 'b' };
+      let correct = 0;
+      let total = Object.keys(answers).length;
+
+      Object.keys(answers).forEach(q => {
+        const selected = document.querySelector(`input[name="${q}"]:checked`);
+        const result = document.querySelector(`.quiz-question:has([name="${q}"]) .quiz-result`);
+        if (selected && selected.value === answers[q]) {
+          correct++;
+          result.className = 'quiz-result correct';
+          result.textContent = result.dataset.answer || '✅ 正确！';
+        } else if (selected) {
+          result.className = 'quiz-result incorrect';
+          result.textContent = '❌ 错误，正确答案是 ' + answers[q].toUpperCase();
+        } else {
+          result.className = 'quiz-result incorrect';
+          result.textContent = '❌ 未选择';
+        }
+      });
+
+      alert(`得分：${correct}/${total}`);
+    }
+  </script>
+</body>
+</html>

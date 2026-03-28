@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直播流程交互式演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .content {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .content.active {
+            display: block;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 20px 0;
+            overflow-x: auto;
+        }
+
+        .flow-step {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .step-number {
+            width: 36px;
+            height: 36px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        .step-content h3 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .step-content p {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .code-block .keyword {
+            color: #569cd6;
+        }
+
+        .code-block .string {
+            color: #ce9178;
+        }
+
+        .code-block .comment {
+            color: #6a9955;
+        }
+
+        .code-block .function {
+            color: #dcdcaa;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .comparison-table th {
+            background: #667eea;
+            color: white;
+        }
+
+        .comparison-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .protocol-card {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .protocol-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .protocol-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .protocol-tag.live {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .protocol-tag.voice {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .protocol-tag.control {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .simulation-panel {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .sim-header {
+            color: #d4d4d4;
+            margin-bottom: 15px;
+            font-family: monospace;
+        }
+
+        .sim-log {
+            color: #9cdcfe;
+            font-family: monospace;
+            font-size: 0.9em;
+            height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #252526;
+            border-radius: 4px;
+        }
+
+        .sim-log .timestamp {
+            color: #858585;
+        }
+
+        .sim-log .success {
+            color: #4ec9b0;
+        }
+
+        .sim-log .info {
+            color: #dcdcaa;
+        }
+
+        .sim-log .error {
+            color: #f14c4c;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📺 直播流程交互式演示</h1>
+            <p class="subtitle">深入理解直播技术架构与实现原理</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('overview')">技术架构</button>
+            <button class="tab" onclick="showTab('protocol')">协议对比</button>
+            <button class="tab" onclick="showTab('flow')">完整流程</button>
+            <button class="tab" onclick="showTab('simulation')">流程模拟</button>
+        </div>
+
+        <!-- 技术架构 -->
+        <div id="overview" class="content active">
+            <h2>🎯 直播技术架构总览</h2>
+            <p>直播系统通常包含以下几个核心模块：</p>
+
+            <div class="flow-diagram">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <svg width="800" height="300" viewBox="0 0 800 300">
+                        <!-- 主播端 -->
+                        <rect x="10" y="20" width="150" height="80" rx="8" fill="#667eea" />
+                        <text x="85" y="55" fill="white" text-anchor="middle" font-size="14" font-weight="bold">📹 主播端</text>
+                        <text x="85" y="75" fill="white" text-anchor="middle" font-size="11">采集 → 编码 → 推流</text>
+                        
+                        <!-- 箭头 -->
+                        <line x1="160" y1="60" x2="200" y2="60" stroke="#667eea" stroke-width="2" marker-end="url(#arrow)" />
+                        
+                        <!-- 流媒体服务器 -->
+                        <rect x="200" y="20" width="150" height="80" rx="8" fill="#764ba2" />
+                        <text x="275" y="55" fill="white" text-anchor="middle" font-size="14" font-weight="bold">🖥️ 流媒体服务器</text>
+                        <text x="275" y="75" fill="white" text-anchor="middle" font-size="11">转码 → 录制 → 分发</text>
+                        
+                        <!-- 箭头 -->
+                        <line x1="350" y1="60" x2="390" y2="60" stroke="#764ba2" stroke-width="2" marker-end="url(#arrow)" />
+                        
+                        <!-- CDN -->
+                        <rect x="390" y="20" width="150" height="80" rx="8" fill="#48bb78" />
+                        <text x="465" y="55" fill="white" text-anchor="middle" font-size="14" font-weight="bold">🌐 CDN 网络</text>
+                        <text x="465" y="75" fill="white" text-anchor="middle" font-size="11">就近访问 → 边缘节点</text>
+                        
+                        <!-- 箭头 -->
+                        <line x1="540" y1="60" x2="580" y2="60" stroke="#48bb78" stroke-width="2" marker-end="url(#arrow)" />
+                        
+                        <!-- 观众端 -->
+                        <rect x="580" y="20" width="150" height="80" rx="8" fill="#ed8936" />
+                        <text x="655" y="55" fill="white" text-anchor="middle" font-size="14" font-weight="bold">👥 观众端</text>
+                        <text x="655" y="75" fill="white" text-anchor="middle" font-size="11">拉流 → 解码 → 播放</text>
+
+                        <!-- 底部：TRTC -->
+                        <rect x="200" y="140" width="350" height="60" rx="8" fill="#1a1a2e" />
+                        <text x="375" y="170" fill="white" text-anchor="middle" font-size="14" font-weight="bold">⚡ TRTC 实时音视频 (低延时互动)</text>
+                        <text x="375" y="188" fill="#aaa" text-anchor="middle" font-size="11">UDP 协议 · &lt;300ms 延时 · 支持连麦</text>
+
+                        <!-- 连接线 -->
+                        <line x1="275" y1="100" x2="275" y2="140" stroke="#667eea" stroke-width="1" stroke-dasharray="4" />
+                        <line x1="475" y1="100" x2="475" y2="140" stroke="#48bb78" stroke-width="1" stroke-dasharray="4" />
+
+                        <!-- 图例 -->
+                        <rect x="10" y="240" width="15" height="15" fill="#667eea" />
+                        <text x="30" y="252" fill="#333" font-size="12">推流端</text>
+                        
+                        <rect x="100" y="240" width="15" height="15" fill="#764ba2" />
+                        <text x="120" y="252" fill="#333" font-size="12">服务端</text>
+                        
+                        <rect x="190" y="240" width="15" height="15" fill="#48bb78" />
+                        <text x="210" y="252" fill="#333" font-size="12">CDN</text>
+                        
+                        <rect x="270" y="240" width="15" height="15" fill="#ed8936" />
+                        <text x="290" y="252" fill="#333" font-size="12">拉流端</text>
+
+                        <!-- 箭头定义 -->
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <h3>📋 各模块职责</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>模块</th>
+                        <th>核心职责</th>
+                        <th>关键技术</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>主播端</strong></td>
+                        <td>音视频采集、编码、推流</td>
+                        <td>WebRTC/RTMP、H.264/H.265、AAC</td>
+                    </tr>
+                    <tr>
+                        <td><strong>流媒体服务器</strong></td>
+                        <td>转码、录制、分发路由</td>
+                        <td>SRS/Nginx-RTMP、FFmpeg</td>
+                    </tr>
+                    <tr>
+                        <td><strong>CDN 网络</strong></td>
+                        <td>内容分发、就近访问</td>
+                        <td>RTMP/HLS/DASH、HTTPS</td>
+                    </tr>
+                    <tr>
+                        <td><strong>观众端</strong></td>
+                        <td>拉流、解码、渲染播放</td>
+                        <td>HLS.js、flv.js、Video.js</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 协议对比 -->
+        <div id="protocol" class="content">
+            <h2>🔄 直播协议对比</h2>
+            <p>不同的直播协议有不同的适用场景和特点：</p>
+
+            <div class="protocol-card">
+                <h3>RTMP (Real-Time Messaging Protocol)</h3>
+                <div>
+                    <span class="protocol-tag live">实时</span>
+                    <span class="protocol-tag control">推流</span>
+                </div>
+                <p><strong>延时：</strong> 1-3 秒</p>
+                <p><strong>优点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>低延迟，适合互动直播</li>
+                    <li>Adobe 主导，广泛支持</li>
+                    <li>TCP 可靠传输</li>
+                </ul>
+                <p><strong>缺点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>非标准 HTTP，需要特殊端口</li>
+                    <li>移动端支持较差</li>
+                    <li>已被 Adobe 放弃维护</li>
+                </ul>
+            </div>
+
+            <div class="protocol-card">
+                <h3>HLS (HTTP Live Streaming)</h3>
+                <div>
+                    <span class="protocol-tag live">拉流</span>
+                    <span class="protocol-tag voice">大规模分发</span>
+                </div>
+                <p><strong>延时：</strong> 5-10 秒</p>
+                <p><strong>优点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>基于 HTTP/CDN，兼容性好</li>
+                    <li>iOS/Android 原生支持</li>
+                    <li>抗网络抖动能力强</li>
+                </ul>
+                <p><strong>缺点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>延迟较高</li>
+                    <li>切片文件需要时间</li>
+                    <li>首屏加载较慢</li>
+                </ul>
+            </div>
+
+            <div class="protocol-card">
+                <h3>WebRTC (Web Real-Time Communication)</h3>
+                <div>
+                    <span class="protocol-tag live">实时</span>
+                    <span class="protocol-tag voice">低延时</span>
+                </div>
+                <p><strong>延时：</strong> &lt;300ms</p>
+                <p><strong>优点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>极低延迟</li>
+                    <li>P2P 支持，节省带宽</li>
+                    <li>浏览器原生支持</li>
+                </ul>
+                <p><strong>缺点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>复杂，需要 STUN/TURN 服务器</li>
+                    <li>不适合大规模直播</li>
+                    <li>移动端适配复杂</li>
+                </ul>
+            </div>
+
+            <div class="protocol-card">
+                <h3>DASH (Dynamic Adaptive Streaming over HTTP)</h3>
+                <div>
+                    <span class="protocol-tag live">拉流</span>
+                    <span class="protocol-tag voice">自适应</span>
+                </div>
+                <p><strong>延时：</strong> 5-15 秒</p>
+                <p><strong>优点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>MPEG-DASH 国际标准</li>
+                    <li>自适应码率</li>
+                    <li>灵活的 DRM 支持</li>
+                </ul>
+                <p><strong>缺点：</strong></p>
+                <ul style="margin-left: 20px; color: #666;">
+                    <li>生态不如 HLS</li>
+                    <li>服务器配置复杂</li>
+                </ul>
+            </div>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>协议</th>
+                        <th>延时</th>
+                        <th>适用场景</th>
+                        <th>移动端支持</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>RTMP</td>
+                        <td>1-3s</td>
+                        <td>秀场直播、游戏直播</td>
+                        <td>需 SDK</td>
+                    </tr>
+                    <tr>
+                        <td>HLS</td>
+                        <td>5-10s</td>
+                        <td>赛事直播、教育直播</td>
+                        <td>原生支持</td>
+                    </tr>
+                    <tr>
+                        <td>WebRTC</td>
+                        <td>&lt;300ms</td>
+                        <td>视频通话、连麦互动</td>
+                        <td>需适配</td>
+                    </tr>
+                    <tr>
+                        <td>DASH</td>
+                        <td>5-15s</td>
+                        <td>点播、国际化内容</td>
+                        <td>部分支持</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 完整流程 -->
+        <div id="flow" class="content">
+            <h2>📝 直播完整流程详解</h2>
+
+            <div class="flow-step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>📹 音视频采集</h3>
+                    <p>使用浏览器 MediaDevices API 或 native SDK 获取音视频流</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>🔧 音视频编码</h3>
+                    <p>将原始音视频数据编码压缩，常用编码器：</p>
+                    <ul style="margin-left: 20px; color: #666; margin-top: 5px;">
+                        <li><strong>视频：</strong>H.264/H.265/VP8/VP9/AV1</li>
+                        <li><strong>音频：</strong>AAC/Opus/MP3</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>📤 推流协议封装</h3>
+                    <p>将编码后的数据封装成推流协议，如 RTMP、WebRTC</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>🖥️ 服务器处理</h3>
+                    <p>流媒体服务器接收推流后进行：</p>
+                    <ul style="margin-left: 20px; color: #666; margin-top: 5px;">
+                        <li>转码（不同清晰度）</li>
+                        <li>录制存储</li>
+                        <li>截图封面</li>
+                        <li>分发路由</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    <h3>🌐 CDN 分发</h3>
+                    <p>通过 CDN 网络将内容分发到全球边缘节点</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">6</div>
+                <div class="step-content">
+                    <h3>📥 观众拉流</h3>
+                    <p>观众端根据网络状况选择合适的拉流协议和清晰度</p>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <div class="step-number">7</div>
+                <div class="step-content">
+                    <h3>🎬 音视频解码播放</h3>
+                    <p>解码后通过 Video 标签或播放器渲染输出</p>
+                </div>
+            </div>
+
+            <h3>💻 推流端示例代码</h3>
+            <div class="code-block">
+<span class="comment">// 1. 获取媒体设备</span>
+<span class="keyword">const</span> stream = <span class="keyword">await</span> navigator.mediaDevices.getUserMedia({
+  video: { width: <span class="string">1280</span>, height: <span class="string">720</span> },
+  audio: <span class="string">true</span>
+});
+
+<span class="comment">// 2. 创建 Video 元素预览</span>
+<span class="keyword">const</span> video = document.createElement(<span class="string">'video'</span>);
+video.srcObject = stream;
+<span class="keyword">await</span> video.play();
+
+<span class="comment">// 3. 使用 RTMP SDK 推流</span>
+<span class="keyword">const</span> rtmpPublisher = <span class="keyword">new</span> <span class="function">RTMPPublisher</span>({
+  appKey: <span class="string">'your-app-key'</span>,
+  streamKey: <span class="string">'stream-key'</span>
+});
+
+rtmpPublisher.<span class="function">publish</span>(stream);
+
+<span class="comment">// 4. 监听状态</span>
+rtmpPublisher.on(<span class="string">'statusChange'</span>, (status) => {
+  console.log(<span class="string">'推流状态:'</span>, status);
+});
+</div>
+
+            <h3>🎥 拉流端示例代码</h3>
+            <div class="code-block">
+<span class="comment">// 使用 HLS.js 播放 HLS 流</span>
+<span class="keyword">import</span> Hls from <span class="string">'hls.js'</span>;
+
+<span class="keyword">const</span> video = document.getElementById(<span class="string">'video'</span>);
+<span class="keyword">const</span> url = <span class="string">'https://example.com/live.m3u8'</span>;
+
+<span class="keyword">if</span> (Hls.isSupported()) {
+  <span class="keyword">const</span> hls = <span class="keyword">new</span> <span class="function">Hls</span>({
+    startLevel: -<span class="string">1</span>  <span class="comment">// 自动码率</span>
+  });
+  
+  hls.<span class="function">loadSource</span>(url);
+  hls.<span class="function">attachMedia</span>(video);
+  hls.<span class="function">on</span>(Hls.Events.MANIFEST_PARSED, () => {
+    video.<span class="function">play</span>();
+  });
+} 
+<span class="keyword">else if</span> (video.canPlayType(<span class="string">'application/vnd.apple.mpegurl'</span>)) {
+  <span class="comment">// Safari 原生支持 HLS</span>
+  video.src = url;
+  video.<span class="function">play</span>();
+}
+</div>
+        </div>
+
+        <!-- 流程模拟 -->
+        <div id="simulation" class="content">
+            <h2>🎮 直播流程模拟器</h2>
+            <p>点击下方按钮模拟完整的直播流程，观察各阶段的状态变化：</p>
+
+            <div class="simulation-panel">
+                <div class="sim-header">// 直播流程模拟日志</div>
+                <div id="simLog" class="sim-log">
+<span class="timestamp">[系统]</span> 点击"开始模拟"运行直播流程...
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="startSimulation()">▶️ 开始模拟</button>
+                    <button class="btn" onclick="resetSimulation()">🔄 重置</button>
+                </div>
+            </div>
+
+            <h3>模拟流程说明</h3>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>阶段</th>
+                        <th>耗时</th>
+                        <th>说明</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1. 设备初始化</td>
+                        <td>~500ms</td>
+                        <td>请求摄像头、麦克风权限</td>
+                    </tr>
+                    <tr>
+                        <td>2. 编码准备</td>
+                        <td>~300ms</td>
+                        <td>初始化视频/音频编码器</td>
+                    </tr>
+                    <tr>
+                        <td>3. 建立连接</td>
+                        <td>~800ms</td>
+                        <td>连接 RTMP 服务器</td>
+                    </tr>
+                    <tr>
+                        <td>4. 开始推流</td>
+                        <td>~200ms</td>
+                        <td>首帧数据发送</td>
+                    </tr>
+                    <tr>
+                        <td>5. 服务器处理</td>
+                        <td>~100ms</td>
+                        <td>转码、分发</td>
+                    </tr>
+                    <tr>
+                        <td>6. CDN 同步</td>
+                        <td>~2000ms</td>
+                        <td>全球节点同步</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>真实直播延迟组成</h3>
+            <div class="flow-diagram">
+                <p>总延迟 ≈ 编码延迟 + 推流延迟 + 服务器延迟 + CDN 延迟 + 解码延迟</p>
+                <br>
+                <table class="comparison-table">
+                    <tbody>
+                        <tr>
+                            <td><strong>HLS 直播</strong></td>
+                            <td>1-2s + 2-4s + 0.5s + 1-3s + 0.5s = <strong>5-10s</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>RTMP 直播</strong></td>
+                            <td>1-2s + 0.5s + 0.5s + 0s* + 0.3s = <strong>2-3s</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>WebRTC 直播</strong></td>
+                            <td>0.1s + 0.1s + 0.1s + 0s + 0.1s = <strong>&lt;300ms</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">* RTMP 经过 CDN 会增加延迟</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>📚 参考资料：<a href="https://developer.mozilla.org/en-US/docs/Web/Media" style="color: #667eea;">MDN Media APIs</a> | <a href="https://www.w3.org/TR/webrtc/" style="color: #667eea;">WebRTC 规范</a></p>
+            <p style="margin-top: 10px;">🔗 完整文档：<a href="../docs/tencent-meeting/tencent-meeting-live-streaming.md" style="color: #667eea;">腾讯会议直播技术详解</a></p>
+        </footer>
+    </div>
+
+    <script>
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.content').forEach(content => content.classList.remove('active'));
+            
+            document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+        }
+
+        async function startSimulation() {
+            const log = document.getElementById('simLog');
+            const steps = [
+                { text: '[设备] 正在请求摄像头和麦克风权限...', delay: 500, type: 'info' },
+                { text: '[设备] ✓ 权限获取成功，开始采集', delay: 300, type: 'success' },
+                { text: '[编码] 初始化 H.264 视频编码器...', delay: 400, type: 'info' },
+                { text: '[编码] ✓ 编码器就绪', delay: 200, type: 'success' },
+                { text: '[连接] 正在连接 RTMP 服务器...', delay: 600, type: 'info' },
+                { text: '[连接] ✓ 服务器连接成功 (rtmp://live.example.com/app)', delay: 300, type: 'success' },
+                { text: '[推流] 正在发送首帧数据...', delay: 300, type: 'info' },
+                { text: '[推流] ✓ 推流成功! Stream Key: abc123', delay: 200, type: 'success' },
+                { text: '[服务器] 接收流数据，开始转码...', delay: 500, type: 'info' },
+                { text: '[服务器] ✓ 转码完成 (1080p/720p/480p)', delay: 300, type: 'success' },
+                { text: '[CDN] 正在同步到边缘节点...', delay: 1000, type: 'info' },
+                { text: '[CDN] ✓ 已同步到 128 个节点', delay: 500, type: 'success' },
+                { text: '[观众] 首位观众开始拉流...', delay: 800, type: 'info' },
+                { text: '[观众] ✓ 播放成功，总延迟: 2.8s', delay: 200, type: 'success' },
+                { text: '', delay: 0, type: 'info' },
+                { text: '========================================', delay: 0, type: 'info' },
+                { text: '[✓] 直播流程模拟完成！', delay: 0, type: 'success' },
+            ];
+
+            for (const step of steps) {
+                if (step.text) {
+                    const span = document.createElement('span');
+                    span.className = step.type;
+                    span.textContent = step.text;
+                    log.innerHTML += `\n<span class="timestamp">[${new Date().toLocaleTimeString()}]</span> ${span.textContent}`;
+                    log.scrollTop = log.scrollHeight;
+                } else {
+                    log.innerHTML += `\n${step.text}`;
+                }
+                await new Promise(resolve => setTimeout(resolve, step.delay));
+            }
+        }
+
+        function resetSimulation() {
+            const log = document.getElementById('simLog');
+            log.innerHTML = '<span class="timestamp">[系统]</span> 点击"开始模拟"运行直播流程...';
+        }
+    </script>
+</body>
+</html>

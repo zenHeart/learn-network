@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>API Schema 交互演示</title>
+<style>
+:root{--bg:#0f1419;--surface:#1a1f26;--surface2:#242b35;--border:#2f3844;--text:#e7e9ea;--text2:#8899a6;--accent:#1d9bf0;--accent2:#f45d22;--green:#00ba7c;--red:#f4212e;--yellow:#ffad1f;--purple:#7856ff;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;min-height:100vh}
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 24px;position:sticky;top:0;z-index:100}
+.header h1{font-size:18px;font-weight:600;display:flex;align-items:center;gap:8px}
+.header p{font-size:12px;color:var(--text2);margin-top:4px}
+.tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{padding:10px 18px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);white-space:nowrap;transition:all .2s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.content{padding:20px;max-height:calc(100vh - 100px);overflow-y:auto}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.section-title{font-size:14px;font-weight:600;margin-bottom:12px;margin-top:20px;color:var(--text)}
+.section-title:first-child{margin-top:0}
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px}
+.card-title{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--accent)}
+.card p,.card li{font-size:12.5px;color:var(--text2);line-height:1.7}
+.card ul{padding-left:18px}
+.card li{margin-bottom:4px}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px}
+th{background:var(--surface);padding:8px 10px;text-align:left;border:1px solid var(--border);color:var(--text2);font-weight:500}
+td{padding:8px 10px;border:1px solid var(--border)}
+tr:hover td{background:rgba(255,255,255,.03)}
+code{background:var(--surface);padding:1px 5px;border-radius:3px;font-size:11.5px;color:var(--accent2);font-family:'SF Mono',monospace}
+.code-block{background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;background:var(--accent);color:#fff}
+.badge.yaml{background:var(--purple)}
+.badge.json{background:var(--green)}
+.code-content{padding:14px;font-family:'SF Mono','Fira Code',monospace;font-size:12.5px;line-height:1.7;overflow-x:auto;white-space:pre}
+.keyword{color:var(--accent);font-weight:500}
+.string{color:var(--green)}
+.number{color:var(--yellow)}
+.comment{color:var(--text2);font-style:italic}
+.prop{color:var(--accent2)}
+.type{color:var(--purple)}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info-item{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px}
+.info-item .label{font-size:10.5px;color:var(--text2);margin-bottom:4px}
+.info-item .value{font-size:13px;font-weight:600}
+.badge-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.badge-item{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;background:var(--surface);border:1px solid var(--border)}
+.badge-item .dot{width:6px;height:6px;border-radius:50%}
+.quiz-section{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:16px}
+.quiz-title{font-size:13px;font-weight:600;margin-bottom:10px;color:var(--yellow)}
+.quiz-question{font-size:12.5px;margin-bottom:10px}
+.quiz-options{display:flex;flex-direction:column;gap:6px}
+.quiz-option{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12.5px;transition:all .15s}
+.quiz-option:hover{border-color:var(--accent)}
+.quiz-option.correct{border-color:var(--green);background:rgba(0,186,124,.1)}
+.quiz-option.wrong{border-color:var(--red);background:rgba(244,33,46,.1)}
+.quiz-feedback{margin-top:8px;font-size:12px;padding:8px 12px;border-radius:6px;display:none}
+.quiz-feedback.show{display:block}
+.quiz-feedback.correct{background:rgba(0,186,124,.1);color:var(--green);border:1px solid rgba(0,186,124,.3)}
+.quiz-feedback.wrong{background:rgba(244,33,46,.1);color:var(--red);border:1px solid rgba(244,33,46,.3)}
+.validate-section{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:16px}
+.validate-title{font-size:13px;font-weight:600;margin-bottom:10px}
+.validate-desc{font-size:12px;color:var(--text2);margin-bottom:10px}
+.json-input{width:100%;min-height:80px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'SF Mono',monospace;font-size:12px;color:var(--text);resize:vertical;outline:none;transition:border-color .2s}
+.json-input:focus{border-color:var(--accent)}
+.validate-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;margin-top:8px}
+.validate-btn:hover{opacity:.85}
+.result-box{margin-top:10px;padding:10px 14px;border-radius:6px;font-size:12.5px;display:none}
+.result-box.success{display:block;background:rgba(0,186,124,.12);border:1px solid rgba(0,186,124,.3);color:var(--green)}
+.result-box.error{display:block;background:rgba(244,33,46,.12);border:1px solid rgba(244,33,46,.3);color:var(--red)}
+</style>
+</head>
+<body>
+<div class="header"><h1>📋 API Schema 交互演示</h1><p>OpenAPI Specification + JSON Schema 完整指南 · 可交互学习</p></div>
+<div class="tab-bar">
+  <div class="tab active" data-tab="overview">📖 概念总览</div>
+  <div class="tab" data-tab="openapi">⚡ OpenAPI 结构</div>
+  <div class="tab" data-tab="jsonschema">📐 JSON Schema</div>
+  <div class="tab" data-tab="practical">🛠️ 实战示例</div>
+  <div class="tab" data-tab="validate">✅ 验证器</div>
+  <div class="tab" data-tab="quiz">📝 自测题</div>
+</div>
+<div class="content">
+  <div id="panel-overview" class="tab-panel active">
+    <div class="section-title">什么是 API Schema</div>
+    <div class="card"><div class="card-title">API Schema 定义</div><p>API Schema 是对 API 接口的结构化描述，包括请求格式、响应格式、认证方式、错误定义等。</p></div>
+    <div class="badge-row">
+      <div class="badge-item"><span class="dot" style="background:var(--accent)"></span> OpenAPI</div>
+      <div class="badge-item"><span class="dot" style="background:var(--green)"></span> JSON Schema</div>
+      <div class="badge-item"><span class="dot" style="background:var(--purple)"></span> GraphQL</div>
+      <div class="badge-item"><span class="dot" style="background:var(--accent2)"></span> Protobuf</div>
+    </div>
+    <div class="info-grid">
+      <div class="info-item"><div class="label">OpenAPI 版本</div><div class="value" style="color:var(--accent)">3.1.0</div></div>
+      <div class="info-item"><div class="label">JSON Schema</div><div class="value" style="color:var(--green)">Draft-2020-12</div></div>
+      <div class="info-item"><div class="label">主要用途</div><div class="value">文档 + 代码生成</div></div>
+      <div class="info-item"><div class="label">格式</div><div class="value">YAML / JSON</div></div>
+    </div>
+    <div class="section-title">主流规范对比</div>
+    <table><thead><tr><th>规范</th><th>描述</th><th>适用场景</th></tr></thead><tbody>
+      <tr><td><code>OpenAPI</code></td><td>REST API 描述标准</td><td>REST API 文档生成</td></tr>
+      <tr><td><code>JSON Schema</code></td><td>JSON 数据结构验证</td><td>数据验证、API 响应</td></tr>
+      <tr><td><code>GraphQL Schema</code></td><td>GraphQL 类型系统</td><td>GraphQL API</td></tr>
+      <tr><td><code>Protobuf</code></td><td>二进制序列化</td><td>高性能 RPC</td></tr>
+    </tbody></table>
+    <div class="section-title">OpenAPI 文档结构</div>
+    <div class="code-block"><div class="code-header"><span>openapi-document.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="prop">openapi:</span> <span class="string">3.1.0</span>
+<span class="prop">info:</span>
+  <span class="prop">title:</span> <span class="string">我的 API</span>
+  <span class="prop">version:</span> <span class="string">1.0.0</span>
+<span class="prop">paths:</span>
+  <span class="prop">/users:</span>
+    <span class="prop">get:</span>
+      <span class="prop">summary:</span> <span class="string">获取用户列表</span>
+      <span class="prop">responses:</span>
+        <span class="string">'200':</span> <span class="prop">description:</span> <span class="string">成功</span>
+<span class="prop">components:</span>
+  <span class="prop">schemas:</span>
+    <span class="prop">User:</span> <span class="prop">type:</span> <span class="type">object</span></div></div>
+  </div>
+
+  <div id="panel-openapi" class="tab-panel">
+    <div class="section-title">OpenAPI 核心对象</div>
+    <div class="code-block"><div class="code-header"><span>paths-object.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="comment"># 路径参数</span>
+<span class="prop">/users/{id}:</span>
+  <span class="prop">get:</span>
+    <span class="prop">summary:</span> <span class="string">获取单个用户</span>
+    <span class="prop">parameters:</span>
+      - <span class="prop">name:</span> <span class="string">id</span>
+        <span class="prop">in:</span> <span class="type">path</span>
+        <span class="prop">required:</span> <span class="keyword">true</span>
+        <span class="prop">schema:</span> { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"format"</span>: <span class="string">"uuid"</span> }
+      - <span class="prop">name:</span> <span class="string">fields</span>
+        <span class="prop">in:</span> <span class="type">query</span>
+        <span class="prop">schema:</span> { <span class="prop">"type"</span>: <span class="type">"string"</span> }
+    <span class="prop">responses:</span>
+      <span class="string">'200':</span> <span class="prop">$ref:</span> <span class="string">'#/components/responses/Success'</span>
+      <span class="string">'404':</span> <span class="prop">$ref:</span> <span class="string">'#/components/responses/NotFound'</span>
+  <span class="prop">post:</span>
+    <span class="prop">requestBody:</span>
+      <span class="prop">required:</span> <span class="keyword">true</span>
+      <span class="prop">content:</span>:
+        <span class="prop">application/json:</span>:
+          <span class="prop">schema:</span> { <span class="prop">"$ref"</span>: <span class="string">"#/components/schemas/User"</span> }</div></div>
+
+    <div class="section-title">Request Body 示例</div>
+    <div class="code-block"><div class="code-header"><span>request-body.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="prop">requestBody:</span>
+  <span class="prop">required:</span> <span class="keyword">true</span>
+  <span class="prop">content:</span>:
+    <span class="prop">application/json:</span>:
+      <span class="prop">schema:</span>:
+        <span class="prop">type:</span> <span class="type">object</span>
+        <span class="prop">properties:</span>:
+          <span class="prop">title:</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"minLength"</span>: <span class="number">1</span>, <span class="prop">"maxLength"</span>: <span class="number">200</span> }
+          <span class="prop">content:</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"minLength"</span>: <span class="number">10</span> }
+          <span class="prop">tags:</span>: { <span class="prop">"type"</span>: <span class="type">"array"</span>, <span class="prop">"items"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> }, <span class="prop">"minItems"</span>: <span class="number">1</span>, <span class="prop">"maxItems"</span>: <span class="number">5</span> }
+        <span class="prop">required:</span>: [<span class="string">"title"</span>, <span class="string">"content"</span>]</div></div>
+
+    <div class="section-title">Schema 组合</div>
+    <div class="code-block"><div class="code-header"><span>schema-composition.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="comment"># allOf: 同时满足多个 schema</span>
+<span class="prop">AdminUser:</span>
+  <span class="prop">allOf:</span>
+    - <span class="prop">$ref:</span> <span class="string">'#/components/schemas/User'</span>
+    - <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"role"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"enum"</span>: [<span class="string">"admin"</span>, <span class="string">"moderator"</span>] } }
+
+<span class="comment"># oneOf: 满足其中一个 schema</span>
+<span class="prop">PaymentResult:</span>
+  <span class="prop">oneOf:</span>
+    - <span class="prop">$ref:</span> <span class="string">'#/components/schemas/PaymentSuccess'</span>
+    - <span class="prop">$ref:</span> <span class="string">'#/components/schemas/PaymentFailure'</span>
+
+<span class="comment"># anyOf: 满足任意一个即可</span>
+<span class="prop">ContactInfo:</span>
+  <span class="prop">anyOf:</span>
+    - <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"email"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"format"</span>: <span class="string">"email"</span> } }
+    - <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"phone"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> } }</div></div>
+  </div>
+
+  <div id="panel-jsonschema" class="tab-panel">
+    <div class="section-title">JSON Schema 核心关键字</div>
+    <table><thead><tr><th>关键字</th><th>类型</th><th>描述</th><th>示例</th></tr></thead><tbody>
+      <tr><td><code>type</code></td><td>所有</td><td>数据类型</td><td><code>type: string</code></td></tr>
+      <tr><td><code>properties</code></td><td>object</td><td>对象属性</td><td><code>properties: {name: {type: string}}</code></td></tr>
+      <tr><td><code>items</code></td><td>array</td><td>数组元素类型</td><td><code>items: {type: integer}</code></td></tr>
+      <tr><td><code>required</code></td><td>array</td><td>必填属性</td><td><code>required: [name, email]</code></td></tr>
+      <tr><td><code>enum</code></td><td>所有</td><td>枚举值</td><td><code>enum: [a, b, c]</code></td></tr>
+      <tr><td><code>minimum/maximum</code></td><td>number</td><td>数值范围</td><td><code>minimum: 0, maximum: 100</code></td></tr>
+      <tr><td><code>pattern</code></td><td>string</td><td>正则表达式</td><td><code>pattern: '^[a-z]+$'</code></td></tr>
+      <tr><td><code>format</code></td><td>string</td><td>格式校验</td><td><code>format: email</code></td></tr>
+      <tr><td><code>$ref</code></td><td>-</td><td>引用</td><td><code>$ref: '#/definitions/User'</code></td></tr>
+    </tbody></table>
+
+    <div class="section-title">数据类型示例</div>
+    <div class="code-block"><div class="code-header"><span>json-schema-types.json</span><span class="badge json">JSON</span></div><div class="code-content">{
+  <span class="prop">"type"</span>: <span class="string">"object"</span>,
+  <span class="prop">"properties"</span>: {
+    <span class="prop">"name"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span>, <span class="prop">"minLength"</span>: <span class="number">1</span>, <span class="prop">"maxLength"</span>: <span class="number">100</span> },
+    <span class="prop">"age"</span>: { <span class="prop">"type"</span>: <span class="string">"integer"</span>, <span class="prop">"minimum"</span>: <span class="number">0</span>, <span class="prop">"maximum"</span>: <span class="number">150</span> },
+    <span class="prop">"email"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span>, <span class="prop">"format"</span>: <span class="string">"email"</span> },
+    <span class="prop">"hobbies"</span>: { <span class="prop">"type"</span>: <span class="string">"array"</span>, <span class="prop">"items"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span> }, <span class="prop">"minItems"</span>: <span class="number">1</span>, <span class="prop">"maxItems"</span>: <span class="number">10</span>, <span class="prop">"uniqueItems"</span>: <span class="keyword">true</span> },
+    <span class="prop">"createdAt"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span>, <span class="prop">"format"</span>: <span class="string">"date-time"</span> }
+  },
+  <span class="prop">"required"</span>: [<span class="string">"name"</span>, <span class="string">"email"</span>],
+  <span class="prop">"additionalProperties"</span>: <span class="keyword">false</span>
+}</div></div>
+
+    <div class="section-title">format 格式校验</div>
+    <div class="code-block"><div class="code-header"><span>format-examples.json</span><span class="badge json">JSON</span></div><div class="code-content">{
+  <span class="prop">"date"</span>: <span class="string">"2024-01-01"</span>,
+  <span class="prop">"date-time"</span>: <span class="string">"2024-01-01T00:00:00Z"</span>,
+  <span class="prop">"email"</span>: <span class="string">"user@example.com"</span>,
+  <span class="prop">"ipv4"</span>: <span class="string">"192.168.1.1"</span>,
+  <span class="prop">"uri"</span>: <span class="string">"https://example.com/path"</span>,
+  <span class="prop">"uuid"</span>: <span class="string">"550e8400-e29b-41d4-a716-446655440000"</span>
+}</div></div>
+  </div>
+
+  <div id="panel-practical" class="tab-panel">
+    <div class="section-title">分页响应 Schema</div>
+    <div class="code-block"><div class="code-header"><span>pagination.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="prop">PaginatedList:</span>
+  <span class="prop">type:</span> <span class="type">object</span>
+  <span class="prop">properties:</span>
+    <span class="prop">pagination:</span>:
+      <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"page"</span>: { <span class="prop">"type"</span>: <span class="type">"integer"</span>, <span class="prop">"minimum"</span>: <span class="number">1</span> }, <span class="prop">"limit"</span>: { <span class="prop">"type"</span>: <span class="type">"integer"</span>, <span class="prop">"minimum"</span>: <span class="number">1</span>, <span class="prop">"maximum"</span>: <span class="number">100</span> }, <span class="prop">"total"</span>: { <span class="prop">"type"</span>: <span class="type">"integer"</span>, <span class="prop">"minimum"</span>: <span class="number">0</span> }, <span class="prop">"hasMore"</span>: { <span class="prop">"type"</span>: <span class="type">"boolean"</span> } }
+      <span class="prop">required:</span>: [<span class="string">"page"</span>, <span class="string">"limit"</span>, <span class="string">"total"</span>, <span class="string">"hasMore"</span>]
+    <span class="prop">data:</span>: { <span class="prop">"type"</span>: <span class="type">"array"</span>, <span class="prop">"items"</span>: {} }
+  <span class="prop">required:</span>: [<span class="string">"pagination"</span>, <span class="string">"data"</span>]</div></div>
+
+    <div class="section-title">错误响应 Schema</div>
+    <div class="code-block"><div class="code-header"><span>error-schema.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="prop">Error:</span>
+  <span class="prop">type:</span> <span class="type">object</span>
+  <span class="prop">properties:</span>
+    <span class="prop">code:</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"description"</span>: <span class="string">"错误码"</span> }
+    <span class="prop">message:</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"description"</span>: <span class="string">"人类可读的错误信息"</span> }
+    <span class="prop">details:</span>: { <span class="prop">"type"</span>: <span class="type">"array"</span>, <span class="prop">"items"</span>: { <span class="prop">"type"</span>: <span class="type">"object"</span>, <span class="prop">"properties"</span>: { <span class="prop">"field"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> }, <span class="prop">"issue"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> } } } }
+  <span class="prop">required:</span>: [<span class="string">"code"</span>, <span class="string">"message"</span>]</div></div>
+
+    <div class="section-title">Discriminated Union</div>
+    <div class="code-block"><div class="code-header"><span>discriminated-union.yaml</span><span class="badge yaml">YAML</span></div><div class="code-content"><span class="prop">Notification:</span>
+  <span class="prop">type:</span> <span class="type">object</span>
+  <span class="prop">discriminator:</span>: { <span class="prop">"propertyName"</span>: <span class="string">"type"</span>, <span class="prop">"mapping"</span>: { <span class="prop">"email"</span>: <span class="string">"#/components/schemas/EmailNotification"</span>, <span class="prop">"sms"</span>: <span class="string">"#/components/schemas/SmsNotification"</span> } }
+  <span class="prop">properties:</span>: { <span class="prop">"id"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> }, <span class="prop">"type"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> } }
+
+<span class="prop">EmailNotification:</span>
+  <span class="prop">allOf:</span>
+    - <span class="prop">$ref:</span> <span class="string">"#/components/schemas/Notification"</span>
+    - <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"type"</span>: { <span class="prop">"const"</span>: <span class="string">"email"</span> }, <span class="prop">"recipient"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span>, <span class="prop">"format"</span>: <span class="string">"email"</span> } }
+
+<span class="prop">SmsNotification:</span>
+  <span class="prop">allOf:</span>
+    - <span class="prop">$ref:</span> <span class="string">"#/components/schemas/Notification"</span>
+    - <span class="prop">type:</span> <span class="type">object</span>
+      <span class="prop">properties:</span>: { <span class="prop">"type"</span>: { <span class="prop">"const"</span>: <span class="string">"sms"</span> }, <span class="prop">"phone"</span>: { <span class="prop">"type"</span>: <span class="type">"string"</span> } }</div></div>
+  </div>
+
+  <div id="panel-validate" class="tab-panel">
+    <div class="section-title">JSON Schema 验证器</div>
+    <div class="validate-section">
+      <div class="validate-title">验证你的 JSON 数据</div>
+      <div class="validate-desc">在下方输入 JSON 数据，验证是否符合右侧 schema 的要求。</div>
+      <textarea class="json-input" id="json-input" placeholder='{"name": "张三", "email": "zhangsan@example.com", "age": 25}'></textarea>
+      <button class="validate-btn" onclick="validateJson()">验证 JSON</button>
+      <div class="result-box" id="result-box"></div>
+    </div>
+    <div class="section-title">当前 Schema</div>
+    <div class="code-block"><div class="code-header"><span>schema.json</span><span class="badge json">JSON</span></div><div class="code-content">{
+  <span class="prop">"type"</span>: <span class="string">"object"</span>,
+  <span class="prop">"properties"</span>: {
+    <span class="prop">"name"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span>, <span class="prop">"minLength"</span>: <span class="number">1</span> },
+    <span class="prop">"email"</span>: { <span class="prop">"type"</span>: <span class="string">"string"</span>, <span class="prop">"format"</span>: <span class="string">"email"</span> },
+    <span class="prop">"age"</span>: { <span class="prop">"type"</span>: <span class="string">"integer"</span>, <span class="prop">"minimum"</span>: <span class="number">0</span>, <span class="prop">"maximum"</span>: <span class="number">150</span> }
+  },
+  <span class="prop">"required"</span>: [<span class="string">"name"</span>, <span class="string">"email"</span>],
+  <span class="prop">"additionalProperties"</span>: <span class="keyword">false</span>
+}</div></div>
+  </div>
+
+  <div id="panel-quiz" class="tab-panel">
+    <div class="section-title">自测题</div>
+    <div class="quiz-section">
+      <div class="quiz-title">题目 1</div>
+      <div class="quiz-question">以下哪个关键字用于定义 JSON Schema 中必填的字段？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>A.</span> enum</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)"><span>B.</span> required</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>C.</span> format</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>D.</span> $ref</div>
+      </div>
+      <div class="quiz-feedback" id="quiz1-feedback"></div>
+    </div>
+
+    <div class="quiz-section">
+      <div class="quiz-title">题目 2</div>
+      <div class="quiz-question">OpenAPI 3.1 使用的 JSON Schema 版本是什么？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>A.</span> JSON Schema Draft-05</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)"><span>B.</span> JSON Schema Draft-2020-12</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>C.</span> JSON Schema Draft-07</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>D.</span> OpenAPI 不使用 JSON Schema</div>
+      </div>
+      <div class="quiz-feedback" id="quiz2-feedback"></div>
+
+    <div class="quiz-section">
+      <div class="quiz-title">题目 3</div>
+      <div class="quiz-question">allOf、oneOf、anyOf 的区别是什么？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>A.</span> 它们没有区别</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>B.</span> allOf=满足任意一个, oneOf=同时满足, anyOf=满足全部</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)"><span>C.</span> allOf=同时满足多个, oneOf=只满足其中一个, anyOf=满足任意一个</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)"><span>D.</span> allOf=满足任意一个, oneOf=满足任意一个, anyOf=同时满足</div>
+      </div>
+      <div class="quiz-feedback" id="quiz3-feedback"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    tab.classList.add('active');
+    var panelId = 'panel-' + tab.dataset.tab;
+    var panel = document.getElementById(panelId);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+function selectOption(el) {
+  var options = el.parentElement.querySelectorAll('.quiz-option');
+  options.forEach(function(o) {
+    o.classList.remove('correct', 'wrong');
+    o.querySelectorAll('.quiz-feedback').forEach(function(f) { f.classList.remove('show'); });
+  });
+  var isCorrect = el.dataset.correct === 'true';
+  el.classList.add(isCorrect ? 'correct' : 'wrong');
+  var feedback = el.parentElement.nextElementSibling;
+  feedback.textContent = isCorrect ? '正确！' : '错误，正确答案是: ' + (el.textContent.trim().startsWith('A') ? options[1].textContent : options[0].textContent);
+  feedback.className = 'quiz-feedback show ' + (isCorrect ? 'correct' : 'wrong');
+}
+
+function validateJson() {
+  var schema = {
+    type: 'object',
+    properties: {
+      name: { type: 'string', minLength: 1 },
+      email: { type: 'string', format: 'email' },
+      age: { type: 'integer', minimum: 0, maximum: 150 }
+    },
+    required: ['name', 'email'],
+    additionalProperties: false
+  };
+  var input = document.getElementById('json-input').value;
+  var resultBox = document.getElementById('result-box');
+  try {
+    var data = JSON.parse(input);
+    var errors = validate(data, schema);
+    if (errors.length === 0) {
+      resultBox.className = 'result-box success';
+      resultBox.innerHTML = '<div class="result-title">验证通过 ✓</div>数据符合 schema 要求';
+    } else {
+      resultBox.className = 'result-box error';
+      resultBox.innerHTML = '<div class="result-title">验证失败 ✗</div><ul>' + errors.map(function(e) { return '<li>' + e + '</li>'; }).join('') + '</ul>';
+    }
+  } catch (e) {
+    resultBox.className = 'result-box error';
+    resultBox.innerHTML = '<div class="result-title">JSON 解析错误</div>' + e.message;
+  }
+}
+
+function validate(data, schema) {
+  var errors = [];
+  if (schema.required) {
+    schema.required.forEach(function(field) {
+      if (!(field in data)) errors.push('缺少必填字段: ' + field);
+    });
+  }
+  if (schema.additionalProperties === false) {
+    Object.keys(data).forEach(function(key) {
+      if (!schema.properties || !(key in schema.properties)) {
+        errors.push('不允许的字段: ' + key);
+      }
+    });
+  }
+  if (schema.properties) {
+    Object.keys(schema.properties).forEach(function(key) {
+      if (key in data) {
+        var prop = schema.properties[key];
+        var val = data[key];
+        if (prop.type === 'string' && typeof val !== 'string') errors.push(key + ': 应为 string');
+        if (prop.type === 'integer' && (typeof val !== 'number' || !Number.isInteger(val))) errors.push(key + ': 应为 integer');
+        if (prop.minLength && val.length < prop.minLength) errors.push(key + ': 长度不足 ' + prop.minLength);
+        if (prop.minimum !== undefined && val < prop.minimum) errors.push(key + ': 小于最小值 ' + prop.minimum);
+        if (prop.maximum !== undefined && val > prop.maximum) errors.push(key + ': 大于最大值 ' + prop.maximum);
+        if (prop.format === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) errors.push(key + ': 邮箱格式不正确');
+      }
+    });
+  }
+  return errors;
+}
+</script>
+</body>
+</html>

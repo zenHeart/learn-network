@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>七牛云上传示例</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #17a2b8;
+      padding-bottom: 10px;
+    }
+    
+    .demo-section {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    h2 {
+      color: #17a2b8;
+      margin-top: 0;
+    }
+    
+    .info-box {
+      background: #d1ecf1;
+      border-left: 4px solid #17a2b8;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .info-box code {
+      background: #bee5eb;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+    }
+    
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    /* 上传区域 */
+    .upload-area {
+      border: 2px dashed #dee2e6;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.3s, background-color 0.3s;
+    }
+    
+    .upload-area:hover {
+      border-color: #17a2b8;
+      background-color: #f8f9fa;
+    }
+    
+    .upload-area.dragover {
+      border-color: #17a2b8;
+      background-color: #e7f6ff;
+    }
+    
+    .upload-icon {
+      font-size: 48px;
+      color: #6c757d;
+      margin-bottom: 15px;
+    }
+    
+    .upload-text {
+      color: #6c757d;
+      font-size: 16px;
+    }
+    
+    .upload-text strong {
+      color: #17a2b8;
+    }
+    
+    /* 文件预览 */
+    .preview-container {
+      margin-top: 20px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .preview-item {
+      flex: 1;
+      min-width: 200px;
+      max-width: 300px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+    }
+    
+    .preview-image {
+      width: 100%;
+      max-height: 200px;
+      object-fit: contain;
+      border-radius: 4px;
+      background: #e9ecef;
+    }
+    
+    .preview-info {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #6c757d;
+    }
+    
+    /* 上传进度 */
+    .progress-container {
+      margin-top: 15px;
+    }
+    
+    .progress-bar {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: #17a2b8;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    
+    .progress-text {
+      margin-top: 5px;
+      font-size: 12px;
+      color: #6c757d;
+      text-align: center;
+    }
+    
+    /* URL 展示 */
+    .url-display {
+      margin-top: 15px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      word-break: break-all;
+      font-size: 12px;
+      font-family: Consolas, monospace;
+    }
+    
+    .url-label {
+      font-weight: bold;
+      color: #495057;
+      margin-bottom: 5px;
+      display: block;
+    }
+    
+    /* 表格 */
+    .feature-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    .feature-table th,
+    .feature-table td {
+      border: 1px solid #dee2e6;
+      padding: 10px;
+      text-align: left;
+    }
+    
+    .feature-table th {
+      background: #f8f9fa;
+      font-weight: bold;
+    }
+    
+    /* 流程图 */
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+    
+    .flow-step {
+      background: #e9ecef;
+      padding: 15px 20px;
+      border-radius: 8px;
+      text-align: center;
+      min-width: 120px;
+    }
+    
+    .flow-step.client {
+      background: #d1ecf1;
+    }
+    
+    .flow-step.server {
+      background: #d4edda;
+    }
+    
+    .flow-step.qiniu {
+      background: #fff3cd;
+    }
+    
+    .flow-arrow {
+      font-size: 20px;
+      color: #6c757d;
+    }
+    
+    /* Code block */
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+    
+    pre {
+      background: #2d2d2d;
+      color: #ccc;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>七牛云服务详解</h1>
+    
+    <div class="info-box">
+      <strong>说明：</strong>本页面为七牛云服务学习演示。实际使用需要配置
+      <code>accessKey</code>、<code>secretKey</code> 和 <code>bucket</code>。
+      本示例为模拟演示，实际运行需要服务端提供 upload token。
+    </div>
+    
+    <!-- 七牛云概述 -->
+    <div class="demo-section">
+      <h2>1. 七牛云概述</h2>
+      
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th>服务类型</th>
+            <th>说明</th>
+            <th>适用场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>融合 CDN</td>
+            <td>全球内容分发加速</td>
+            <td>静态资源、下载分发</td>
+          </tr>
+          <tr>
+            <td>对象存储 (Kodo)</td>
+            <td>海量非结构化数据存储</td>
+            <td>图片、视频、文件存储</td>
+          </tr>
+          <tr>
+            <td>图片处理</td>
+            <td>缩放、裁剪、格式转换</td>
+            <td>图床、相册、媒体</td>
+          </tr>
+          <tr>
+            <td>多媒体服务</td>
+            <td>直播、点播、转码</td>
+            <td>在线教育、直播平台</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- 上传流程 -->
+    <div class="demo-section">
+      <h2>2. 上传流程</h2>
+      
+      <div class="flow-diagram">
+        <div class="flow-step client">
+          <strong>客户端</strong>
+          <div>请求上传 Token</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step server">
+          <strong>业务服务器</strong>
+          <div>生成 Token</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step client">
+          <strong>客户端</strong>
+          <div>上传到七牛云</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step qiniu">
+          <strong>七牛云</strong>
+          <div>返回 Key</div>
+        </div>
+      </div>
+      
+      <div class="warning-box">
+        <strong>⚠️ 安全提示：</strong>不要在前端暴露 <code>SecretKey</code>！
+        必须通过业务服务器生成 upload token。
+      </div>
+    </div>
+    
+    <!-- 上传示例 -->
+    <div class="demo-section">
+      <h2>3. 前端直传示例</h2>
+      
+      <div class="upload-area" 
+           @dragover.prevent="dragover = true"
+           @dragleave="dragover = false"
+           @drop.prevent="handleDrop"
+           @click="$refs.fileInput.click()">
+        <div class="upload-icon">📤</div>
+        <div class="upload-text">
+          拖拽文件到此处，或<strong>点击选择文件</strong>
+        </div>
+        <input type="file" 
+               ref="fileInput" 
+               style="display: none"
+               @change="handleFileSelect"
+               accept="image/*">
+      </div>
+      
+      <!-- 进度条 -->
+      <div class="progress-container" v-if="uploading">
+        <div class="progress-bar">
+          <div class="progress-fill" :style="{ width: progress + '%' }"></div>
+        </div>
+        <div class="progress-text">{{ progress }}% 上传中...</div>
+      </div>
+      
+      <!-- 预览 -->
+      <div class="preview-container" v-if="previewUrl">
+        <div class="preview-item">
+          <img :src="previewUrl" class="preview-image" alt="Preview">
+          <div class="preview-info">
+            <div><strong>文件名：</strong>{{ fileName }}</div>
+            <div><strong>大小：</strong>{{ fileSize }}</div>
+            <div><strong>类型：</strong>{{ fileType }}</div>
+          </div>
+          <div class="url-display" v-if="resultUrl">
+            <span class="url-label">访问 URL：</span>
+            {{ resultUrl }}
+          </div>
+          <div class="url-display" v-if="imgProcUrl">
+            <span class="url-label">处理后 URL（缩放）：</span>
+            {{ imgProcUrl }}
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 图片处理示例 -->
+    <div class="demo-section">
+      <h2>4. 图片处理示例</h2>
+      
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th>处理类型</th>
+            <th>URL 参数</th>
+            <th>示例</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>缩放</td>
+            <td><code>?imageMogr2/thumbnail/!200x200</code></td>
+            <td>等比缩放最大 200x200</td>
+          </tr>
+          <tr>
+            <td>裁剪</td>
+            <td><code>?imageMogr2/crop/300x300</code></td>
+            <td>裁剪 300x300</td>
+          </tr>
+          <tr>
+            <td>格式转换</td>
+            <td><code>?format=webp</code></td>
+            <td>转换为 WebP</td>
+          </tr>
+          <tr>
+            <td>质量优化</td>
+            <td><code>?imageslim</code></td>
+            <td>无损压缩</td>
+          </tr>
+          <tr>
+            <td>水印</td>
+            <td><code>?watermark/...</code></td>
+            <td>图片水印</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <div class="info-box" style="margin-top: 15px;">
+        <strong>URL 组合示例：</strong><br>
+        <code>https://domain.com/photo.jpg?imageMogr2/thumbnail/800x600/smooth/50/format/webp</code>
+      </div>
+    </div>
+    
+    <!-- CDN 刷新 -->
+    <div class="demo-section">
+      <h2>5. CDN 刷新与预取</h2>
+      
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th>操作</th>
+            <th>说明</th>
+            <th>适用场景</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>URL 刷新</td>
+            <td>清除指定 URL 的缓存</td>
+            <td>更新已发布的资源</td>
+          </tr>
+          <tr>
+            <td>目录刷新</td>
+            <td>刷新目录下所有资源</td>
+            <td>批量更新</td>
+          </tr>
+          <tr>
+            <td>URL 预取</td>
+            <td>提前拉取资源到 CDN 节点</td>
+            <td>大文件发布前</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- 防盗链 -->
+    <div class="demo-section">
+      <h2>6. 防盗链策略</h2>
+      
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th>类型</th>
+            <th>实现方式</th>
+            <th>安全性</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Referer 白名单</td>
+            <td>配置允许的域名列表</td>
+            <td>中等</td>
+          </tr>
+          <tr>
+            <td>时间戳签名</td>
+            <td>URL 携带过期时间和签名</td>
+            <td>较高</td>
+          </tr>
+          <tr>
+            <td>IP 白名单</td>
+            <td>限制访问 IP</td>
+            <td>高</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <script>
+    const app = Vue.createApp({
+      data() {
+        return {
+          dragover: false,
+          uploading: false,
+          progress: 0,
+          previewUrl: null,
+          resultUrl: null,
+          imgProcUrl: null,
+          fileName: '',
+          fileSize: '',
+          fileType: ''
+        }
+      },
+      methods: {
+        handleFileSelect(e) {
+          const file = e.target.files[0]
+          if (file) {
+            this.uploadFile(file)
+          }
+        },
+        handleDrop(e) {
+          this.dragover = false
+          const file = e.dataTransfer.files[0]
+          if (file && file.type.startsWith('image/')) {
+            this.uploadFile(file)
+          }
+        },
+        uploadFile(file) {
+          // 模拟上传演示
+          this.fileName = file.name
+          this.fileSize = this.formatSize(file.size)
+          this.fileType = file.type
+          
+          // 生成本地预览
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            this.previewUrl = e.target.result
+          }
+          reader.readAsDataURL(file)
+          
+          // 模拟上传进度
+          this.uploading = true
+          this.progress = 0
+          
+          const interval = setInterval(() => {
+            this.progress += Math.random() * 15
+            if (this.progress >= 100) {
+              this.progress = 100
+              clearInterval(interval)
+              this.uploading = false
+              this.onUploadComplete(file)
+            }
+          }, 200)
+        },
+        onUploadComplete(file) {
+          // 模拟上传完成，返回结果
+          const fakeKey = `${Date.now()}-${file.name}`
+          const domain = 'https://your-bucket.qiniudn.com'
+          
+          this.resultUrl = `${domain}/${fakeKey}`
+          
+          // 模拟图片处理 URL
+          this.imgProcUrl = `${this.resultUrl}?imageMogr2/thumbnail/300x300/smooth/50/format/webp`
+        },
+        formatSize(bytes) {
+          if (bytes < 1024) return bytes + ' B'
+          if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+          return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+        }
+      }
+    })
+    
+    app.mount('#app')
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</body>
+</html>

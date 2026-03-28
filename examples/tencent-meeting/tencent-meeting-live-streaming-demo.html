@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>腾讯会议直播技术演示</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .subtitle {
+      color: #888;
+      margin-bottom: 24px;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 14px;
+    }
+    
+    .tab:hover {
+      background: #252525;
+      border-color: #555;
+    }
+    
+    .tab.active {
+      background: #667eea;
+      border-color: #667eea;
+      color: #fff;
+    }
+    
+    .panel {
+      display: none;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 24px;
+    }
+    
+    .panel.active {
+      display: block;
+    }
+    
+    .panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #667eea;
+    }
+    
+    .panel h3 {
+      font-size: 16px;
+      margin: 20px 0 12px;
+      color: #888;
+    }
+    
+    .panel p, .panel li {
+      color: #ccc;
+      line-height: 1.8;
+      font-size: 14px;
+    }
+    
+    .panel ul {
+      padding-left: 24px;
+    }
+    
+    .panel li {
+      margin-bottom: 8px;
+    }
+    
+    code {
+      background: #0d0d0d;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 13px;
+      color: #667eea;
+    }
+    
+    pre {
+      background: #0d0d0d;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+    
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    
+    .architecture-diagram {
+      background: #0d0d0d;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 16px 0;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+    
+    .diagram-layer {
+      margin-bottom: 16px;
+    }
+    
+    .diagram-label {
+      color: #667eea;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    
+    .diagram-box {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 8px 12px;
+      display: inline-block;
+      margin-right: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+    }
+    
+    .comparison-table th,
+    .comparison-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #333;
+      font-size: 14px;
+    }
+    
+    .comparison-table th {
+      color: #667eea;
+      font-weight: 600;
+    }
+    
+    .comparison-table td {
+      color: #ccc;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .badge-success {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+    
+    .badge-warning {
+      background: rgba(255, 193, 7, 0.2);
+      color: #ffc107;
+    }
+    
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px;
+      background: #0d0d0d;
+      border-radius: 8px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+    
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 100px;
+    }
+    
+    .flow-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    
+    .flow-label {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+    }
+    
+    .flow-arrow {
+      color: #333;
+      font-size: 24px;
+      margin: 0 8px;
+    }
+    
+    .demo-box {
+      background: #0d0d0d;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    
+    .demo-title {
+      font-size: 14px;
+      color: #667eea;
+      margin-bottom: 12px;
+    }
+    
+    .code-block {
+      position: relative;
+    }
+    
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      padding: 4px 12px;
+      background: #252525;
+      border: 1px solid #333;
+      border-radius: 4px;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .copy-btn:hover {
+      background: #333;
+      color: #fff;
+    }
+    
+    .checkbox-list {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .checkbox-list li {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: #0d0d0d;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .checkbox-list li:hover {
+      background: #151515;
+    }
+    
+    .checkbox-list input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      accent-color: #667eea;
+    }
+    
+    .checkbox-list .item-content {
+      flex: 1;
+    }
+    
+    .checkbox-list .item-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .checkbox-list .item-desc {
+      font-size: 12px;
+      color: #888;
+    }
+    
+    .quiz-container {
+      background: #0d0d0d;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    
+    .quiz-question {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #fff;
+    }
+    
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .quiz-option {
+      padding: 12px 16px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .quiz-option:hover {
+      border-color: #667eea;
+    }
+    
+    .quiz-option.correct {
+      background: rgba(102, 126, 234, 0.2);
+      border-color: #667eea;
+    }
+    
+    .quiz-option.incorrect {
+      background: rgba(255, 82, 82, 0.2);
+      border-color: #f44336;
+    }
+    
+    .quiz-result {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      display: none;
+    }
+    
+    .quiz-result.show {
+      display: block;
+    }
+    
+    .quiz-result.pass {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+    
+    .quiz-result.fail {
+      background: rgba(255, 82, 82, 0.2);
+      color: #f44336;
+    }
+    
+    footer {
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid #333;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎙️ 腾讯会议直播技术演示</h1>
+    <p class="subtitle">Tencent Meeting Live Streaming Technology Demo</p>
+    
+    <div class="tabs">
+      <button class="tab active" data-tab="overview">📖 技术概述</button>
+      <button class="tab" data-tab="architecture">🏗️ 系统架构</button>
+      <button class="tab" data-tab="protocol">🔌 协议对比</button>
+      <button class="tab" data-tab="code">💻 代码示例</button>
+      <button class="tab" data-tab="checklist">✅ 开发清单</button>
+      <button class="tab" data-tab="quiz">📝 自测题</button>
+    </div>
+    
+    <!-- 概览 -->
+    <div class="panel active" id="overview">
+      <h2>腾讯会议直播技术概览</h2>
+      
+      <h3>产品体系</h3>
+      <p>腾讯会议提供完整的视频会议和直播解决方案，主要包括：</p>
+      <ul>
+        <li><strong>腾讯会议 SaaS</strong> - 企业级视频会议平台</li>
+        <li><strong>TRTC SDK</strong> - 实时音视频通信（基于 WebRTC）</li>
+        <li><strong>CSS 直播服务</strong> - 大规模直播分发（RTMP/HLS）</li>
+        <li><strong>会议 API</strong> - 开放接口，支持企业定制</li>
+      </ul>
+      
+      <h3>核心能力</h3>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>能力</th>
+            <th>说明</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>会议管理</td>
+            <td>创建/加入/结束会议</td>
+            <td><span class="badge badge-success">可用</span></td>
+          </tr>
+          <tr>
+            <td>实时通话</td>
+            <td>基于 TRTC 的低延时通话</td>
+            <td><span class="badge badge-success">可用</span></td>
+          </tr>
+          <tr>
+            <td>直播推流</td>
+            <td>会议直播到 CDN</td>
+            <td><span class="badge badge-success">可用</span></td>
+          </tr>
+          <tr>
+            <td>屏幕共享</td>
+            <td>实时屏幕共享</td>
+            <td><span class="badge badge-success">可用</span></td>
+          </tr>
+          <tr>
+            <td>会议录制</td>
+            <td>云端录制和回放</td>
+            <td><span class="badge badge-success">可用</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- 架构 -->
+    <div class="panel" id="architecture">
+      <h2>系统架构</h2>
+      
+      <h3>整体架构图</h3>
+      <div class="architecture-diagram">
+        <div class="diagram-layer">
+          <div class="diagram-label">客户端层</div>
+          <span class="diagram-box">Web SDK</span>
+          <span class="diagram-box">Android SDK</span>
+          <span class="diagram-box">iOS SDK</span>
+          <span class="diagram-box">Windows SDK</span>
+        </div>
+        <div style="color:#333;margin:8px 0;">│</div>
+        <div class="diagram-layer">
+          <div class="diagram-label">TRTC 网关 (实时通信)</div>
+          <span class="diagram-box">SFU 转发</span>
+          <span class="diagram-box">混流服务</span>
+        </div>
+        <div style="color:#333;margin:8px 0;">│</div>
+        <div class="diagram-layer">
+          <div class="diagram-label">服务层</div>
+          <span class="diagram-box">会议服务 MCU/SFU</span>
+          <span class="diagram-box">录制服务</span>
+          <span class="diagram-box">直播服务 CDN</span>
+        </div>
+      </div>
+      
+      <h3>直播分发流程</h3>
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <div class="flow-icon">🎤</div>
+          <div class="flow-label">主播推流</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">⚡</div>
+          <div class="flow-label">TRTC 录制</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">🔄</div>
+          <div class="flow-label">转码服务</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">🌐</div>
+          <div class="flow-label">CDN 分发</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">
+          <div class="flow-icon">👀</div>
+          <div class="flow-label">观众观看</div>
+        </div>
+      </div>
+      
+      <h3>SFU vs MCU</h3>
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>SFU</th>
+            <th>MCU</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>架构</td>
+            <td>转发而不混合</td>
+            <td>混合后转发</td>
+          </tr>
+          <tr>
+            <td>延时</td>
+            <td>更低 (&lt;200ms)</td>
+            <td>较高 (300-500ms)</td>
+          </tr>
+          <tr>
+            <td>带宽</td>
+            <td>发送 N 路，接收 M 路</td>
+            <td>发送 1 路，接收 1 路</td>
+          </tr>
+          <tr>
+            <td>适用</td>
+            <td>互动场景</td>
+            <td>会议录制</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- 协议 -->
+    <div class="panel" id="protocol">
+      <h2>直播协议对比</h2>
+      
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>协议</th>
+            <th>延时</th>
+            <th>场景</th>
+            <th>兼容性</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>UDP/QUIC</strong></td>
+            <td>&lt;200ms</td>
+            <td>实时通话</td>
+            <td>需 TRTC SDK</td>
+          </tr>
+          <tr>
+            <td><strong>RTMP</strong></td>
+            <td>2-5s</td>
+            <td>直播推流</td>
+            <td>最佳</td>
+          </tr>
+          <tr>
+            <td><strong>HTTP-FLV</strong></td>
+            <td>2-5s</td>
+            <td>直播观看</td>
+            <td>需播放器</td>
+          </tr>
+          <tr>
+            <td><strong>HLS</strong></td>
+            <td>5-10s</td>
+            <td>移动端</td>
+            <td>最佳</td>
+          </tr>
+          <tr>
+            <td><strong>DASH</strong></td>
+            <td>5-10s</td>
+            <td>国际分发</td>
+            <td>一般</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>协议选择建议</h3>
+      <div class="demo-box">
+        <div class="demo-title">🎯 根据场景选择协议</div>
+        <ul>
+          <li><strong>低延时互动</strong>（连麦、会议）→ UDP/QUIC + TRTC SDK</li>
+          <li><strong>标准直播</strong>（发布会、教育）→ RTMP 推流 + HLS 观看</li>
+          <li><strong>移动端为主</strong> → HLS（iOS/Android 原生支持）</li>
+          <li><strong>极致低延时</strong> → WebRTC 或私有 QUIC</li>
+        </ul>
+      </div>
+      
+      <h3>CDN 分发架构</h3>
+      <pre><code>┌─────────────────────────────────────────────────────────┐
+│                    源站 (TRTC 录制)                        │
+│  主播 → TRTC → 实时流转码 → RTMP/HLS                      │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                    CDN 边缘节点                           │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
+│  │ 华东节点│  │ 华南节点│  │ 华北节点│  │ 海外节点│   │
+│  └─────────┘  └─────────┘  └─────────┘  └─────────┘   │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────┐
+│                    观众端                                │
+│  浏览器 / App / 小程序                                  │
+└─────────────────────────────────────────────────────────┘</code></pre>
+    </div>
+    
+    <!-- 代码 -->
+    <div class="panel" id="code">
+      <h2>代码示例</h2>
+      
+      <h3>TRTC 初始化与加入房间</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+        <pre><code>import TRTC from 'trtc-sdk-js';
+
+// 1. 创建 TRTC 实例
+const trtc = TRTC.create({
+  sdkAppId: 1400000000,  // 替换为你的 SDKAppId
+  userId: 'user_' + Date.now(),
+  userSig: 'xxxxx'        // 后端生成
+});
+
+// 2. 加入房间
+await trtc.enterRoom({
+  roomId: 123456
+});
+
+// 3. 开启本地视频
+await trtc.startLocalVideo({
+  view: document.getElementById('local-video')
+});
+
+// 4. 开启本地音频
+await trtc.startLocalAudio();</code></pre>
+      </div>
+      
+      <h3>观众观看直播流</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+        <pre><code>// 观众端：订阅远端流
+trtc.on(TRTC.EVENT.REMOTE_VIDEO_AVAILABLE, ({ userId }) => {
+  // 远端用户开启视频
+  trtc.startRemoteVideo({
+    userId: userId,
+    view: document.getElementById('remote-video')
+  });
+});
+
+trtc.on(TRTC.EVENT.REMOTE_AUDIO_AVAILABLE, ({ userId }) => {
+  // 远端用户开启音频
+  trtc.startRemoteAudio({ userId });
+});
+
+// 监听用户进入/离开
+trtc.on(TRTC.EVENT.REMOTE_USER_ENTER, (userId) => {
+  console.log('用户加入:', userId);
+});
+
+trtc.on(TRTC.EVENT.REMOTE_USER_LEAVE, (userId) => {
+  console.log('用户离开:', userId);
+});</code></pre>
+      </div>
+      
+      <h3>网络质量监控</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+        <pre><code>// 监听网络质量变化
+trtc.on(TRTC.EVENT.NETWORK_QUALITY, (networkQuality) => {
+  const { userId, level } = networkQuality;
+  // level: 0-6, 0=最好, 6=最差
+  
+  const qualityMap = {
+    0: '极好',
+    1: '很好',
+    2: '好',
+    3: '中等',
+    4: '差',
+    5: '很差',
+    6: '不可用'
+  };
+  
+  console.log(`用户 ${userId} 网络质量: ${qualityMap[level]}`);
+  
+  if (level > 4) {
+    showWarning('您的网络质量较差');
+  }
+});
+
+// 监听音量
+trtc.on(TRTC.EVENT.AUDIO_VOLUME, ({ userId, volume }) => {
+  // volume: 0-100
+  if (volume > 0) {
+    console.log(`用户 ${userId} 在说话，音量 ${volume}`);
+  }
+});</code></pre>
+      </div>
+      
+      <h3>会议直播 API 调用</h3>
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+        <pre><code>// 获取 access_token
+const tokenResp = await fetch('https://api.meeting.qq.com/v1/oauth2/access_token', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    grant_type: 'client_credentials',
+    client_id: 'your_client_id',
+    client_secret: 'your_client_secret'
+  })
+});
+
+// 创建带直播的会议
+const meeting = await fetch('https://api.meeting.qq.com/v1/meetings', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${access_token}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    subject: '产品发布会',
+    start_time: '2026-03-27 10:00:00',
+    duration: 7200,
+    live_config: {
+      live_addr: 'rtmp://push.example.com/live/xxx',
+      live_stream_type: 'rtmp'
+    }
+  })
+});</code></pre>
+      </div>
+    </div>
+    
+    <!-- 检查清单 -->
+    <div class="panel" id="checklist">
+      <h2>腾讯会议直播开发清单</h2>
+      
+      <p style="margin-bottom: 16px;">开发腾讯会议直播应用时，需要检查以下关键点：</p>
+      
+      <ul class="checkbox-list">
+        <li>
+          <input type="checkbox" id="c1">
+          <div class="item-content">
+            <div class="item-title">1. SDK 接入配置</div>
+            <div class="item-desc">完成 TRTC SDK 或腾讯会议 SDK 的引入和初始化配置</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c2">
+          <div class="item-content">
+            <div class="item-title">2. UserSig 后端生成</div>
+            <div class="item-desc">UserSig 必须在后端生成，禁止在前端暴露 secret</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c3">
+          <div class="item-content">
+            <div class="item-title">3. 房间号管理</div>
+            <div class="item-desc">设计合理的房间号生成和分配策略</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c4">
+          <div class="item-content">
+            <div class="item-title">4. 权限控制</div>
+            <div class="item-desc">区分主播/观众/管理员权限，实现细粒度控制</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c5">
+          <div class="item-content">
+            <div class="item-title">5. 网络质量监控</div>
+            <div class="item-desc">实现网络质量反馈和降级策略</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c6">
+          <div class="item-content">
+            <div class="item-title">6. CDN 直播配置</div>
+            <div class="item-desc">配置直播推流地址和 CDN 分发策略</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c7">
+          <div class="item-content">
+            <div class="item-title">7. 异常处理</div>
+            <div class="item-desc">处理断网、设备切换、页面刷新等异常场景</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c8">
+          <div class="item-content">
+            <div class="item-title">8. 移动端适配</div>
+            <div class="item-desc">HLS 协议支持、App 保活、后台播放</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c9">
+          <div class="item-content">
+            <div class="item-title">9. 性能优化</div>
+            <div class="item-desc">码率自适应、关键帧间隔、视频分辨率选择</div>
+          </div>
+        </li>
+        <li>
+          <input type="checkbox" id="c10">
+          <div class="item-content">
+            <div class="item-title">10. 数据统计</div>
+            <div class="item-desc">接入会议数据埋点和质量监控</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    
+    <!-- 自测 -->
+    <div class="panel" id="quiz">
+      <h2>自测题</h2>
+      
+      <div class="quiz-container">
+        <div class="quiz-question">1. 腾讯会议直播使用的主要协议是什么？</div>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="wrong">A. HTTP</div>
+          <div class="quiz-option" data-answer="correct">B. WebRTC / RTMP</div>
+          <div class="quiz-option" data-answer="wrong">C. FTP</div>
+          <div class="quiz-option" data-answer="wrong">D. SMTP</div>
+        </div>
+        <div class="quiz-result"></div>
+      </div>
+      
+      <div class="quiz-container" style="margin-top: 20px;">
+        <div class="quiz-question">2. TRTC SDK 中，SFU 架构的优势是什么？</div>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="wrong">A. 带宽占用更低</div>
+          <div class="quiz-option" data-answer="correct">B. 转发效率高，支持 simulcast</div>
+          <div class="quiz-option" data-answer="wrong">C. 画质更好</div>
+          <div class="quiz-option" data-answer="wrong">D. 不需要网络</div>
+        </div>
+        <div class="quiz-result"></div>
+      </div>
+      
+      <div class="quiz-container" style="margin-top: 20px;">
+        <div class="quiz-question">3. UserSig 的正确生成方式是？</div>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="wrong">A. 前端硬编码</div>
+          <div class="quiz-option" data-answer="wrong">B. 直接暴露 secret</div>
+          <div class="quiz-option" data-answer="correct">C. 后端生成，实时下发</div>
+          <div class="quiz-option" data-answer="wrong">D. 随机生成</div>
+        </div>
+        <div class="quiz-result"></div>
+      </div>
+    </div>
+    
+    <footer>
+      <p>📚 腾讯会议直播技术学习笔记 | 基于公开资料整理</p>
+      <p style="margin-top: 8px;">更新时间: 2026-03-26</p>
+    </footer>
+  </div>
+  
+  <script>
+    // Tab 切换
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+    
+    // 复制代码
+    function copyCode(btn) {
+      const code = btn.parentElement.querySelector('code');
+      navigator.clipboard.writeText(code.textContent).then(() => {
+        btn.textContent = '已复制!';
+        setTimeout(() => btn.textContent = '复制', 2000);
+      });
+    }
+    
+    // 问答交互
+    document.querySelectorAll('.quiz-option').forEach(option => {
+      option.addEventListener('click', () => {
+        const container = option.closest('.quiz-container');
+        const options = container.querySelectorAll('.quiz-option');
+        const result = container.querySelector('.quiz-result');
+        
+        // 禁用其他选项
+        options.forEach(o => {
+          o.style.pointerEvents = 'none';
+          if (o.dataset.answer === 'correct') {
+            o.classList.add('correct');
+          } else if (o === option && o.dataset.answer === 'wrong') {
+            o.classList.add('incorrect');
+          }
+        });
+        
+        // 显示结果
+        const isCorrect = option.dataset.answer === 'correct';
+        result.textContent = isCorrect ? '✅ 回答正确!' : '❌ 回答错误，请查看正确答案';
+        result.className = 'quiz-result show ' + (isCorrect ? 'pass' : 'fail');
+      });
+    });
+    
+    // 检查清单交互
+    document.querySelectorAll('.checkbox-list input').forEach(checkbox => {
+      checkbox.addEventListener('change', () => {
+        const checked = document.querySelectorAll('.checkbox-list input:checked').length;
+        const total = document.querySelectorAll('.checkbox-list input').length;
+        console.log(`已完成 ${checked}/${total} 项`);
+      });
+    });
+  </script>
+</body>
+</html>

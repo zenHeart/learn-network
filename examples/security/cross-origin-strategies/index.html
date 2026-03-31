@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>跨域策略交互演示</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #16161d;
+      --surface2: #1e1e2a;
+      --border: #2a2a3a;
+      --text: #e0e0e8;
+      --text-muted: #8888a0;
+      --accent: #7c6af7;
+      --accent2: #6af7c8;
+      --accent3: #f76a8c;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --code-bg: #12121a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem; }
+    h1 { font-size: 1.5rem; color: var(--accent); margin-bottom: 0.5rem; letter-spacing: -0.5px; }
+    .subtitle { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 2rem; }
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 1rem; }
+    .tab-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text-muted); padding: 0.5rem 1rem; cursor: pointer; font-family: inherit; font-size: 0.75rem; transition: all 0.2s; border-radius: 4px; }
+    .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .panel { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
+    .panel.active { display: block; }
+    .panel h2 { color: var(--accent2); font-size: 1rem; margin-bottom: 1rem; }
+    .panel h3 { color: var(--accent); font-size: 0.85rem; margin: 1rem 0 0.5rem; }
+    .panel p, .panel li { font-size: 0.8rem; line-height: 1.6; color: var(--text); }
+    .panel ul { padding-left: 1.2rem; }
+    .panel li { margin-bottom: 0.3rem; }
+    pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1rem; overflow-x: auto; font-size: 0.75rem; line-height: 1.5; margin: 0.5rem 0; }
+    code { color: var(--accent2); }
+    .comment { color: #5a6370; font-style: italic; }
+    .keyword { color: var(--accent3); }
+    .string { color: var(--green); }
+    .header { color: var(--yellow); }
+    .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+    .pros, .cons { background: var(--surface2); border-radius: 6px; padding: 1rem; }
+    .pros { border-left: 3px solid var(--green); }
+    .cons { border-left: 3px solid var(--red); }
+    .pros h4 { color: var(--green); font-size: 0.8rem; margin-bottom: 0.5rem; }
+    .cons h4 { color: var(--red); font-size: 0.8rem; margin-bottom: 0.5rem; }
+    .pros li { color: var(--green); }
+    .cons li { color: var(--red); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 1rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem; text-align: left; }
+    th { background: var(--surface2); color: var(--accent); }
+    .star { color: var(--yellow); }
+    .demo-box { background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+    .demo-box h4 { color: var(--accent2); font-size: 0.8rem; margin-bottom: 0.5rem; }
+    input, select { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.6rem; border-radius: 4px; font-family: inherit; font-size: 0.75rem; margin-right: 0.5rem; }
+    button { background: var(--accent); border: none; color: #fff; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 0.75rem; transition: opacity 0.2s; }
+    button:hover { opacity: 0.8; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .output { background: #0d0d12; border: 1px solid var(--border); border-radius: 4px; padding: 0.75rem; margin-top: 0.75rem; font-size: 0.75rem; min-height: 60px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; color: var(--accent2); }
+    .server-log { background: #050508; border: 1px solid var(--border); border-radius: 4px; padding: 0.75rem; font-size: 0.7rem; max-height: 150px; overflow-y: auto; margin-top: 0.75rem; }
+    .server-log div { margin-bottom: 0.2rem; }
+    .quiz-question { background: var(--surface2); border-radius: 6px; padding: 1rem; margin: 1rem 0; }
+    .quiz-question p { margin-bottom: 0.75rem; }
+    .quiz-question label { display: block; margin: 0.3rem 0; cursor: pointer; font-size: 0.8rem; }
+    .quiz-result { margin-top: 0.75rem; padding: 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    .quiz-result.correct { background: rgba(74, 222, 128, 0.15); color: var(--green); }
+    .quiz-result.wrong { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+    @media (max-width: 600px) { .pros-cons { grid-template-columns: 1fr; } body { padding: 1rem; } .tabs { gap: 0.25rem; } .tab-btn { padding: 0.4rem 0.6rem; font-size: 0.7rem; } }
+  </style>
+</head>
+<body>
+
+<h1>跨域策略完全指南</h1>
+<p class="subtitle">交互式演示 · 7 种跨域方案 · 原理 + 代码 + 对比</p>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">概念总览</button>
+  <button class="tab-btn" data-tab="cors">CORS</button>
+  <button class="tab-btn" data-tab="jsonp">JSONP</button>
+  <button class="tab-btn" data-tab="postmessage">postMessage</button>
+  <button class="tab-btn" data-tab="websocket">WebSocket</button>
+  <button class="tab-btn" data-tab="proxy">代理</button>
+  <button class="tab-btn" data-tab="compare">对比总结</button>
+</div>
+
+<!-- 概念总览 -->
+<div class="panel active" id="overview">
+  <h2>同源策略：浏览器的安全基石</h2>
+  <p>浏览器同源策略（Same-Origin Policy）是 Web 安全的核心机制，限制了一个源的文档或脚本与另一个源的资源交互。</p>
+  <h3>同源的三个要素</h3>
+  <pre><code><span class="header">协议</span> + <span class="header">域名</span> + <span class="header">端口</span> → 同源</code></pre>
+  <h3>同源策略限制了什么</h3>
+  <ul>
+    <li>AJAX / fetch 请求无法跨域</li>
+    <li>无法读写不同源的 Cookie / LocalStorage</li>
+    <li>无法访问不同源 iframe 的 DOM</li>
+    <li><code>&lt;script&gt;</code>、<code>&lt;link&gt;</code>、<code>&lt;img&gt;</code> 可嵌入（但访问受限）</li>
+  </ul>
+  <h3>7 种跨域方案一览</h3>
+  <table>
+    <tr><th>方案</th><th>通信方向</th><th>推荐度</th><th>备注</th></tr>
+    <tr><td>CORS</td><td>双向</td><td>★★★★★</td><td>现代标准，首选方案</td></tr>
+    <tr><td>WebSocket</td><td>双向</td><td>★★★★★</td><td>实时通信</td></tr>
+    <tr><td>postMessage</td><td>双向</td><td>★★★★</td><td>iframe 通信</td></tr>
+    <tr><td>nginx 代理</td><td>双向</td><td>★★★★</td><td>生产环境</td></tr>
+    <tr><td>JSONP</td><td>单向</td><td>★</td><td>已废弃，不推荐</td></tr>
+    <tr><td>document.domain</td><td>单向</td><td>★★★</td><td>仅限主域相同</td></tr>
+    <tr><td>location.hash</td><td>单向</td><td>★★</td><td>古老方案</td></tr>
+  </table>
+  <div class="quiz-question">
+    <p><strong>小测验：以下哪个组合是"同源"的？</strong></p>
+    <label><input type="radio" name="q1" value="a"> A. https://example.com:443 + https://example.com:80</label>
+    <label><input type="radio" name="q1" value="b"> B. https://example.com + https://sub.example.com</label>
+    <label><input type="radio" name="q1" value="c"> C. https://example.com + https://example.com:443</label>
+    <label><input type="radio" name="q1" value="d"> D. http://example.com + https://example.com</label>
+    <button onclick="checkQuiz1()">提交答案</button>
+    <div class="quiz-result" id="quiz1-result"></div>
+  </div>
+</div>
+
+<!-- CORS -->
+<div class="panel" id="cors">
+  <h2>CORS：跨域资源共享</h2>
+  <p>通过 HTTP 响应头授权，是目前最标准、最安全的跨域方案。</p>
+  <h3>简单请求流程</h3>
+  <pre><code><span class="comment">// 浏览器自动在请求头添加 Origin</span>
+GET /api/data HTTP/1.1
+<span class="header">Origin: https://frontend.com</span>
+Host: api.example.com
+
+<span class="comment">// 服务器响应头声明允许的来源</span>
+HTTP/1.1 200 OK
+<span class="header">Access-Control-Allow-Origin: https://frontend.com</span>
+Content-Type: application/json
+
+{"data": "hello"}</code></pre>
+  <h3>预检请求（Preflight）</h3>
+  <pre><code><span class="comment">// 非简单请求（如 PUT、DELETE、JSON）先发 OPTIONS 预检</span>
+OPTIONS /api/data HTTP/1.1
+<span class="header">Origin: https://frontend.com</span>
+<span class="header">Access-Control-Request-Method: PUT</span>
+
+<span class="comment">// 服务器响应</span>
+HTTP/1.1 204 No Content
+<span class="header">Access-Control-Allow-Origin: https://frontend.com</span>
+<span class="header">Access-Control-Allow-Methods: GET, POST, PUT, DELETE</span>
+<span class="header">Access-Control-Max-Age: 86400</span></code></pre>
+  <h3>Node.js Koa 响应头</h3>
+  <pre><code><span class="keyword">async function</span> cors(ctx, next) {
+  ctx.set(<span class="string">'Access-Control-Allow-Origin'</span>, ctx.env === <span class="string">'prod'</span>
+    ? <span class="string">'https://yourdomain.com'</span>
+    : <span class="string">'*'</span>);
+  ctx.set(<span class="string">'Access-Control-Allow-Credentials'</span>, <span class="string">'true'</span>);
+  ctx.set(<span class="string">'Access-Control-Allow-Methods'</span>, <span class="string">'GET,POST,PUT,DELETE,OPTIONS'</span>);
+  ctx.set(<span class="string">'Access-Control-Allow-Headers'</span>, <span class="string">'Content-Type,Authorization'</span>);
+  <span class="keyword">if</span> (ctx.method === <span class="string">'OPTIONS'</span>) { ctx.status = <span class="string">204</span>; <span class="keyword">return</span>; }
+  <span class="keyword">await</span> next();
+}</code></pre>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>支持所有 HTTP 方法</li><li>支持请求头/响应头自定义</li><li>支持 Cookie 携带</li><li>语义清晰，安全性高</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>需要服务器配合</li><li>预检请求增加延迟</li><li>IE10 以下不支持</li><li><code>*</code> 不可与 <code>credentials</code> 共用</li></ul></div>
+  </div>
+</div>
+
+<!-- JSONP -->
+<div class="panel" id="jsonp">
+  <h2>JSONP：古老的跨域hack</h2>
+  <p>利用 <code>&lt;script&gt;</code> 标签不受同源限制的特性，已不推荐使用。</p>
+  <h3>原理</h3>
+  <pre><code><span class="comment">// 1. 前端定义回调函数</span>
+<span class="keyword">function</span> handleResponse(data) { console.log(data); }
+
+<span class="comment">// 2. 动态创建 script 标签</span>
+<span class="keyword">const</span> script = document.createElement(<span class="string">'script'</span>);
+script.src = <span class="string">'https://api.example.com/data?callback=handleResponse'</span>;
+document.body.appendChild(script);
+
+<span class="comment">// 3. 服务器返回: handleResponse({"name":"Alice","age":30})</span></code></pre>
+  <h3>简易实现</h3>
+  <pre><code><span class="keyword">function</span> jsonp(url, params, callback) {
+  <span class="keyword">const</span> cb = <span class="string">'cb_'</span> + Date.now();
+  window[cb] = callback;
+  <span class="keyword">const</span> q = <span class="keyword">new</span> URLSearchParams({ ...params, callback: cb });
+  <span class="keyword">const</span> s = document.createElement(<span class="string">'script'</span>);
+  s.src = <span class="string">`<span class="header">${url}</span>?<span class="header">${q}</span>`</span>;
+  s.onload = () => s.remove();
+  document.body.appendChild(s);
+}</code></pre>
+  <div class="demo-box">
+    <h4>模拟 JSONP 请求</h4>
+    <button onclick="simulateJSONP()">发起 JSONP 请求</button>
+    <div class="output" id="jsonp-output">[点击按钮发起模拟请求]</div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>兼容所有浏览器</li><li>实现简单</li><li>不需要服务器特殊配置</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>仅支持 GET</li><li>存在 XSS 安全风险</li><li>无法获取响应头/状态码</li><li>已过时</li></ul></div>
+  </div>
+</div>
+
+<!-- postMessage -->
+<div class="panel" id="postmessage">
+  <h2>postMessage：安全的窗口通信</h2>
+  <p>允许跨窗口、跨域发送消息，是 iframe 通信的首选方案。</p>
+  <h3>基本用法</h3>
+  <pre><code><span class="comment">// 发送消息到目标窗口</span>
+targetWindow.postMessage({ type: <span class="string">'AUTH'</span>, token: <span class="string">'abc123'</span> }, <span class="string">'https://target-origin.com'</span>);
+
+<span class="comment">// 监听消息（必须验证来源）</span>
+window.addEventListener(<span class="string">'message'</span>, (event) => {
+  <span class="keyword">if</span> (event.origin !== <span class="string">'https://expected-origin.com'</span>) <span class="keyword">return</span>;
+  console.log(<span class="string">'收到消息:'</span>, event.data);
+});</code></pre>
+  <h3>父子窗口通信示例</h3>
+  <pre><code><span class="comment">// 父窗口</span>
+<span class="keyword">const</span> iframe = document.querySelector(<span class="string">'iframe'</span>);
+iframe.contentWindow.postMessage({ type: <span class="string">'PING'</span> }, <span class="string">'https://child.com'</span>);
+
+<span class="comment">// 子窗口</span>
+window.addEventListener(<span class="string">'message'</span>, (e) => {
+  <span class="keyword">if</span> (e.origin !== <span class="string">'https://parent.com'</span>) <span class="keyword">return</span>;
+  <span class="keyword">if</span> (e.data.type === <span class="string">'PING'</span>) {
+    e.source.postMessage({ type: <span class="string">'PONG'</span> }, e.origin);
+  }
+});</code></pre>
+  <div class="demo-box">
+    <h4>模拟 postMessage 通信</h4>
+    <input type="text" id="pm-message" placeholder="输入消息内容" value="Hello from parent!">
+    <select id="pm-origin">
+      <option value="https://expected.com">https://expected.com (匹配)</option>
+      <option value="https://malicious.com">https://malicious.com (不匹配)</option>
+    </select><br><br>
+    <button onclick="simulatePostMessage()">发送 postMessage</button>
+    <div class="output" id="pm-output">[点击按钮发送消息]</div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>支持双向通信</li><li>不需要服务器配置</li><li>支持任意窗口</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>需手动验证 origin</li><li>消息格式需双方约定</li></ul></div>
+  </div>
+</div>
+
+<!-- WebSocket -->
+<div class="panel" id="websocket">
+  <h2>WebSocket：全双工实时通信</h2>
+  <p>不受同源策略限制，建立连接后服务端可主动推送。</p>
+  <h3>握手过程</h3>
+  <pre><code><span class="comment">// 1. HTTP 升级请求</span>
+GET /ws HTTP/1.1
+<span class="header">Upgrade: websocket</span>
+<span class="header">Connection: Upgrade</span>
+<span class="header">Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==</span>
+
+<span class="comment">// 2. 服务器 101 响应</span>
+HTTP/1.1 101 Switching Protocols
+<span class="header">Upgrade: websocket</span>
+<span class="header">Connection: Upgrade</span></code></pre>
+  <h3>客户端 API</h3>
+  <pre><code><span class="keyword">const</span> ws = <span class="keyword">new</span> WebSocket(<span class="string">'wss://api.example.com/ws'</span>);
+
+ws.onopen = () => { ws.send(JSON.stringify({ type: <span class="string">'subscribe'</span>, ch: <span class="string">'news'</span> })); };
+ws.onmessage = (e) => { console.log(<span class="string">'收到:'</span>, JSON.parse(e.data)); };
+ws.onerror = (e) => { console.error(<span class="string">'错误'</span>, e); };
+ws.onclose = () => { console.log(<span class="string">'连接关闭'</span>); };</code></pre>
+  <div class="demo-box">
+    <h4>WebSocket 连接模拟</h4>
+    <button onclick="simulateWSConnect()">建立连接</button>
+    <button onclick="simulateWSSend()" disabled id="ws-send-btn">发送消息</button>
+    <button onclick="simulateWSClose()" disabled id="ws-close-btn">关闭连接</button>
+    <div class="server-log" id="ws-server-log">[服务器日志]</div>
+    <div class="output" id="ws-output">[连接状态]</div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>全双工，低延迟</li><li>不受同源策略限制</li><li>支持二进制数据</li><li>服务端可主动推送</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>需要服务器支持</li><li>代理可能阻断</li><li>需处理断线重连</li></ul></div>
+  </div>
+</div>
+
+<!-- 代理 -->
+<div class="panel" id="proxy">
+  <h2>代理方案：最干净的生产方案</h2>
+  <p>通过同域代理转发请求，对前端代码无侵入，是生产环境的最佳选择。</p>
+  <h3>nginx 反向代理</h3>
+  <pre><code>server {
+    listen       <span class="string">80</span>;
+    server_name  frontend.com;
+
+    location /api/ {
+        proxy_pass         http://backend-api.com/;
+        proxy_set_header   Host            api.example.com;
+        proxy_set_header   X-Real-IP       $remote_addr;
+    }
+
+    location /ws/ {
+        proxy_pass         http://ws-server.com/;
+        proxy_http_version <span class="string">1.1</span>;
+        proxy_set_header   Upgrade    $http_upgrade;
+        proxy_set_header   Connection "upgrade";
+    }
+}</code></pre>
+  <h3>Vite 开发代理</h3>
+  <pre><code><span class="comment">// vite.config.js</span>
+<span class="keyword">export default</span> {
+  server: {
+    proxy: {
+      <span class="string">'/api'</span>: {
+        target:       <span class="string">'http://localhost:3000'</span>,
+        changeOrigin: <span class="keyword">true</span>
+      }
+    }
+  }
+};</code></pre>
+  <div class="demo-box">
+    <h4>nginx 代理流程模拟</h4>
+    <input type="text" id="proxy-target" placeholder="目标 URL" value="http://api.example.com/data"><br><br>
+    <button onclick="simulateProxy()">模拟代理请求</button>
+    <div class="server-log" id="proxy-log">[请求流程]</div>
+    <div class="output" id="proxy-output">[代理结果]</div>
+  </div>
+  <div class="pros-cons">
+    <div class="pros"><h4>优点</h4><ul><li>对前端代码无侵入</li><li>隐藏真实后端地址</li><li>内网通信，性能好</li></ul></div>
+    <div class="cons"><h4>缺点</h4><ul><li>需要额外服务器配置</li><li>增加架构复杂度</li></ul></div>
+  </div>
+</div>
+
+<!-- 对比总结 -->
+<div class="panel" id="compare">
+  <h2>方案对比与选型</h2>
+  <table>
+    <tr><th>方案</th><th>方向</th><th>请求</th><th>安全</th><th>场景</th></tr>
+    <tr><td><strong>CORS</strong></td><td>双向</td><td>任意</td><td>高</td><td>RESTful API（首选）</td></tr>
+    <tr><td><strong>WebSocket</strong></td><td>双向</td><td>任意</td><td>高</td><td>实时通信、游戏、推送</td></tr>
+    <tr><td><strong>postMessage</strong></td><td>双向</td><td>任意</td><td>高*</td><td>iframe 嵌入通信</td></tr>
+    <tr><td><strong>nginx 代理</strong></td><td>双向</td><td>任意</td><td>高</td><td>生产环境 API</td></tr>
+    <tr><td><strong>JSONP</strong></td><td>单向</td><td>GET</td><td>中</td><td>不推荐</td></tr>
+    <tr><td><strong>document.domain</strong></td><td>单向</td><td>任意</td><td>中</td><td>主域相同的子域</td></tr>
+    <tr><td><strong>location.hash</strong></td><td>单向</td><td>GET</td><td>低</td><td>不推荐</td></tr>
+  </table>
+  <p style="margin-top:1rem;font-size:0.75rem;color:var(--text-muted)">* postMessage 安全性取决于开发者是否正确验证 event.origin</p>
+  <h3>选型决策树</h3>
+  <pre><code>需要调用后端 API？
+├── 是 → 生产环境？ → 是 → nginx 反向代理
+│                    └─ 否 → CORS
+├── 需要实时双向通信？ → 是 → WebSocket
+├── iframe 嵌入通信？ → 是 → postMessage
+└── 遗留系统（仅 GET）？ → 是 → JSONP（不推荐，尽快迁移）</code></pre>
+  <h3>综合测验</h3>
+  <div class="quiz-question">
+    <p><strong>Q1: 前后端分离项目调用 RESTful API，推荐哪种方案？</strong></p>
+    <label><input type="radio" name="q2" value="a"> CORS</label>
+    <label><input type="radio" name="q2" value="b"> JSONP</label>
+    <label><input type="radio" name="q2" value="c"> location.hash</label>
+    <button onclick="checkQuiz2()">提交</button>
+    <div class="quiz-result" id="quiz2-result"></div>
+  </div>
+  <div class="quiz-question">
+    <p><strong>Q2: postMessage 通信时，哪个安全措施是必须的？</strong></p>
+    <label><input type="radio" name="q3" value="a"> 使用 https</label>
+    <label><input type="radio" name="q3" value="b"> 验证 event.origin</label>
+    <label><input type="radio" name="q3" value="c"> 使用 WebSocket</label>
+    <button onclick="checkQuiz3()">提交</button>
+    <div class="quiz-result" id="quiz3-result"></div>
+  </div>
+  <div class="quiz-question">
+    <p><strong>Q3: 为什么 JSONP 不再推荐使用？</strong></p>
+    <label><input type="radio" name="q4" value="a"> 速度太慢</label>
+    <label><input type="radio" name="q4" value="b"> 存在 XSS 安全风险且仅支持 GET</label>
+    <label><input type="radio" name="q4" value="c"> 需要服务器安装特殊软件</label>
+    <button onclick="checkQuiz4()">提交</button>
+    <div class="quiz-result" id="quiz4-result"></div>
+  </div>
+</div>
+
+<script>
+  // Tab navigation
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Quiz 1
+  function checkQuiz1() {
+    const result = document.getElementById('quiz1-result');
+    const selected = document.querySelector('input[name="q1"]:checked');
+    if (!selected) { result.textContent = '请选择一个答案'; result.className = 'quiz-result wrong'; return; }
+    if (selected.value === 'c') {
+      result.textContent = '✅ 正确！https://example.com 默认端口 443，/api 路径不同但源相同';
+      result.className = 'quiz-result correct';
+    } else {
+      result.textContent = '❌ 错误。 A: 端口不同(443 vs 80) B: 子域不同 D: 协议不同。C: 同源（默认端口 443）';
+      result.className = 'quiz-result wrong';
+    }
+  }
+
+  // JSONP simulation
+  function simulateJSONP() {
+    const out = document.getElementById('jsonp-output');
+    out.innerHTML = '';
+    out.textContent = '正在创建 script 标签...';
+    setTimeout(() => {
+      out.innerHTML = '<span class="success">1. 创建 script 标签\n2. 设置 src="https://api.example.com/data?callback=handleResponse"\n3. 服务器返回: handleResponse({"name":"Alice","age":30})\n4. 回调函数执行，打印数据</span>';
+    }, 500);
+    setTimeout(() => {
+      out.innerHTML += '\n\n<span class="success">JSONP 请求完成（模拟）</span>';
+    }, 1200);
+  }
+
+  // postMessage simulation
+  function simulatePostMessage() {
+    const out = document.getElementById('pm-output');
+    const msg = document.getElementById('pm-message').value;
+    const origin = document.getElementById('pm-origin').value;
+    out.textContent = `发送消息: "${msg}"\n目标 origin: ${origin}`;
+    setTimeout(() => {
+      if (origin === 'https://expected.com') {
+        out.innerHTML += '\n\n<span class="success">✅ 消息发送成功！origin 匹配，接收方处理了消息</span>';
+      } else {
+        out.innerHTML += '\n\n<span class="error">❌ origin 不匹配，消息被拒绝！</span>';
+      }
+    }, 300);
+  }
+
+  // WebSocket simulation
+  let wsConnected = false;
+  function simulateWSConnect() {
+    const log = document.getElementById('ws-server-log');
+    const out = document.getElementById('ws-output');
+    log.innerHTML = '<div>等待连接...</div>';
+    out.textContent = '连接中...';
+    setTimeout(() => {
+      wsConnected = true;
+      log.innerHTML = '<div style="color:var(--green)">101 Switching Protocols</div><div>WebSocket 连接已建立</div>';
+      out.innerHTML = '<span class="success">✅ WebSocket 已连接 (wss://api.example.com/ws)</span>';
+      document.getElementById('ws-send-btn').disabled = false;
+      document.getElementById('ws-close-btn').disabled = false;
+    }, 600);
+  }
+  function simulateWSSend() {
+    if (!wsConnected) return;
+    const log = document.getElementById('ws-server-log');
+    const out = document.getElementById('ws-output');
+    log.innerHTML += '<div>← 发送: {"type":"subscribe","ch":"news"}</div>';
+    out.textContent = '发送中...';
+    setTimeout(() => {
+      log.innerHTML += '<div style="color:var(--yellow)">→ 收到: {"type":"news","content":"Breaking: CORS is great!"}</div>';
+      out.innerHTML = '<span class="success">📩 收到服务器推送: Breaking: CORS is great!</span>';
+    }, 400);
+  }
+  function simulateWSClose() {
+    if (!wsConnected) return;
+    wsConnected = false;
+    document.getElementById('ws-server-log').innerHTML += '<div style="color:var(--red)">连接已关闭</div>';
+    document.getElementById('ws-output').innerHTML = '<span class="error">🔌 连接已关闭</span>';
+    document.getElementById('ws-send-btn').disabled = true;
+    document.getElementById('ws-close-btn').disabled = true;
+  }
+
+  // Proxy simulation
+  function simulateProxy() {
+    const log = document.getElementById('proxy-log');
+    const out = document.getElementById('proxy-output');
+    const target = document.getElementById('proxy-target').value;
+    log.innerHTML = `<div style="color:var(--yellow)">浏览器 → nginx → ${target}</div>`;
+    out.textContent = '请求中...';
+    setTimeout(() => {
+      log.innerHTML += '<div style="color:var(--green)">nginx 代理转发 (内网)</div>';
+    }, 300);
+    setTimeout(() => {
+      log.innerHTML += '<div style="color:var(--green)">服务器响应 ← nginx ← api.example.com</div>';
+      out.innerHTML = `<span class="success">✅ 代理请求成功！\n前端请求: /api/data\nnginx 转发: ${target}\n响应: 200 OK {"data":"success"}</span>`;
+    }, 800);
+  }
+
+  // Quiz 2-4
+  function checkQuiz2() {
+    const r = document.getElementById('quiz2-result');
+    const s = document.querySelector('input[name="q2"]:checked');
+    if (!s) { r.textContent = '请选择'; r.className = 'quiz-result wrong'; return; }
+    r.textContent = s.value === 'a' ? '✅ 正确！CORS 是 RESTful
+  function checkQuiz2() {
+    const r = document.getElementById("quiz2-result");
+    const s = document.querySelector("input[name=q2]:checked");
+    if (!s) { r.textContent = "��ѡ��"; r.className = "quiz-result wrong"; return; }
+    r.textContent = s.value === "a" ? "? ��ȷ��CORS �� RESTful API ����ѡ���򷽰�" : "? ����Ӧѡ CORS";
+    r.className = s.value === "a" ? "quiz-result correct" : "quiz-result wrong";
+  }
+  function checkQuiz3() {
+    const r = document.getElementById("quiz3-result");
+    const s = document.querySelector("input[name=q3]:checked");
+    if (!s) { r.textContent = "��ѡ��"; r.className = "quiz-result wrong"; return; }
+    r.textContent = s.value === "b" ? "? ��ȷ��������֤ event.origin ��ֹ������վα����Ϣ" : "? ���󣬱�����֤ event.origin";
+    r.className = s.value === "b" ? "quiz-result correct" : "quiz-result wrong";
+  }
+  function checkQuiz4() {
+    const r = document.getElementById("quiz4-result");
+    const s = document.querySelector("input[name=q4]:checked");
+    if (!s) { r.textContent = "��ѡ��"; r.className = "quiz-result wrong"; return; }
+    r.textContent = s.value === "b" ? "? ��ȷ��JSONP ���� XSS ��ȫ�����ҽ�֧�� GET���ѱ� CORS ȡ��" : "? ����";
+    r.className = s.value === "b" ? "quiz-result correct" : "quiz-result wrong";
+  }
+</script>
+</body>
+</html>

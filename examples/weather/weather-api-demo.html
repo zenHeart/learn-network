@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather API Demo - 天气 API 演示</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-dark: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-input: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      color: var(--text-muted);
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      background: var(--bg-card);
+      padding: 0.5rem;
+      border-radius: var(--radius);
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.75rem 1rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: var(--bg-input);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card h2 .badge {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .badge-free {
+      background: var(--success);
+      color: #000;
+    }
+
+    .badge-pro {
+      background: var(--warning);
+      color: #000;
+    }
+
+    /* Form */
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-size: 1rem;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--bg-input);
+      color: var(--text);
+    }
+
+    /* Code Block */
+    .code-block {
+      background: #0d1117;
+      border-radius: var(--radius);
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .code-block pre {
+      margin: 0;
+    }
+
+    .code-block code {
+      color: #c9d1d9;
+    }
+
+    .code-comment { color: #8b949e; }
+    .code-keyword { color: #ff7b72; }
+    .code-string { color: #a5d6ff; }
+    .code-number { color: #79c0ff; }
+    .code-function { color: #d2a8ff; }
+    .code-type { color: #7ee787; }
+
+    /* Response Display */
+    .response-display {
+      background: #0d1117;
+      border-radius: var(--radius);
+      padding: 1rem;
+      max-height: 400px;
+      overflow: auto;
+    }
+
+    .response-display pre {
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Weather Result */
+    .weather-result {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .weather-card {
+      background: var(--bg-input);
+      padding: 1rem;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .weather-card .icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .weather-card .temp {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .weather-card .label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .weather-card .value {
+      font-size: 0.9rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Loading */
+    .loading {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--text-muted);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Error */
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      padding: 1rem;
+      border-radius: var(--radius);
+      margin-top: 1rem;
+    }
+
+    /* Comparison Table */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table th {
+      color: var(--text-muted);
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    .comparison-table td {
+      font-size: 0.9rem;
+    }
+
+    .comparison-table tr:hover {
+      background: var(--bg-input);
+    }
+
+    .check { color: var(--success); }
+    .cross { color: var(--danger); }
+    .partial { color: var(--warning); }
+
+    /* JSON Syntax */
+    .json-key { color: #79c0ff; }
+    .json-string { color: #a5d6ff; }
+    .json-number { color: #7ee787; }
+    .json-boolean { color: #ff7b72; }
+    .json-null { color: #8b949e; }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      header h1 { font-size: 1.5rem; }
+      .tabs { flex-direction: column; }
+      .tab-btn { min-width: unset; }
+      .weather-result { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌤️ Weather API Demo</h1>
+      <p>天气 API 学习演示 - wttr.in vs OpenWeather</p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="wttr">wttr.in</button>
+      <button class="tab-btn" data-tab="openweather">OpenWeather</button>
+      <button class="tab-btn" data-tab="types">类型定义</button>
+      <button class="tab-btn" data-tab="compare">API 对比</button>
+    </div>
+
+    <!-- wttr.in Tab -->
+    <div id="wttr" class="tab-content active">
+      <div class="card">
+        <h2>wttr.in 免费天气 API <span class="badge badge-free">免费</span></h2>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+          无需注册，直接使用。适合快速原型和学习演示。
+        </p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="wttr-city">城市名称</label>
+            <input type="text" id="wttr-city" placeholder="Beijing, Shanghai, Tokyo..." value="Beijing">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="wttr-fetch">
+          <span>获取天气</span>
+        </button>
+
+        <div id="wttr-result" style="margin-top: 1.5rem;"></div>
+      </div>
+
+      <div class="card">
+        <h2>请求代码</h2>
+        <div class="code-block">
+          <pre><code><span class="code-comment">// wttr.in JSON 请求</span>
+<span class="code-keyword">const</span> response = <span class="code-keyword">await</span> fetch(<span class="code-string">'https://wttr.in/Beijing?format=j1&m'</span>);
+<span class="code-keyword">const</span> data = <span class="code-keyword">await</span> response.json();
+
+<span class="code-comment">// 提取当前天气</span>
+<span class="code-keyword">const</span> current = data.current_condition[<span class="code-number">0</span>];
+<span class="code-keyword">const</span> weather = {
+  temp: parseInt(current.temp_C),
+  condition: current.weatherDesc[<span class="code-number">0</span>].value,
+  humidity: current.humidity
+};</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>API 参数</h2>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>说明</th>
+              <th>示例</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>format=j1</code></td>
+              <td>JSON 格式输出</td>
+              <td>?format=j1</td>
+            </tr>
+            <tr>
+              <td><code>m</code></td>
+              <td>公制单位</td>
+              <td>?format=j1&m</td>
+            </tr>
+            <tr>
+              <td><code>lang=zh</code></td>
+              <td>中文语言</td>
+              <td>?lang=zh</td>
+            </tr>
+            <tr>
+              <td><code>1</code>, <code>2</code>, <code>3</code></td>
+              <td>预报天数</td>
+              <td>?3</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- OpenWeather Tab -->
+    <div id="openweather" class="tab-content">
+      <div class="card">
+        <h2>OpenWeather API <span class="badge badge-pro">需 API Key</span></h2>
+        <p style="color: var(--text-muted); margin-bottom: 1rem;">
+          专业天气数据，高精度。需要注册获取 API Key。
+        </p>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ow-city">城市名称</label>
+            <input type="text" id="ow-city" placeholder="Beijing,CN" value="Beijing,CN">
+          </div>
+          <div class="form-group">
+            <label for="ow-key">API Key</label>
+            <input type="text" id="ow-key" placeholder="输入你的 OpenWeather API Key">
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="ow-fetch">
+          <span>获取天气</span>
+        </button>
+
+        <div id="ow-result" style="margin-top: 1.5rem;"></div>
+      </div>
+
+      <div class="card">
+        <h2>请求代码</h2>
+        <div class="code-block">
+          <pre><code><span class="code-comment">// OpenWeather API 请求</span>
+<span class="code-keyword">const</span> apiKey = <span class="code-string">'YOUR_API_KEY'</span>;
+<span class="code-keyword">const</span> city = <span class="code-string">'Beijing,CN'</span>;
+
+<span class="code-keyword">const</span> url = <span class="code-string">`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric&lang=zh_cn`</span>;
+
+<span class="code-keyword">const</span> response = <span class="code-keyword">await</span> fetch(url);
+<span class="code-keyword">const</span> data = <span class="code-keyword">await</span> response.json();
+
+<span class="code-comment">// 提取天气数据</span>
+<span class="code-keyword">const</span> weather = {
+  temp: data.main.temp,
+  condition: data.weather[<span class="code-number">0</span>].main,
+  humidity: data.main.humidity,
+  description: data.weather[<span class="code-number">0</span>].description
+};</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>获取 API Key</h2>
+        <ol style="color: var(--text-muted); padding-left: 1.5rem; line-height: 2;">
+          <li>访问 <a href="https://openweathermap.org/api" target="_blank" style="color: var(--primary);">openweathermap.org/api</a></li>
+          <li>注册账户（或登录）</li>
+          <li>进入 "API Keys" 页面</li>
+          <li>复制默认 Key 或创建新 Key</li>
+        </ol>
+        <p style="color: var(--text-muted); margin-top: 1rem; font-size: 0.9rem;">
+          💡 免费套餐：1000 次/天调用
+        </p>
+      </div>
+    </div>
+
+    <!-- Types Tab -->
+    <div id="types" class="tab-content">
+      <div class="card">
+        <h2>WeatherData 通用类型</h2>
+        <div class="code-block">
+          <pre><code><span class="code-keyword">interface</span> <span class="code-type">WeatherData</span> {
+  location: <span class="code-type">string</span>;        <span class="code-comment">// 位置名称</span>
+  temp: <span class="code-type">number</span>;            <span class="code-comment">// 温度（摄氏度）</span>
+  feelsLike: <span class="code-type">number</span>;       <span class="code-comment">// 体感温度</span>
+  humidity: <span class="code-type">number</span>;        <span class="code-comment">// 湿度百分比</span>
+  windSpeed: <span class="code-type">number</span>;       <span class="code-comment">// 风速 (km/h)</span>
+  windDir: <span class="code-type">string</span>;         <span class="code-comment">// 风向</span>
+  condition: <span class="code-type">string</span>;       <span class="code-comment">// 天气状况</span>
+  uvIndex: <span class="code-type">number</span>;          <span class="code-comment">// 紫外线指数</span>
+  visibility: <span class="code-type">number</span>;       <span class="code-comment">// 能见度 (km)</span>
+  pressure: <span class="code-type">number</span>;       <span class="code-comment">// 气压 (hPa)</span>
+  precipitation: <span class="code-type">number</span>;   <span class="code-comment">// 降水量 (mm)</span>
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>wttr.in 响应类型</h2>
+        <div class="code-block">
+          <pre><code><span class="code-keyword">interface</span> <span class="code-type">WttrResponse</span> {
+  current_condition: <span class="code-type">WttrCurrent</span>[];
+  nearest_area: <span class="code-type">WttrArea</span>[];
+  weather: <span class="code-type">WttrForecast</span>[];
+}
+
+<span class="code-keyword">interface</span> <span class="code-type">WttrCurrent</span> {
+  temp_C: <span class="code-type">string</span>;
+  FeelsLike: <span class="code-type">string</span>;
+  humidity: <span class="code-type">string</span>;
+  windspeedKmph: <span class="code-type">string</span>;
+  winddir16Point: <span class="code-type">string</span>;
+  weatherDesc: { value: <span class="code-type">string</span> }[];
+  uvIndex: <span class="code-type">string</span>;
+  visibility: <span class="code-type">string</span>;
+  pressure: <span class="code-type">string</span>;
+  precipMM: <span class="code-type">string</span>;
+}
+
+<span class="code-keyword">interface</span> <span class="code-type">WttrArea</span> {
+  areaName: { value: <span class="code-type">string</span> }[];
+  country: { value: <span class="code-type">string</span> }[];
+  region: { value: <span class="code-type">string</span> }[];
+  latitude: <span class="code-type">string</span>;
+  longitude: <span class="code-type">string</span>;
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>OpenWeather 响应类型</h2>
+        <div class="code-block">
+          <pre><code><span class="code-keyword">interface</span> <span class="code-type">OpenWeatherResponse</span> {
+  coord: { lon: <span class="code-type">number</span>; lat: <span class="code-type">number</span> };
+  weather: {
+    id: <span class="code-type">number</span>;
+    main: <span class="code-type">string</span>;
+    description: <span class="code-type">string</span>;
+    icon: <span class="code-type">string</span>;
+  }[];
+  main: {
+    temp: <span class="code-type">number</span>;
+    feels_like: <span class="code-type">number</span>;
+    temp_min: <span class="code-type">number</span>;
+    temp_max: <span class="code-type">number</span>;
+    pressure: <span class="code-type">number</span>;
+    humidity: <span class="code-type">number</span>;
+  };
+  visibility: <span class="code-type">number</span>;
+  wind: { speed: <span class="code-type">number</span>; deg: <span class="code-type">number</span> };
+  clouds: { all: <span class="code-type">number</span> };
+  dt: <span class="code-type">number</span>;
+  sys: {
+    country: <span class="code-type">string</span>;
+    sunrise: <span class="code-type">number</span>;
+    sunset: <span class="code-type">number</span>;
+  };
+  timezone: <span class="code-type">number</span>;
+  name: <span class="code-type">string</span>;
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>错误处理类型</h2>
+        <div class="code-block">
+          <pre><code><span class="code-keyword">interface</span> <span class="code-type">WeatherError</span> {
+  code: <span class="code-type">string</span>;
+  message: <span class="code-type">string</span>;
+}
+
+<span class="code-comment">// 使用示例</span>
+<span class="code-keyword">try</span> {
+  <span class="code-keyword">const</span> weather = <span class="code-keyword">await</span> getWeather(<span class="code-string">'InvalidCity'</span>);
+} <span class="code-keyword">catch</span> (error) {
+  <span class="code-keyword">if</span> (error <span class="code-keyword">instanceof</span> Error) {
+    console.error(error.message); <span class="code-comment">// "city not found"</span>
+  }
+}</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compare Tab -->
+    <div id="compare" class="tab-content">
+      <div class="card">
+        <h2>功能对比</h2>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>wttr.in</th>
+              <th>OpenWeather</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>费用</td>
+              <td><span class="check">✓ 免费</span></td>
+              <td>免费套餐 1000次/天</td>
+            </tr>
+            <tr>
+              <td>注册</td>
+              <td><span class="cross">✗ 无需</span></td>
+              <td><span class="check">✓ 需要</span></td>
+            </tr>
+            <tr>
+              <td>数据精度</td>
+              <td>一般</td>
+              <td><span class="check">✓ 高精度</span></td>
+            </tr>
+            <tr>
+              <td>可靠性</td>
+              <td>无 SLA</td>
+              <td><span class="check">✓ 有 SLA</span></td>
+            </tr>
+            <tr>
+              <td>天气类型</td>
+              <td>有限</td>
+              <td><span class="check">✓ 50+ 种</span></td>
+            </tr>
+            <tr>
+              <td>3天预报</td>
+              <td><span class="check">✓ 支持</span></td>
+              <td><span class="check">✓ 支持</span></td>
+            </tr>
+            <tr>
+              <td>5天预报</td>
+              <td><span class="cross">✗ 不支持</span></td>
+              <td><span class="check">✓ 支持</span></td>
+            </tr>
+            <tr>
+              <td>历史数据</td>
+              <td><span class="cross">✗ 不支持</span></td>
+              <td><span class="check">✓ 支持</span></td>
+            </tr>
+            <tr>
+              <td>紫外线指数</td>
+              <td><span class="check">✓ 支持</span></td>
+              <td>需单独 API</td>
+            </tr>
+            <tr>
+              <td>中文支持</td>
+              <td><span class="check">✓ 内置</span></td>
+              <td>lang=zh_cn</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>选型建议</h2>
+        <div style="display: grid; gap: 1rem;">
+          <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius);">
+            <h3 style="color: var(--success); margin-bottom: 0.5rem;">✓ wttr.in 适用场景</h3>
+            <ul style="color: var(--text-muted); padding-left: 1.5rem;">
+              <li>快速原型开发和学习演示</li>
+              <li>个人项目和小型应用</li>
+              <li>不需要高可靠性保证</li>
+              <li>预算有限或不想注册</li>
+            </ul>
+          </div>
+          <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius);">
+            <h3 style="color: var(--warning); margin-bottom: 0.5rem;">✓ OpenWeather 适用场景</h3>
+            <ul style="color: var(--text-muted); padding-left: 1.5rem;">
+              <li>生产环境需要高可靠性</li>
+              <li>需要专业级天气数据</li>
+              <li>需要丰富的天气类型</li>
+              <li>需要历史数据和预报</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>安全建议</h2>
+        <div class="code-block">
+          <pre><code><span class="code-comment">// ❌ 避免：将 API Key 硬编码在前端</span>
+<span class="code-keyword">const</span> API_KEY = <span class="code-string">'your_secret_key_here'</span>;
+
+<span class="code-comment">// ✅ 推荐：使用环境变量</span>
+<span class="code-keyword">const</span> API_KEY = <span class="code-keyword">import</span>.meta.env.VITE_OPENWEATHER_API_KEY;
+
+<span class="code-comment">// ✅ 最佳：通过后端代理转发</span>
+<span class="code-comment">// 前端 → 你的后端 → OpenWeather</span>
+<span class="code-keyword">async function</span> <span class="code-function">getWeatherProxy</span>(city) {
+  <span class="code-keyword">const</span> response = <span class="code-keyword">await</span> fetch(<span class="code-string">`/api/weather?city=${city}`</span>);
+  <span class="code-keyword">return</span> response.json();
+}</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Weather icons mapping
+    const weatherIcons = {
+      'Sunny': '☀️', 'Clear': '☀️',
+      'Partly cloudy': '⛅', 'Cloudy': '☁️', 'Overcast': '☁️',
+      'Mist': '🌫️', 'Fog': '🌫️', 'Haze': '🌫️',
+      'Light rain': '🌧️', 'Heavy rain': '🌧️', 'Rain': '🌧️',
+      'Light snow': '🌨️', 'Heavy snow': '❄️', 'Snow': '❄️',
+      'Thunderstorm': '⛈️', 'Light drizzle': '🌦️',
+      'Light': '🌤️', 'Moderate': '🌤️', ' Extreme': '⚠️'
+    };
+
+    function getIcon(condition) {
+      for (const [key, icon] of Object.entries(weatherIcons)) {
+        if (condition.toLowerCase().includes(key.toLowerCase())) {
+          return icon;
+        }
+      }
+      return '🌤️';
+    }
+
+    function degreesToDirection(deg) {
+      const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      return directions[Math.round(deg / 45) % 8];
+    }
+
+    function formatJSON(obj) {
+      return JSON.stringify(obj, null, 2)
+        .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+        .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+        .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+        .replace(/: (null)/g, ': <span class="json-null">$1</span>');
+    }
+
+    function displayWeatherResult(containerId, data, rawData) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = `
+        <div class="weather-result">
+          <div class="weather-card">
+            <div class="icon">${getIcon(data.condition)}</div>
+            <div class="temp">${data.temp}°</div>
+            <div class="label">${data.condition}</div>
+          </div>
+          <div class="weather-card">
+            <div class="label">体感</div>
+            <div class="value">${data.feelsLike}°C</div>
+          </div>
+          <div class="weather-card">
+            <div class="label">湿度</div>
+            <div class="value">${data.humidity}%</div>
+          </div>
+          <div class="weather-card">
+            <div class="label">风速</div>
+            <div class="value">${data.windSpeed} km/h ${data.windDir}</div>
+          </div>
+          <div class="weather-card">
+            <div class="label">气压</div>
+            <div class="value">${data.pressure} hPa</div>
+          </div>
+          <div class="weather-card">
+            <div class="label">能见度</div>
+            <div class="value">${data.visibility} km</div>
+          </div>
+        </div>
+        <div style="margin-top: 1.5rem;">
+          <h3 style="font-size: 1rem; margin-bottom: 0.5rem;">原始响应</h3>
+          <div class="response-display">
+            <pre><code>${formatJSON(rawData)}</code></pre>
+          </div>
+        </div>
+      `;
+    }
+
+    function displayError(containerId, message) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = `<div class="error">${message}</div>`;
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      if (loading) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> 请求中...';
+      } else {
+        btn.disabled = false;
+        btn.innerHTML = '<span>获取天气</span>';
+      }
+    }
+
+    // wttr.in fetch
+    document.getElementById('wttr-fetch').addEventListener('click', async () => {
+      const city = document.getElementById('wttr-city').value.trim();
+      if (!city) {
+        displayError('wttr-result', '请输入城市名称');
+        return;
+      }
+
+      setLoading('wttr-fetch', true);
+
+      try {
+        const response = await fetch(`https://wttr.in/${encodeURIComponent(city)}?format=j1&m`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.current_condition && data.current_condition[0]) {
+          const current = data.current_condition[0];
+          const area = data.nearest_area && data.nearest_area[0];
+
+          const weatherData = {
+            location: area ? area.areaName[0].value : city,
+            temp: parseInt(current.temp_C) || 0,
+            feelsLike: parseInt(current.FeelsLike) || 0,
+            humidity: parseInt(current.humidity) || 0,
+            windSpeed: parseInt(current.windspeedKmph) || 0,
+            windDir: current.winddir16Point || 'N/A',
+            condition: current.weatherDesc ? current.weatherDesc[0].value : 'Unknown',
+            uvIndex: parseInt(current.uvIndex) || 0,
+            visibility: parseInt(current.visibility) || 0,
+            pressure: parseInt(current.pressure) || 0,
+            precipitation: parseFloat(current.precipMM) || 0
+          };
+
+          displayWeatherResult('wttr-result', weatherData, data);
+        } else {
+          throw new Error('无效的响应数据');
+        }
+      } catch (error) {
+        displayError('wttr-result', `获取天气失败: ${error.message}`);
+      } finally {
+        setLoading('wttr-fetch', false);
+      }
+    });
+
+    // OpenWeather fetch
+    document.getElementById('ow-fetch').addEventListener('click', async () => {
+      const city = document.getElementById('ow-city').value.trim();
+      const apiKey = document.getElementById('ow-key').value.trim();
+
+      if (!city) {
+        displayError('ow-result', '请输入城市名称');
+        return;
+      }
+
+      if (!apiKey) {
+        displayError('ow-result', '请输入 OpenWeather API Key');
+        return;
+      }
+
+      setLoading('ow-fetch', true);
+
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=zh_cn`;
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        const weatherData = {
+          location: `${data.name}, ${data.sys.country}`,
+          temp: Math.round(data.main.temp),
+          feelsLike: Math.round(data.main.feels_like),
+          humidity: data.main.humidity,
+          windSpeed: Math.round(data.wind.speed * 3.6),
+          windDir: degreesToDirection(data.wind.deg),
+          condition: data.weather[0].main,
+          uvIndex: 0,
+          visibility: data.visibility / 1000,
+          pressure: data.main.pressure,
+          precipitation: 0
+        };
+
+        displayWeatherResult('ow-result', weatherData, data);
+      } catch (error) {
+        displayError('ow-result', `获取天气失败: ${error.message}`);
+      } finally {
+        setLoading('ow-fetch', false);
+      }
+    });
+
+    // Try wttr.in on page load
+    document.getElementById('wttr-fetch').click();
+  </script>
+</body>
+</html>

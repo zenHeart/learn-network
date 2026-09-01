@@ -136,6 +136,16 @@ function createGuide() {
         { text: "XSS", link: "/guide/04.security/02.xss" },
         { text: "CORS", link: "/guide/04.security/03.cros" },
         { text: "JS Attack", link: "/guide/04.security/04.js-attack" },
+        { text: "跨域策略完全指南", link: "/docs/security/cross-origin-strategies/" },
+        { text: "OWASP HTML5 安全指南", link: "/docs/security/owasp-html/" },
+        { text: "OWASP HTML5 Cheat Sheet (EN 详解)", link: "/security/owasp-html5-security" },
+      ],
+    },
+    {
+      text: "专题",
+      items: [
+        { text: "AMQP 协议详解", link: "/docs/amqp/" },
+        { text: "CRDT 协同算法", link: "/docs/crdt/" },
       ],
     },
     {

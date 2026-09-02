@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Postman 交互式演示</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh;line-height:1.6}
+    .container{max-width:1100px;margin:0 auto;padding:2rem}
+    header{text-align:center;padding:3rem 1rem;background:linear-gradient(135deg,#ff6b35 0%,#f7c59f 100%);color:#1a1a2e;margin-bottom:2rem;border-radius:16px}
+    header h1{font-size:2.5rem;margin-bottom:.5rem}
+    header p{font-size:1.1rem;opacity:.9}
+    .tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem;background:#16213e;padding:.5rem;border-radius:12px}
+    .tab-btn{padding:.6rem 1.2rem;border:none;background:transparent;color:#94a3b8;cursor:pointer;border-radius:8px;font-size:.9rem;transition:all .2s}
+    .tab-btn:hover{background:#0f3460;color:#fff}
+    .tab-btn.active{background:#ff6b35;color:#fff}
+    .tab-content{display:none}
+    .tab-content.active{display:block}
+    .card{background:#16213e;border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;border:1px solid #0f3460}
+    .card h2{color:#ff6b35;font-size:1.3rem;margin-bottom:1rem;padding-bottom:.5rem;border-bottom:1px solid #0f3460}
+    .card h3{color:#f7c59f;margin:1rem 0 .5rem;font-size:1rem}
+    .demo-row{display:flex;gap:1rem;flex-wrap:wrap}
+    .demo-col{flex:1;min-width:280px}
+    .code-block{background:#0f0f1a;border-radius:8px;padding:1rem;font-family:"Fira Code","Consolas",monospace;font-size:.85rem;overflow-x:auto;margin:.5rem 0;border:1px solid #1e2a4a;white-space:pre}
+    .kw{color:#c792ea}.str{color:#c3e88d}.num{color:#f78c6c}.cm{color:#546e7a;font-style:italic}.fn{color:#82aaff}.prop{color:#f07178}
+    .pm-ui{background:#2d2d2d;border-radius:12px;overflow:hidden;border:1px solid #444;margin:1rem 0}
+    .pm-toolbar{background:#1e1e1e;padding:.5rem 1rem;display:flex;gap:.5rem;align-items:center;border-bottom:1px solid #444;flex-wrap:wrap}
+    .pm-meth{padding:.3rem .7rem;border-radius:4px;font-weight:bold;font-size:.8rem;text-transform:uppercase}
+    .pm-meth.get{background:#61affe;color:#fff}.pm-meth.post{background:#49cc90;color:#fff}.pm-meth.put{background:#fca130;color:#fff}.pm-meth.delete{background:#f93e3e;color:#fff}.pm-meth.patch{background:#50e3c2;color:#1a1a2e}
+    .pm-url{flex:1;background:#3c3c3c;border:none;color:#e0e0e0;padding:.4rem .8rem;border-radius:4px;font-family:monospace;font-size:.85rem;min-width:200px}
+    .pm-btn{background:#ff6b35;color:#fff;border:none;padding:.4rem 1.2rem;border-radius:4px;cursor:pointer;font-size:.85rem;font-weight:bold}
+    .pm-btn:hover{background:#e55a28}
+    .pm-body{padding:1rem;background:#252525}
+    .pm-res{background:#1a1a1a;padding:1rem;font-family:"Fira Code",monospace;font-size:.85rem;max-height:250px;overflow-y:auto;white-space:pre-wrap;color:#a9dc76;border-radius:4px;margin-top:.5rem}
+    .env-sel{display:flex;gap:.5rem;margin-bottom:1rem;flex-wrap:wrap}
+    .env-btn{padding:.5rem 1rem;border:2px solid #0f3460;background:transparent;color:#94a3b8;border-radius:8px;cursor:pointer;font-size:.85rem;transition:all .2s}
+    .env-btn:hover{border-color:#ff6b35;color:#ff6b35}
+    .env-btn.active{border-color:#ff6b35;background:#ff6b35;color:#fff}
+    table{width:100%;border-collapse:collapse;margin:.5rem 0}
+    th,td{padding:.6rem .8rem;text-align:left;border-bottom:1px solid #0f3460;font-size:.9rem}
+    th{color:#ff6b35}
+    kbd{background:#0f3460;padding:.2rem .5rem;border-radius:4px;font-family:monospace;font-size:.8rem;border:1px solid #1a4a80}
+    .toggle-btn{background:#0f3460;border:none;color:#e0e0e0;padding:.5rem 1rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin:.3rem .2rem}
+    .toggle-btn:hover{background:#ff6b35}
+    .flow{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin:1rem 0;justify-content:center}
+    .flow-step{background:#0f3460;padding:.6rem 1rem;border-radius:8px;font-size:.85rem;text-align:center;min-width:100px}
+    .flow-step.pre{border-left:3px solid #fca130}.flow-step.req{border-left:3px solid #61affe}.flow-step.res{border-left:3px solid #49cc90}.flow-step.test{border-left:3px solid #c792ea}
+    .flow-arrow{color:#555;font-size:1.2rem}
+  </style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>🚀 Postman 交互式演示</h1>
+  <p>通过浏览器体验 Postman 核心功能，无需安装软件</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="showTab('overview')">📋 概览</button>
+  <button class="tab-btn" onclick="showTab('methods')">📡 HTTP 方法</button>
+  <button class="tab-btn" onclick="showTab('env')">🔧 环境变量</button>
+  <button class="tab-btn" onclick="showTab('auth')">🔐 认证</button>
+  <button class="tab-btn" onclick="showTab('scripts')">⚡ 脚本</button>
+  <button class="tab-btn" onclick="showTab('mock')">🎭 Mock</button>
+  <button class="tab-btn" onclick="showTab('shortcuts')">⌨️ 快捷键</button>
+  <button class="tab-btn" onclick="showTab('tips')">💡 技巧</button>
+</div>
+
+<!-- 概览 -->
+<div id="tab-overview" class="tab-content active">
+  <div class="card">
+    <h2>什么是 Postman？</h2>
+    <p>Postman 是全球最流行的 API 开发与测试工具，支持构建、测试、文档化 API 请求。本页演示其核心功能。</p>
+  </div>
+  <div class="card">
+    <h2>核心请求流程</h2>
+    <div class="flow">
+      <div class="flow-step pre">Pre-request Script<br><small>发送前处理</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step req">Request<br><small>发送请求</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step res">Response<br><small>接收响应</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step test">Tests<br><small>自动化测试</small></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>快速体验：发送你的第一个请求</h2>
+    <div class="pm-ui">
+      <div class="pm-toolbar">
+        <span class="pm-meth get" id="demo-meth">GET</span>
+        <input class="pm-url" id="demo-url" value="https://jsonplaceholder.typicode.com/users/1">
+        <button class="pm-btn" onclick="sendDemo()">Send</button>
+      </div>
+      <div class="pm-body">
+        <div style="color:#888;font-size:.8rem;margin-bottom:.5rem">
+          Response <span id="demo-status"></span> <span id="demo-time"></span>
+        </div>
+        <div class="pm-res" id="demo-res">点击 "Send" 发送请求...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HTTP 方法 -->
+<div id="tab-methods" class="tab-content">
+  <div class="card">
+    <h2>HTTP 请求方法对比</h2>
+    <table>
+      <tr><th>方法</th><th>语义</th><th>Body</th><th>幂等</th><th>典型场景</th></tr>
+      <tr><td><span class="pm-meth get">GET</span></td><td>获取</td><td>无</td><td>✅</td><td>查询列表、详情</td></tr>
+      <tr><td><span class="pm-meth post">POST</span></td><td>创建</td><td>有</td><td>❌</td><td>注册、登录、提交</td></tr>
+      <tr><td><span class="pm-meth put">PUT</span></td><td>全量替换</td><td>有</td><td>✅</td><td>完整更新资源</td></tr>
+      <tr><td><span class="pm-meth delete">DELETE</span></td><td>删除</td><td>可选</td><td>✅</td><td>删除资源</td></tr>
+      <tr><td><span class="pm-meth patch">PATCH</span></td><td>部分更新</td><td>有</td><td>❌</td><td>更新单个字段</td></tr>
+    </table>
+  </div>
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="card">
+        <h2>GET 请求</h2>
+        <div class="code-block"><span class="cm">// GET 带查询参数</span>
+<span class="kw">GET</span> https:<span class="str">//api.example.com/users?page=1&limit=20</span>
+
+<span class="cm">// Params 面板（Postman 自动拼接）</span>
+page  = <span class="str">"1"</span>
+limit = <span class="str">"20"</span></div>
+        <button class="toggle-btn" onclick="setDemo('GET','https://jsonplaceholder.typicode.com/posts?userId=1')">试一下</button>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="card">
+        <h2>POST 请求</h2>
+        <div class="code-block"><span class="kw">POST</span> https:<span class="str">//api.example.com/users</span>
+<span class="prop">Content-Type:</span> application/json
+
+{ <span class="prop">"title"</span>: <span class="str">"Hello"</span>, <span class="prop">"body"</span>: <span class="str">"World"</span>, <span class="prop">"userId"</span>: <span class="num">1</span> }</div>
+        <button class="toggle-btn" onclick="setDemoPost()">试一下</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>PUT vs PATCH 对比</h2>
+    <div class="code-block"><span class="cm">// PUT — 完整替换（包含所有字段）</span>
+<span class="kw">PUT</span> /users/1
+{ <span class="prop">"name"</span>: <span class="str">"Alice"</span>, <span class="prop">"email"</span>: <span class="str">"a@b.com"</span>, <span class="prop">"age"</span>: <span class="num">25</span> }
+
+<span class="cm">// PATCH — 部分更新（只改邮箱）</span>
+<span class="kw">PATCH</span> /users/1
+{ <span class="prop">"email"</span>: <span class="str">"new@b.com"</span> }</div>
+    <button class="toggle-btn" onclick="setDemo('DELETE','https://jsonplaceholder.typicode.com/posts/1')">DELETE 试一下</button>
+  </div>
+</div>
+
+<!-- 环境变量 -->
+<div id="tab-env" class="tab-content">
+  <div class="card">
+    <h2>环境变量演示</h2>
+    <p>选择一个环境，API 地址会自动切换：</p>
+    <div class="env-sel">
+      <button class="env-btn active" id="env-dev" onclick="switchEnv('dev')">🛠️ 开发环境</button>
+      <button class="env-btn" id="env-staging" onclick="switchEnv('staging')">🧪 测试环境</button>
+      <button class="env-btn" id="env-prod" onclick="switchEnv('prod')">🚀 生产环境</button>
+    </div>
+    <div class="code-block"><span class="cm">// 当前环境配置</span>
+<span class="prop">baseUrl:</span>  <span id="cfg-url">http://localhost:3000</span>
+<span class="prop">apiKey:</span>   <span id="cfg-key">dev-key-xxx</span>
+<span class="prop">debug:</span>    <span id="cfg-debug">true</span></div>
+  </div>
+  <div class="card">
+    <h2>变量引用语法</h2>
+    <div class="code-block"><span class="cm">// 在 URL、Headers、Body 中使用 \{\{变量名\}\}</span>
+<span class="kw">GET</span> <span class="str">{{baseUrl}}</span>/users
+<span class="prop">Authorization:</span> Bearer <span class="str">{{apiKey}}</span>
+
+<span class="cm">// Scripts 中获取/设置</span>
+<span class="kw">const</span> url = pm.environment.<span class="fn">get</span>(<span class="str">"baseUrl"</span>);
+pm.environment.<span class="fn">set</span>(<span class="str">"token"</span>, <span class="str">"new-value"</span>);
+pm.globals.<span class="fn">set</span>(<span class="str">"key"</span>, <span class="str">"value"</span>);
+pm.globals.<span class="fn">get</span>(<span class="str">"key"</span>);</div>
+  </div>
+  <div class="card">
+    <h2>变量优先级</h2>
+    <table>
+      <tr><th>优先级</th><th>类型</th><th>作用域</th></tr>
+      <tr><td>1（最高）</td><td>局部变量</td><td>单个请求脚本中</td></tr>
+      <tr><td>2</td><td>环境变量</td><td>当前选中的环境</td></tr>
+      <tr><td>3（最低）</td><td>全局变量</td><td>所有环境</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- 认证 -->
+<div id="tab-auth" class="tab-content">
+  <div class="card">
+    <h2>认证方式对比</h2>
+    <table>
+      <tr><th>方式</th><th>Header</th><th>适用场景</th></tr>
+      <tr><td>Bearer Token</td><td>Authorization: Bearer &lt;token&gt;</td><td>JWT / OAuth2</td></tr>
+      <tr><td>Basic Auth</td><td>Authorization: Basic &lt;base64&gt;</td><td>简单用户名密码</td></tr>
+      <tr><td>API Key</td><td>X-API-Key: &lt;key&gt;</td><td>接口密钥</td></tr>
+      <tr><td>OAuth 2.0</td><td>自动添加 Bearer Token</td><td>第三方授权</td></tr>
+    </table>
+  </div>
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="card">
+        <h2>Bearer Token</h2>
+        <div class="code-block"><span class="cm">// 方式一：Headers 直接写</span>
+<span class="prop">Authorization:</span> Bearer eyJhbGciOiJIUzI1NiJ9...
+
+<span class="cm">// 方式二：Auth 标签设置</span>
+<span class="cm">// Type: Bearer Token</span>
+<span class="cm">// Token: \{\{bearerToken\}\}</span></div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="card">
+        <h2>Basic Auth</h2>
+        <div class="code-block"><span class="cm">// Postman 自动 Base64 编码</span>
+<span class="cm">// Username: admin  Password: adminpwd</span>
+<span class="prop">Authorization:</span> Basic YWRtaW46YWRtaW5wd2Q=
+
+<span class="cm">// 手动编码</span>
+btoa(<span class="str">"admin:adminpwd"</span>)
+<span class="cm">// → "YWRtaW46YWRtaW5wd2Q="</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>API Key 示例</h2>
+    <div class="code-block"><span class="cm">// 方式一：Query Parameter</span>
+<span class="kw">GET</span> https:<span class="str">//api.example.com/data?api_key=YOUR_KEY</span>
+
+<span class="cm">// 方式二：自定义 Header</span>
+<span class="prop">X-API-Key:</span> YOUR_KEY
+
+<span class="cm">// Auth 标签 → API Key</span>
+<span class="cm">// Key: api_key  Value: \{\{apiKey\}\}</span>
+<span class="cm">// Add to: Query Params 或 Header</span></div>
+  </div>
+</div>
+
+<!-- 脚本 -->
+<div id="tab-scripts" class="tab-content">
+  <div class="card">
+    <h2>Pre-request Script vs Tests</h2>
+    <div class="flow">
+      <div class="flow-step pre">Pre-request Script<br><small>请求发送前</small></div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step req">发送请求</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step test">Tests<br><small>收到响应后</small></div>
+    </div>
+  </div>
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="card">
+        <h2>Pre-request Script 示例</h2>
+        <div class="code-block"><span class="cm">// 生成时间戳</span>
+<span class="kw">const</span> ts = Date.<span class="fn">now</span>();
+pm.environment.<span class="fn">set</span>(<span class="str">"timestamp"</span>, ts);
+
+<span class="cm">// 动态签名（需 CryptoJS）</span>
+<span class="kw">const</span> secret = pm.environment.<span class="fn">get</span>(<span class="str">"signSecret"</span>);
+<span class="kw">const</span> sign = CryptoJS.HmacSHA256(ts, secret);
+pm.environment.<span class="fn">set</span>(<span class="str">"sign"</span>, sign);
+
+<span class="cm">// 打印日志</span>
+console.<span class="fn">log</span>(<span class="str">"Timestamp:"</span>, ts);</div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="card">
+        <h2>Tests 脚本示例</h2>
+        <div class="code-block"><span class="cm">// 检查状态码</span>
+pm.<span class="fn">test</span>(<span class="str">"状态码为 200"</span>, () => {
+  pm.response.<span class="fn">to</span>.have.<span class="fn">status</span>(<span class="num">200</span>);
+});
+
+<span class="cm">// 检查响应字段</span>
+pm.<span class="fn">test</span>(<span class="str">"包含 user_id"</span>, () => {
+  <span class="kw">const</span> data = pm.response.<span class="fn">json</span>();
+  pm.<span class="fn">expect</span>(data).<span class="fn">to</span>.have.<span class="fn">property</span>(<span class="str">"user_id"</span>);
+});
+
+<span class="cm">// 检查响应时间 &lt; 500ms</span>
+pm.<span class="fn">test</span>(<span class="str">"响应快速"</span>, () => {
+  pm.<span class="fn">expect</span>(pm.response.responseTime).<span class="fn">to</span>.be.<span class="fn">below</span>(<span class="num">500</span>);
+});</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>常用 Chai 断言</h2>
+    <div class="code-block">pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">equal</span>(y)        <span class="cm">// 相等</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">be</span>.<span class="fn">a</span>(<span class="str">'string'</span>)       <span class="cm">// 类型检查</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">have</span>.<span class="fn">property</span>(<span class="str">'p'</span>)  <span class="cm">// 属性存在</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">include</span>(y)          <span class="cm">// 包含</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">have</span>.<span class="fn">lengthOf</span>(<span class="num">3</span>)   <span class="cm">// 长度</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">be</span>.<span class="fn">above</span>(<span class="num">10</span>)        <span class="cm">// 大于</span>
+pm.<span class="fn">expect</span>(x).<span class="fn">to</span>.<span class="fn">match</span>(/regex/)     <span class="cm">// 正则匹配</span></div>
+  </div>
+  <div class="card">
+    <h2>嵌套请求 pm.sendRequest</h2>
+    <div class="code-block">pm.<span class="fn">sendRequest</span>({
+  url: <span class="str">'{{baseUrl}}/login'</span>,
+  method: <span class="str">'POST'</span>,
+  body: { mode: <span class="str">'raw'</span>, raw: <span class="fn">JSON</span>.<span class="fn">stringify</span>({
+    username: <span class="str">'testuser'</span>, password: <span class="str">'testpass'</span>
+  })}
+}, (err, res) => {
+  <span class="kw">if</span> (!err) {
+    <span class="kw">const</span> token = res.<span class="fn">json</span>().token;
+    pm.environment.<span class="fn">set</span>(<span class="str">'token'</span>, token);
+  }
+});</div>
+  </div>
+</div>
+
+<!-- Mock Server -->
+<div id="tab-mock" class="tab-content">
+  <div class="card">
+    <h2>Mock Server 工作原理</h2>
+    <p>Mock Server 让你在真实后端 API 完成之前，就能模拟返回预设数据，前端可并行开发。</p>
+    <div style="background:#0f0f1a;border-radius:8px;padding:1.5rem;margin:1rem 0;text-align:center;flex-wrap:wrap;display:flex;align-items:center;justify-content:center;gap:.5rem">
+      <span style="background:#61affe33;border:1px solid #61affe;padding:.5rem 1rem;border-radius:6px;font-size:.85rem">📱 前端应用</span>
+      <span style="color:#555;font-size:1.2rem">→</span>
+      <span style="background:#ff6b3533;border:1px solid #ff6b35;padding:.5rem 1rem;border-radius:6px;font-size:.85rem">🎭 Mock Server<br><small>postman.com/mock/...</small></span>
+      <span style="color:#555;font-size:1.2rem">→</span>
+      <span style="background:#49cc9033;border:1px solid #49cc90;padding:.5rem 1rem;border-radius:6px;font-size:.85rem">📋 Example 响应</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Example（示例响应）配置</h2>
+    <div class="code-block"><span class="cm">// GET /users/:id — 200 OK</span>
+<span class="prop">Status:</span> <span class="num">200</span>
+{ <span class="prop">"id"</span>: <span class="num">1</span>, <span class="prop">"name"</span>: <span class="str">"Alice"</span>, <span class="prop">"email"</span>: <span class="str">"alice@example.com"</span> }
+
+<span class="cm">// GET /users/:id — 404 Not Found</span>
+<span class="prop">Status:</span> <span class="num">404</span>
+{ <span class="prop">"error"</span>: <span class="str">"User not found"</span>, <span class="prop">"code"</span>: <span class="num">404</span> }
+
+<span class="cm">// 分页响应 Example</span>
+<span class="prop">Status:</span> <span class="num">200</span>
+{ <span class="prop">"data"</span>: [...], <span class="prop">"pagination"</span>: { <span class="prop">"page"</span>: <span class="num">1</span>, <span class="prop">"total"</span>: <span class="num">100</span> } }</div>
+  </div>
+  <div class="card">
+    <h2>Mock Server 使用场景</h2>
+    <table>
+      <tr><th>场景</th><th>说明</th></tr>
+      <tr><td>前端并行开发</td><td>后端 API 还没好，前端用 Mock 先跑</td></tr>
+      <tr><td>接口测试隔离</td><td>使用 Mock，不依赖真实 API</td></tr>
+      <tr><td>演示 / POC</td><td>快速演示 API 功能</td></tr>
+      <tr><td>边界情况测试</td><td>Mock 各种错误码（404/500/429）</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- 快捷键 -->
+<div id="tab-shortcuts" class="tab-content">
+  <div class="card">
+    <h2>Windows / Mac 快捷键</h2>
+    <table>
+      <tr><th>功能</th><th>Windows</th><th>Mac</th></tr>
+      <tr><td>新建请求</td><td><kbd>Ctrl + N</kbd></td><td><kbd>⌘ + N</kbd></td></tr>
+      <tr><td>新建 Collection</td><td><kbd>Ctrl + Shift + N</kbd></td><td><kbd>⌘ + Shift + N</kbd></td></tr>
+      <tr><td>保存请求</td><td><kbd>Ctrl + S</kbd></td><td><kbd>⌘ + S</kbd></td></tr>
+      <tr><td>发送请求</td><td><kbd>Ctrl + Enter</kbd></td><td><kbd>⌘ + Enter</kbd></td></tr>
+      <tr><td>格式化 JSON</td><td><kbd>Ctrl + Shift + J</kbd></td><td><kbd>⌘ + Shift + J</kbd></td></tr>
+      <tr><td>打开 Runner</td><td><kbd>Ctrl + Shift + R</kbd></td><td><kbd>⌘ + Shift + R</kbd></td></tr>
+      <tr><td>打开环境设置</td><td><kbd>Ctrl + Shift + E</kbd></td><td><kbd>⌘ + Shift + E</kbd></td></tr>
+      <tr><td>关闭标签页</td><td><kbd>Ctrl + W</kbd></td><td><kbd>⌘ + W</kbd></td></tr>
+      <tr><td>复制请求</td><td><kbd>Ctrl + D</kbd></td><td><kbd>⌘ + D</kbd></td></tr>
+      <tr><td>Duplicate 请求</td><td><kbd>Ctrl + Shift + D</kbd></td><td><kbd>⌘ + Shift + D</kbd></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- 技巧 -->
+<div id="tab-tips" class="tab-content">
+  <div class="card">
+    <h2>常用技巧和最佳实践</h2>
+  </div>
+  <div class="demo-row">
+    <div class="demo-col">
+      <div class="card">
+        <h2>1. 变量命名规范</h2>
+        <div class="code-block"><span class="cm">// 推荐：清晰的分层命名</span>
+<span class="str">{{env}}_{{module}}_{{field}}</span>
+<span class="str">{{baseUrl}}</span>
+<span class="str">{{dev_userService_baseUrl}}</span></div>
+      </div>
+      <div class="card">
+        <h2>2. Collection Pre-request 统一认证</h2>
+        <div class="code-block"><span class="cm">// Collection 的 Pre-request Script 中：</span>
+<span class="kw">const</span> token = pm.environment.<span class="fn">get</span>(<span class="str">"accessToken"</span>);
+<span class="kw">if</span> (token) {
+  pm.request.headers.<span class="fn">add</span>({
+    key: <span class="str">"Authorization"</span>,
+    value: <span class="str">`Bearer ${token}`</span>
+  });
+}</div>
+      </div>
+      <div class="card">
+        <h2>3. pm.setNextRequest 控制执行顺序</h2>
+        <div class="code-block">pm.<span class="fn">test</span>(<span class="str">"检查是否需要登录"</span>, () => {
+  <span class="kw">const</span> data = pm.response.<span class="fn">json</span>();
+  <span class="kw">if</span> (data.needLogin) {
+    postman.<span class="fn">setNextRequest</span>(<span class="str">"POST /login"</span>);
+  } <span class="kw">else</span> {
+    postman.<span class="fn">setNextRequest</span>(<span class="str">"GET /profile"</span>);
+  }
+});
+<span class="cm">// null 表示停止执行</span>
+postman.<span class="fn">setNextRequest</span>(<span class="kw">null</span>);</div>
+      </div>
+    </div>
+    <div class="demo-col">
+      <div class="card">
+        <h2>4. Newman 命令行运行</h2>
+        <div class="code-block"><span class="cm"># 安装</span>
+npm install -g newman
+
+<span class="cm"># 运行 Collection</span>
+newman run my-collection.json
+
+<span class="cm"># 指定环境 + 生成 HTML 报告</span>
+newman run my-collection.json \
+  -e production.postman_environment.json \
+  --reporters html \
+  -o report.html</div>
+      </div>
+      <div class="card">
+        <h2>5. 导入 OpenAPI/Swagger</h2>
+        <div class="code-block"><span class="cm">// 点击 Import → 选择文件或粘贴 URL</span>
+<span class="cm">// Postman 自动解析生成所有请求</span>
+<span class="cm">// 支持 Swagger 2.0 / OpenAPI 3.0</span></div>
+      </div>
+      <div class="card">
+        <h2>6. Code Generation</h2>
+        <p style="color:#888;font-size:.85rem">点击请求的 <strong>Code</strong> 按钮（<code>&lt;/&gt;</code>）可生成：</p>
+        <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.3rem">
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">cURL</span>
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">JavaScript Fetch</span>
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">Python requests</span>
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">Go</span>
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">Java OkHttp</span>
+          <span style="background:#0f3460;padding:.3rem .6rem;border-radius:4px;font-size:.8rem">PHP / Ruby</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const envs = {
+  dev:    { url: 'http://localhost:3000', key: 'dev-key-xxx',  debug: 'true'  },
+  staging:{ url: 'https://staging-api.example.com', key: 'staging-key-xxx', debug: 'true' },
+  prod:   { url: 'https://api.example.com',   key: 'prod-key-xxx', debug: 'false' }
+};
+
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function switchEnv(name) {
+  const e = envs[name];
+  document.getElementById('cfg-url').textContent = e.url;
+  document.getElementById('cfg-key').textContent = e.key;
+  document.getElementById('cfg-debug').textContent = e.debug;
+  document.querySelectorAll('.env-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('env-' + name).classList.add('active');
+}
+
+function setDemo(method, url) {
+  document.getElementById('demo-meth').className = 'pm-meth ' + method.toLowerCase();
+  document.getElementById('demo-meth').textContent = method;
+  document.getElementById('demo-url').value = url;
+  document.getElementById('demo-res').textContent = '点击 "Send" 发送请求...';
+  document.getElementById('demo-status').textContent = '';
+  document.getElementById('demo-time').textContent = '';
+}
+
+function setDemoPost() {
+  setDemo('POST', 'https://jsonplaceholder.typicode.com/posts');
+}
+
+async function sendDemo() {
+  const url = document.getElementById('demo-url').value;
+  const method = document.getElementById('demo-meth').textContent;
+  const resEl = document.getElementById('demo-res');
+  const statusEl = document.getElementById('demo-status');
+  const timeEl = document.getElementById('demo-time');
+  resEl.textContent = '发送中...';
+  const t0 = Date.now();
+  try {
+    const r = await fetch(url, { method });
+    const ms = Date.now() - t0;
+    const text = await r.text();
+    let formatted;
+    try { formatted = JSON.stringify(JSON.parse(text), null, 2); }
+    catch { formatted = text; }
+    resEl.textContent = formatted;
+    resEl.style.color = r.ok ? '#a9dc76' : '#f93e3e';
+    statusEl.innerHTML = r.ok
+      ? '<span style="background:#49cc90;padding:.2rem .6rem;border-radius:4px;font-size:.8rem;font-weight:bold">' + r.status + ' OK</span>'
+      : '<span style="background:#f93e3e;padding:.2rem .6rem;border-radius:4px;font-size:.8rem;font-weight:bold">' + r.status + '</span>';
+    timeEl.textContent = ' (' + ms + 'ms)';
+  } catch(err) {
+    resEl.textContent = 'Error: ' + err.message;
+    resEl.style.color = '#f93e3e';
+  }
+}
+</script>
+</body>
+</html>

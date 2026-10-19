@@ -343,8 +343,3 @@ nameserver 1.1.1.1
 
 ---
 
-## 相关资源
-
-- [DNS 协议详解](../http/dns-protocol.md)（如已有）
-- [DNS over HTTPS (DoH)](../http/doh.md)
-- [VitePress 部署文档](../../.vitepress/config.md)

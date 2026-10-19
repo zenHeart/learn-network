@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Transferable vs postMessage 内存拷贝对比</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      h1 { color: #333; border-bottom: 2px solid #4caf50; padding-bottom: 10px; }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .card h3 { margin-top: 0; color: #4caf50; }
+      button {
+        background: #4caf50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+      button:hover { background: #43a047; }
+      button:disabled { background: #ccc; cursor: not-allowed; }
+      .result {
+        background: #f8f8f8;
+        border-left: 4px solid #4caf50;
+        padding: 12px;
+        margin-top: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        min-height: 60px;
+      }
+      .info {
+        background: #e8f5e9;
+        border-left: 4px solid #4caf50;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .warning {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .comparison {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+      }
+      .comparison > div {
+        padding: 15px;
+        border-radius: 8px;
+      }
+      .transfer { background: #e8f5e9; border: 1px solid #4caf50; }
+      .copy { background: #fff3e0; border: 1px solid #ff9800; }
+    </style>
+  </head>
+  <body>
+    <h1>📦 Transferable vs postMessage 内存拷贝对比</h1>
+
+    <div class="info">
+      <strong>核心区别：</strong><br>
+      • <strong>postMessage 普通对象</strong>：结构化克隆算法拷贝，数据复制一份到 Worker<br>
+      • <strong>Transferable 对象</strong>：所有权转移，原对象在主线程被清空，零拷贝
+    </div>
+
+    <div class="card">
+      <h3>内存拷贝对比</h3>
+      <div class="comparison">
+        <div class="copy">
+          <h4 style="color:#ff9800;margin-top:0;">❌ 普通 postMessage（拷贝）</h4>
+          <button onclick="testNormalPostMessage()">传递 50MB 数据（拷贝）</button>
+          <div id="copyResult" class="result">点击按钮测试...</div>
+        </div>
+        <div class="transfer">
+          <h4 style="color:#4caf50;margin-top:0;">✅ Transferable（转移）</h4>
+          <button onclick="testTransferable()">传递 50MB 数据（转移）</button>
+          <div id="transferResult" class="result">点击按钮测试...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>多次传递累积效果</h3>
+      <p>演示多次 postMessage 大对象导致内存持续增长</p>
+      <button onclick="testMultipleTransfer(10)">10次 Transferable</button>
+      <button onclick="testMultipleCopy(10)">10次 普通拷贝</button>
+      <button onclick="testMultipleTransfer(50)">50次 Transferable</button>
+      <button onclick="testMultipleCopy(50)">50次 普通拷贝</button>
+      <div id="multipleResult" class="result">点击按钮测试...</div>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ 警告：</strong>普通 postMessage 拷贝大数据时，内存会翻倍！
+      例如：传递 100MB 对象 → 主线程 100MB + Worker 100MB = 200MB
+    </div>
+
+    <div class="card">
+      <h3>内存变化可视化</h3>
+      <div id="memoryVisualization" style="font-family:monospace;font-size:12px;background:#f5f5f5;padding:15px;border-radius:4px;">
+        等待测试...
+      </div>
+    </div>
+
+    <script>
+      const WORKER_URL = 'worker.js';
+      const BUFFER_SIZE = 50 * 1024 * 1024; // 50MB
+
+      let worker = null;
+      let transferredCount = 0;
+      let copiedCount = 0;
+
+      function getWorker() {
+        if (!worker) {
+          worker = new Worker(WORKER_URL);
+          worker.onmessage = handleWorkerMessage;
+        }
+        return worker;
+      }
+
+      function handleWorkerMessage(e) {
+        const { type, byteLength, dataLength } = e.data;
+
+        if (type === 'buffer-received') {
+          updateVisualization('transfer');
+          appendResult('transferResult', `✅ Worker 已接收 ArrayBuffer\n大小: ${(byteLength / (1024*1024)).toFixed(2)} MB\n注意：主线程原 buffer.byteLength = ${buffer.byteLength}（已清零）`);
+        }
+
+        if (type === 'copy-received') {
+          updateVisualization('copy');
+          appendResult('copyResult', `✅ Worker 已接收数据副本\n数组长度: ${dataLength.toLocaleString()}\n主线程原数据不受影响`);
+        }
+      }
+
+      function appendResult(id, text) {
+        document.getElementById(id).textContent = text;
+      }
+
+      function updateVisualization(type) {
+        const el = document.getElementById('memoryVisualization');
+        if (type === 'transfer') {
+          transferredCount++;
+          el.innerHTML = `
+🟢 Transferable 测试进度：${transferredCount}/50
+[${'█'.repeat(transferredCount)}${'░'.repeat(50-transferredCount)}]
+内存稳定：主线程 → Worker（转移所有权，无拷贝）
+          `;
+        } else {
+          copiedCount++;
+          el.innerHTML = `
+🟠 普通拷贝 测试进度：${copiedCount}/50
+[${'█'.repeat(copiedCount)}${'░'.repeat(50-copiedCount)}]
+⚠️ 内存翻倍：主线程 + Worker 各持有一份！
+          `;
+        }
+      }
+
+      let currentBuffer = null;
+
+      function testNormalPostMessage() {
+        // 创建普通数组（会被结构化克隆算法拷贝）
+        const data = new Array(12.5 * 1024 * 1024); // 模拟 100MB (8 bytes * 12.5M ≈ 100MB)
+        data.fill(1);
+
+        appendResult('copyResult', '正在传递 100MB 数组（触发拷贝）...');
+
+        const w = getWorker();
+        w.postMessage({ type: 'normal-copy', data }); // 普通对象被拷贝传递
+      }
+
+      function testTransferable() {
+        // 创建 ArrayBuffer（是 Transferable）
+        const buffer = new ArrayBuffer(BUFFER_SIZE);
+        const view = new DataView(buffer);
+        for (let i = 0; i < view.byteLength; i += 1000000) {
+          view.setUint8(i, 1);
+        }
+
+        // 先记录原始大小
+        currentBuffer = buffer;
+        const originalSize = buffer.byteLength;
+
+        appendResult('transferResult', `正在传递 ${(originalSize/(1024*1024)).toFixed(2)}MB ArrayBuffer（所有权转移）...\n主线程 buffer.byteLength = ${originalSize}`);
+
+        const w = getWorker();
+        w.postMessage({ type: 'transfer-buffer', buffer: buffer }, [buffer]);
+
+        // 验证所有权转移后原 buffer 被清空
+        setTimeout(() => {
+          if (currentBuffer) {
+            appendResult('transferResult', `✅ Worker 已接收\n\n验证所有权转移效果：\n主线程 buffer.byteLength = ${currentBuffer.byteLength}（已清零！）`);
+          }
+        }, 100);
+      }
+
+      let transferBuffers = [];
+      let copyDataArrays = [];
+
+      async function testMultipleTransfer(count) {
+        transferredCount = 0;
+        appendResult('multipleResult', `开始 ${count} 次 Transferable 测试...`);
+
+        for (let i = 0; i < count; i++) {
+          const buffer = new ArrayBuffer(BUFFER_SIZE);
+          transferBuffers.push(buffer);
+          const w = new Worker(WORKER_URL);
+          w.postMessage({ type: 'transfer-buffer', buffer: buffer }, [buffer]);
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        appendResult('multipleResult', `✅ 完成 ${count} 次 Transferable\n\n内存稳定：所有权立即转移，主线程缓冲区清零\n理论上内存峰值 ≈ 单个 buffer 大小`);
+        transferBuffers = [];
+      }
+
+      async function testMultipleCopy(count) {
+        copiedCount = 0;
+        appendResult('multipleResult', `开始 ${count} 次普通拷贝测试...`);
+
+        for (let i = 0; i < count; i++) {
+          const data = new Array(12.5 * 1024 * 1024);
+          data.fill(i);
+          copyDataArrays.push(data);
+          const w = new Worker(WORKER_URL);
+          w.postMessage({ type: 'normal-copy', data });
+          await new Promise(r => setTimeout(r, 10));
+        }
+
+        appendResult('multipleResult', `⚠️ 完成 ${count} 次普通拷贝\n\n内存问题：主线程和 Worker 各持有一份副本！\n如果每次 100MB，${count} 次后主线程仍持有 ${(count * 100).toFixed(0)}MB 数据\n直到这些对象被 GC 回收`);
+        copyDataArrays = [];
+      }
+    </script>
+  </body>
+</html>

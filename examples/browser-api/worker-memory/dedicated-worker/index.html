@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>DedicatedWorker 内存示例</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      h1 { color: #333; border-bottom: 2px solid #4a90d9; padding-bottom: 10px; }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .card h3 { margin-top: 0; color: #4a90d9; }
+      button {
+        background: #4a90d9;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+      button:hover { background: #357abd; }
+      button:disabled { background: #ccc; cursor: not-allowed; }
+      .result {
+        background: #f8f8f8;
+        border-left: 4px solid #4a90d9;
+        padding: 12px;
+        margin-top: 10px;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .info {
+        background: #e8f4fd;
+        border-left: 4px solid #2196F3;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+      .warning {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🔧 DedicatedWorker 内存示例</h1>
+
+    <div class="info">
+      <strong>原理：</strong>Worker 运行在渲染进程内，但有独立 V8 堆内存。
+      主线程和 Worker 共享进程地址空间，但不共享 JavaScript 对象。
+    </div>
+
+    <div class="card">
+      <h3>1. 斐波那契计算（不阻塞主线程）</h3>
+      <p>主线程计算大数值斐波那契会阻塞 UI，Worker 不会。</p>
+      <button onclick="testFibonacci(35)">计算 fib(35)</button>
+      <button onclick="testFibonacci(45)">计算 fib(45)</button>
+      <button onclick="testFibonacci(100)">计算 fib(100)</button>
+      <div id="fibResult" class="result">点击按钮开始计算...</div>
+    </div>
+
+    <div class="card">
+      <h3>2. 计算密集型任务</h3>
+      <p>模拟复杂计算，观察 Worker 如何处理。</p>
+      <button onclick="testHeavyCompute(10000000)">1千万次计算</button>
+      <button onclick="testHeavyCompute(50000000)">5千万次计算</button>
+      <button onclick="testHeavyCompute(100000000)">1亿次计算</button>
+      <div id="computeResult" class="result">点击按钮开始计算...</div>
+    </div>
+
+    <div class="card">
+      <h3>3. Worker 内存分配测试</h3>
+      <p>验证 Worker 有独立内存空间（注意：这里分配的数组不会影响主线程）</p>
+      <button onclick="testWorkerMemory(1000000)">分配 100万元素 (~8MB)</button>
+      <button onclick="testWorkerMemory(5000000)">分配 500万元素 (~40MB)</button>
+      <button onclick="testWorkerMemory(10000000)">分配 1000万元素 (~80MB)</button>
+      <div id="memoryResult" class="result">点击按钮观察 Worker 内存分配...</div>
+    </div>
+
+    <div class="warning">
+      <strong>注意：</strong>Worker 的内存来自渲染进程的 V8 堆，但与主线程独立。
+      多个 DedicatedWorker 会各自占用独立的 V8 堆空间。
+    </div>
+
+    <div class="card">
+      <h3>Worker 生命周期</h3>
+      <button onclick="createAndTerminateWorker()">创建 Worker，用完后终止</button>
+      <div id="lifecycleResult" class="result">点击按钮测试 Worker 生命周期...</div>
+    </div>
+
+    <script src="worker.js"></script>
+    <script>
+      let worker = null;
+      let workerCreated = false;
+
+      function getWorker() {
+        if (!worker) {
+          worker = new Worker('worker.js');
+          worker.onmessage = handleWorkerMessage;
+          worker.onerror = (e) => {
+            console.error('Worker error:', e);
+            appendResult('fibResult', 'Worker 错误: ' + e.message);
+          };
+          workerCreated = true;
+          appendResult('fibResult', '✅ Worker 已创建');
+        }
+        return worker;
+      }
+
+      function handleWorkerMessage(e) {
+        const { type, ...data } = e.data;
+        switch (type) {
+          case 'fibonacci-result':
+            appendResult('fibResult', `fib(${data.input}) = ${data.result}`);
+            break;
+          case 'heavy-result':
+            appendResult('computeResult', `完成 ${data.iterations.toLocaleString()} 次计算\n耗时: ${data.duration}ms\n结果: ${data.sum.toExponential(4)}`);
+            break;
+          case 'memory-result':
+            appendResult('memoryResult', `Worker 分配数组长度: ${data.arrayLength.toLocaleString()}\n估算内存: ${data.allocated.toFixed(2)} MB\n\n（主线程无法直接看到这部分内存，需要通过消息传递）`);
+            break;
+          case 'error':
+            console.error('Worker error:', data.message);
+            break;
+          case 'lifecycle':
+            appendResult('lifecycleResult', `Worker ${data.action}\n耗时: ${data.duration}ms`);
+            break;
+        }
+      }
+
+      function appendResult(elementId, text) {
+        const el = document.getElementById(elementId);
+        el.textContent = text;
+      }
+
+      function testFibonacci(n) {
+        const w = getWorker();
+        w.postMessage({ type: 'fibonacci', data: { n } });
+        appendResult('fibResult', `正在计算 fib(${n})...`);
+      }
+
+      function testHeavyCompute(iterations) {
+        const w = getWorker();
+        w.postMessage({ type: 'heavy-compute', data: { iterations } });
+        appendResult('computeResult', `正在计算 ${iterations.toLocaleString()} 次...`);
+      }
+
+      function testWorkerMemory(size) {
+        const w = getWorker();
+        w.postMessage({ type: 'memory-test', data: { size } });
+        appendResult('memoryResult', `正在 Worker 中分配 ${size.toLocaleString()} 元素...`);
+      }
+
+      function createAndTerminateWorker() {
+        const w = new Worker('worker.js');
+        w.onmessage = (e) => {
+          if (e.data.type === 'lifecycle') {
+            appendResult('lifecycleResult', `Worker ${e.data.action}\n耗时: ${e.data.duration}ms`);
+          }
+        };
+
+        const start = Date.now();
+        w.postMessage({ type: 'fibonacci', data: { n: 30 } });
+
+        // 模拟用完后终止
+        w.postMessage({ type: 'heavy-compute', data: { iterations: 1000000 } });
+        setTimeout(() => {
+          w.terminate();
+          const duration = Date.now() - start;
+          appendResult('lifecycleResult', `Worker 已终止\n从创建到终止耗时: ${duration}ms\n\nterminate() 会立即终止 Worker，释放其 V8 堆内存`);
+        }, 500);
+      }
+    </script>
+  </body>
+</html>

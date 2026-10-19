@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>第三方 Cookie 交互式演示</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.1rem;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: white;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-warning {
+      background: var(--warning);
+      color: white;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .cookie-section {
+      padding: 16px;
+      border-radius: 8px;
+      background: #f1f5f9;
+    }
+
+    .cookie-section h3 {
+      margin: 0 0 12px 0;
+      font-size: 0.95rem;
+    }
+
+    .cookie-section.first-party {
+      border-left: 4px solid var(--success);
+    }
+
+    .cookie-section.third-party {
+      border-left: 4px solid var(--danger);
+    }
+
+    .cookie-list {
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+      word-break: break-all;
+    }
+
+    .cookie-item {
+      padding: 4px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .cookie-item .name {
+      color: #fbbf24;
+    }
+
+    .cookie-item .value {
+      color: #a5f3fc;
+    }
+
+    .cookie-item .domain {
+      color: #86efac;
+      font-size: 0.8em;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .status-available {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-blocked {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-unknown {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .policy-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    .policy-table th,
+    .policy-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .policy-table th {
+      background: #f8fafc;
+      font-weight: 600;
+    }
+
+    .code-block {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .log-area {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 3px 0;
+    }
+
+    .log-entry.info { color: #60a5fa; }
+    .log-entry.success { color: #4ade80; }
+    .log-entry.warning { color: #fbbf24; }
+    .log-entry.error { color: #f87171; }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      padding: 8px 16px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      font-weight: 600;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .detection-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+
+    .detection-item {
+      padding: 16px;
+      border-radius: 8px;
+      background: #f1f5f9;
+      text-align: center;
+    }
+
+    .detection-item .icon {
+      font-size: 2rem;
+      margin-bottom: 8px;
+    }
+
+    .detection-item .label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .detection-item .value {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 640px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🍪 第三方 Cookie 交互演示</h1>
+    <p class="subtitle">了解第一方 vs 第三方 Cookie 的差异，以及各浏览器策略</p>
+
+    <!-- 浏览器策略概览 -->
+    <div class="card">
+      <h2>🕵️ 浏览器策略检测</h2>
+      <div class="detection-grid">
+        <div class="detection-item">
+          <div class="icon">🌐</div>
+          <div class="label">User Agent</div>
+          <div class="value" id="uaDisplay">-</div>
+        </div>
+        <div class="detection-item">
+          <div class="icon">🍪</div>
+          <div class="label">Cookie 支持</div>
+          <div class="value" id="cookieEnabled">-</div>
+        </div>
+        <div class="detection-item">
+          <div class="icon">🔒</div>
+          <div class="label">SameSite 属性</div>
+          <div class="value" id="samesiteSupport">-</div>
+        </div>
+        <div class="detection-item">
+          <div class="icon">🛡️</div>
+          <div class="label">检测到的策略</div>
+          <div class="value" id="detectedPolicy">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 第一方 vs 第三方 Cookie 设置 -->
+    <div class="card">
+      <h2>🔬 第一方 vs 第三方 Cookie 对比</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        点击按钮设置 Cookie，观察控制台 Network 面板中 Cookie 的 Domain 属性差异。
+      </p>
+
+      <div class="grid-2">
+        <!-- 第一方 Cookie -->
+        <div class="cookie-section first-party">
+          <h3>✅ 第一方 Cookie（当前域）</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            Cookie 设置在当前页面域名下
+          </p>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 0.85rem;">Cookie 名：</label>
+            <input type="text" id="firstPartyName" value="user_session" style="width: 120px; padding: 4px; border: 1px solid var(--border); border-radius: 4px;" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 0.85rem;">Cookie 值：</label>
+            <input type="text" id="firstPartyValue" value="abc123" style="width: 120px; padding: 4px; border: 1px solid var(--border); border-radius: 4px;" />
+          </div>
+          <button class="btn btn-success" onclick="setFirstPartyCookie()">设置第一方 Cookie</button>
+        </div>
+
+        <!-- 第三方 Cookie -->
+        <div class="cookie-section third-party">
+          <h3>❌ 第三方 Cookie（跨域）</h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted);">
+            模拟通过第三方脚本设置 Cookie
+          </p>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 0.85rem;">Cookie 名：</label>
+            <input type="text" id="thirdPartyName" value="tracker_id" style="width: 120px; padding: 4px; border: 1px solid var(--border); border-radius: 4px;" />
+          </div>
+          <div style="margin-bottom: 12px;">
+            <label style="font-size: 0.85rem;">Cookie 值：</label>
+            <input type="text" id="thirdPartyValue" value="xyz789" style="width: 120px; padding: 4px; border: 1px solid var(--border); border-radius: 4px;" />
+          </div>
+          <button class="btn btn-danger" onclick="setThirdPartyCookie()">尝试设置第三方 Cookie</button>
+          <p id="thirdPartyWarning" style="font-size: 0.8rem; color: var(--warning); margin-top: 8px; display: none;">
+            ⚠️ 现代浏览器已限制第三方 Cookie，请检查控制台
+          </p>
+        </div>
+      </div>
+
+      <!-- Cookie 列表展示 -->
+      <div style="margin-top: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 0.95rem;">📋 当前页面 Cookie 列表</h3>
+          <button class="btn btn-warning" onclick="refreshCookieList()">🔄 刷新</button>
+        </div>
+        <div class="cookie-list" id="cookieList">
+          <div class="log-entry info">点击"刷新"按钮查看当前 Cookie</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cookie 拦截检测 -->
+    <div class="card">
+      <h2>🚨 第三方 Cookie 拦截检测工具</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        模拟跨域场景，检测浏览器是否阻止了第三方 Cookie
+      </p>
+
+      <div style="margin-bottom: 16px;">
+        <button class="btn btn-primary" onclick="runDetection()">▶️ 运行检测</button>
+        <button class="btn btn-danger" onclick="clearLog()">🗑️ 清空日志</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" onclick="switchTab('detection-log')">检测日志</button>
+        <button class="tab" onclick="switchTab('how-it-works')">工作原理</button>
+        <button class="tab" onclick="switchTab('solutions')">解决方案</button>
+      </div>
+
+      <div id="detection-log" class="tab-content active">
+        <div class="log-area" id="logArea">
+          <div class="log-entry info">[系统] 点击"运行检测"开始检测</div>
+        </div>
+      </div>
+
+      <div id="how-it-works" class="tab-content">
+        <h4 style="margin-top: 0;">第三方 Cookie 拦截是如何工作的？</h4>
+        <div class="code-block">// 1. 嵌入跨域脚本
+&lt;script src="https://tracker.com/analytics.js"&gt;&lt;/script&gt;
+
+// 2. 第三方脚本尝试写入 Cookie
+// tracker.com/analytics.js
+document.cookie = "uid=xxx; Domain=.tracker.com; Path=/";
+
+// 3. 浏览器拒绝设置（根据 SameSite 策略）
+// 如果页面通过 HTTPS 加载，且 tracker.com 的 SameSite=None; Secure
+// → Cookie 可能被设置（但仍然仅在嵌入 tracker.com 资源的站点发送）
+
+// 4. 关键点：浏览器基于嵌入上下文判断是否发送 Cookie
+// 当请求 siteA.com 嵌入的 tracker.com 资源时：
+//   - 如果 tracker.com 设置了 Partitioned → 仅在 tracker.com 被 siteA.com 嵌入时发送
+//   - 如果 tracker.com 未设置 Partitioned → 在任何站点嵌入时都可能发送
+//   - 如果使用 CHIPS → Cookie 按顶级站点分区存储</div>
+      </div>
+
+      <div id="solutions" class="tab-content">
+        <h4 style="margin-top: 0;">第三方 Cookie 受限时的解决方案</h4>
+        <table class="policy-table">
+          <thead>
+            <tr>
+              <th>方案</th>
+              <th>适用场景</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>第一方 Cookie</td>
+              <td>同站用户识别</td>
+              <td><span class="status-badge status-available">✅ 可用</span></td>
+            </tr>
+            <tr>
+              <td>CHIPS</td>
+              <td>嵌入式 Widget</td>
+              <td><span class="status-badge status-available">🟡 部分支持</span></td>
+            </tr>
+            <tr>
+              <td>Related Website Sets</td>
+              <td>同企业多站点 SSO</td>
+              <td><span class="status-badge status-unknown">🟡 有限</span></td>
+            </tr>
+            <tr>
+              <td>Privacy Sandbox</td>
+              <td>广告定向（过渡期）</td>
+              <td><span class="status-badge status-unknown">🟡 推进中</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SameSite 属性演示 -->
+    <div class="card">
+      <h2>🔐 SameSite 属性演示</h2>
+      <p style="color: var(--text-muted); font-size: 0.9rem;">
+        SameSite 属性控制 Cookie 如何在不同站点间发送
+      </p>
+
+      <table class="policy-table">
+        <thead>
+          <tr>
+            <th>SameSite 值</th>
+            <th>同站 GET 请求</th>
+            <th>跨站 GET 请求</th>
+            <th>跨站 POST 请求</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Strict</code></td>
+            <td>✅ 发送</td>
+            <td>❌ 不发送</td>
+            <td>❌ 不发送</td>
+            <td>最严格，完全阻止跨站</td>
+          </tr>
+          <tr>
+            <td><code>Lax</code></td>
+            <td>✅ 发送</td>
+            <td>✅ 发送（仅导航）</td>
+            <td>❌ 不发送</td>
+            <td>默认值，允许链接跳转但阻止 POST</td>
+          </tr>
+          <tr>
+            <td><code>None</code></td>
+            <td>✅ 发送</td>
+            <td>✅ 发送</td>
+            <td>✅ 发送</td>
+            <td>全部发送，但必须配合 Secure</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 16px;">
+        <h4 style="font-size: 0.95rem;">SameSite=Lax 的实际影响</h4>
+        <div class="code-block">// ✅ 正常登录用户点击链接访问
+&lt;a href="https://other-site.com"&gt;访问其他站点&lt;/a&gt;
+// → 浏览器发送 Lax Cookie（如果是 GET 导航）
+
+// ❌ 从 A 站点提交表单到 B 站点
+&lt;form action="https://other-site.com" method="POST"&gt;
+// → 浏览器阻止发送 Cookie（POST 是"危险"方法）
+
+// ❌ AJAX/fetch 跨站请求
+fetch('https://other-site.com/api', { method: 'POST' })
+// → 浏览器阻止发送 Cookie（JavaScript 发起的请求视为危险）</div>
+      </div>
+    </div>
+
+    <!-- 各浏览器策略 -->
+    <div class="card">
+      <h2>🌍 各浏览器第三方 Cookie 支持现状</h2>
+      <table class="policy-table">
+        <thead>
+          <tr>
+            <th>浏览器</th>
+            <th>第三方 Cookie</th>
+            <th>策略名称</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Chrome 120+</td>
+            <td><span class="status-badge status-unknown">🟡 逐步淘汰</span></td>
+            <td>Lax + Privacy Sandbox</td>
+            <td>2025 年完全禁用</td>
+          </tr>
+          <tr>
+            <td>Safari 17+</td>
+            <td><span class="status-badge status-blocked">❌ 完全阻止</span></td>
+            <td>ITP</td>
+            <td>第三方 JS Cookie 仅保留 7 天</td>
+          </tr>
+          <tr>
+            <td>Firefox 120+</td>
+            <td><span class="status-badge status-blocked">❌ 完全阻止</span></td>
+            <td>ETP 严格模式</td>
+            <td>默认启用增强追踪保护</td>
+          </tr>
+          <tr>
+            <td>Edge 120+</td>
+            <td><span class="status-badge status-unknown">🟡 逐步淘汰</span></td>
+            <td>与 Chrome 一致</td>
+            <td>继承 Chromium 策略</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // =====================
+    // 浏览器策略检测
+    // =====================
+
+    function detectBrowserPolicy() {
+      const ua = navigator.userAgent;
+      let policy = 'Unknown';
+      let browser = 'Unknown';
+
+      if (/Edg\//.test(ua)) {
+        browser = 'Edge';
+        policy = 'Chromium_Lax';
+      } else if (/Chrome\//.test(ua) && !/Chromium/.test(ua)) {
+        browser = 'Chrome';
+        const version = parseInt(ua.match(/Chrome\/(\d+)/)?.[1] || '0');
+        policy = version >= 115 ? 'Chrome_Sandbox_Gradual' : 'Chrome_Lax';
+      } else if (/Safari\//.test(ua) && !/Chrome/.test(ua)) {
+        browser = 'Safari';
+        policy = 'ITP_FullBlock';
+      } else if (/Firefox\//.test(ua)) {
+        browser = 'Firefox';
+        policy = 'ETP_Strict';
+      }
+
+      return { browser, policy };
+    }
+
+    function detectSameSiteSupport() {
+      // 检测浏览器是否支持 SameSite 属性
+      const dummyCookie = '__samesite_test=' + Math.random();
+      document.cookie = dummyCookie + '; path=/';
+      const supported = document.cookie.includes(dummyCookie);
+      document.cookie = dummyCookie + '=; max-age=0; path=/';
+      return supported;
+    }
+
+    function initBrowserDetection() {
+      // UA 显示
+      const uaDisplay = document.getElementById('uaDisplay');
+      const ua = navigator.userAgent;
+      const shortUa = ua.length > 50 ? ua.substring(0, 50) + '...' : ua;
+      uaDisplay.textContent = shortUa;
+
+      // Cookie 是否启用
+      const cookieEnabledEl = document.getElementById('cookieEnabled');
+      const cookieEnabled = navigator.cookieEnabled;
+      cookieEnabledEl.innerHTML = cookieEnabled
+        ? '<span class="status-badge status-available">✅ 启用</span>'
+        : '<span class="status-badge status-blocked">❌ 禁用</span>';
+
+      // SameSite 支持
+      const samesiteEl = document.getElementById('samesiteSupport');
+      const sameSiteSupport = detectSameSiteSupport();
+      samesiteEl.innerHTML = sameSiteSupport
+        ? '<span class="status-badge status-available">✅ 支持</span>'
+        : '<span class="status-badge status-unknown">⚠️ 不确定</span>';
+
+      // 检测到的策略
+      const policyEl = document.getElementById('detectedPolicy');
+      const { browser, policy } = detectBrowserPolicy();
+      const policyLabels = {
+        'Chrome_Sandbox_Gradual': 'Chrome 逐步淘汰',
+        'Chrome_Lax': 'Chrome SameSite=Lax',
+        'ITP_FullBlock': 'Safari ITP 完全阻止',
+        'ETP_Strict': 'Firefox ETP 严格',
+        'Chromium_Lax': 'Edge SameSite=Lax',
+        'Unknown': '未识别'
+      };
+      policyEl.innerHTML = `<span class="status-badge status-${policy === 'Unknown' ? 'unknown' : 'available'}">${browser} - ${policyLabels[policy] || policy}</span>`;
+    }
+
+    // =====================
+    // Cookie 操作
+    // =====================
+
+    function setFirstPartyCookie() {
+      const name = document.getElementById('firstPartyName').value.trim() || 'user_session';
+      const value = document.getElementById('firstPartyValue').value.trim() || 'first_party_' + Date.now();
+
+      // 第一方 Cookie：无需指定 Domain，默认为当前页面域名
+      const cookieStr = `${name}=${value}; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+      document.cookie = cookieStr;
+
+      addLog(`✅ 已设置第一方 Cookie: ${name}=${value}`, 'success');
+      addLog(`   Cookie 字符串: ${cookieStr}`, 'info');
+      addLog(`   效果：该 Cookie 仅在当前站点发送，不会跨站发送`, 'info');
+
+      refreshCookieList();
+    }
+
+    function setThirdPartyCookie() {
+      const name = document.getElementById('thirdPartyName').value.trim() || 'tracker_id';
+      const value = document.getElementById('thirdPartyValue').value.trim() || 'third_party_' + Date.now();
+
+      // 第三方 Cookie：设置不同的 Domain（如第三方域名）
+      // 注意：在现代浏览器中，这种方式实际上无法实现真正的"第三方"Cookie
+      // 浏览器会拒绝来自当前页面域名设置其他域名的 Cookie
+      // 这里演示的是概念
+
+      const fakeDomainCookie = `${name}=${value}; Domain=.third-party-demo.com; Path=/; Max-Age=${60 * 60 * 24 * 30}`;
+
+      addLog(`🔍 尝试设置第三方 Cookie: ${name}=${value}`, 'warning');
+      addLog(`   Cookie 字符串: ${fakeDomainCookie}`, 'info');
+
+      // 尝试设置（实际会失败，因为浏览器限制跨域 Cookie）
+      document.cookie = fakeDomainCookie;
+
+      // 检查是否设置成功
+      const allCookies = document.cookie;
+      if (allCookies.includes(name)) {
+        addLog(`⚠️ Cookie 被设置成功（浏览器可能处于宽松模式）`, 'warning');
+      } else {
+        addLog(`❌ Cookie 设置被阻止（浏览器 SameSite=Lax 或更严格策略生效）`, 'error');
+      }
+
+      // 显示警告
+      document.getElementById('thirdPartyWarning').style.display = 'block';
+      refreshCookieList();
+    }
+
+    function refreshCookieList() {
+      const cookieListEl = document.getElementById('cookieList');
+      const cookies = document.cookie;
+
+      if (!cookies) {
+        cookieListEl.innerHTML = '<div class="log-entry warning">当前页面没有 Cookie</div>';
+        return;
+      }
+
+      const cookieItems = cookies.split(';').map(c => c.trim());
+      let html = '';
+
+      cookieItems.forEach(item => {
+        const [nameValue] = item.split(';');
+        const [name, value] = nameValue.split('=');
+        html += `<div class="cookie-item">
+          <span class="name">${name || '(无名称)'}</span>
+          <span class="value">${value || '(无值)'}</span>
+        </div>`;
+      });
+
+      cookieListEl.innerHTML = html || '<div class="log-entry info">无法解析 Cookie</div>';
+    }
+
+    // =====================
+    // 检测工具
+    // =====================
+
+    function addLog(message, type = 'info') {
+      const logArea = document.getElementById('logArea');
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${timestamp}] ${message}`;
+      logArea.appendChild(entry);
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function clearLog() {
+      document.getElementById('logArea').innerHTML =
+        '<div class="log-entry info">[系统] 日志已清空</div>';
+    }
+
+    async function runDetection() {
+      addLog('='.repeat(50), 'info');
+      addLog('开始第三方 Cookie 检测...', 'info');
+
+      // 检测 1: Cookie 是否启用
+      addLog('检测 1: navigator.cookieEnabled', 'info');
+      if (navigator.cookieEnabled) {
+        addLog('✅ 第一方 Cookie: 已启用', 'success');
+      } else {
+        addLog('❌ Cookie 已完全禁用', 'error');
+        return;
+      }
+
+      // 检测 2: SameSite 支持
+      addLog('检测 2: SameSite 属性支持', 'info');
+      const sameSiteSupport = detectSameSiteSupport();
+      if (sameSiteSupport) {
+        addLog('✅ SameSite 属性: 支持', 'success');
+      } else {
+        addLog('⚠️ SameSite 属性: 不支持或行为异常', 'warning');
+      }
+
+      // 检测 3: 尝试写入测试 Cookie
+      addLog('检测 3: 写入测试 Cookie', 'info');
+      const testCookieName = '__cookie_test_' + Date.now();
+      document.cookie = `${testCookieName}=1; Path=/; Max-Age=10`;
+      const canWrite = document.cookie.includes(testCookieName);
+      document.cookie = `${testCookieName}=; Max-Age=0; Path=/`;
+
+      if (canWrite) {
+        addLog('✅ Cookie 写入: 成功（SameSite 策略可能较宽松）', 'success');
+      } else {
+        addLog('⚠️ Cookie 写入: 受限（SameSite=Lax 或更严格）', 'warning');
+      }
+
+      // 检测 4: 检测第三方脚本写入能力（模拟）
+      addLog('检测 4: 第三方脚本 Cookie 写入能力', 'info');
+      addLog('   （无法在同源环境下真实模拟，此为理论分析）', 'info');
+
+      const { policy } = detectBrowserPolicy();
+      if (policy.includes('ITP') || policy.includes('ETP')) {
+        addLog('❌ 第三方 Cookie: 会被完全阻止', 'error');
+        addLog('   建议：迁移到第一方 Cookie 或 CHIPS', 'warning');
+      } else if (policy.includes('Lax') || policy.includes('Gradual')) {
+        addLog('⚠️ 第三方 Cookie: SameSite=Lax 生效，跨站请求受限', 'warning');
+        addLog('   建议：使用 SameSite=None; Secure，或迁移到 Privacy Sandbox', 'info');
+      }
+
+      // 检测 5: Storage API 降级检测
+      addLog('检测 5: localStorage 降级', 'info');
+      try {
+        localStorage.setItem('__test', '1');
+        localStorage.removeItem('__test');
+        addLog('✅ localStorage: 可用', 'success');
+      } catch (e) {
+        addLog('❌ localStorage: 不可用（可能是隐私模式）', 'error');
+      }
+
+      // 检测 6: sessionStorage
+      addLog('检测 6: sessionStorage 降级', 'info');
+      try {
+        sessionStorage.setItem('__test', '1');
+        sessionStorage.removeItem('__test');
+        addLog('✅ sessionStorage: 可用', 'success');
+      } catch (e) {
+        addLog('❌ sessionStorage: 不可用', 'error');
+      }
+
+      addLog('='.repeat(50), 'info');
+      addLog('检测完成。建议：检查日志中的 ⚠️ 和 ❌ 项。', 'info');
+    }
+
+    // =====================
+    // Tab 切换
+    // =====================
+
+    function switchTab(tabId) {
+      // 移除所有 active 类
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+      // 激活目标 tab
+      document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // =====================
+    // 初始化
+    // =====================
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initBrowserDetection();
+      refreshCookieList();
+      addLog('🍪 第三方 Cookie 演示工具已就绪', 'success');
+      addLog('📌 提示：在控制台 Network 面板中可查看 Cookie 的详细信息', 'info');
+    });
+  </script>
+</body>
+</html>

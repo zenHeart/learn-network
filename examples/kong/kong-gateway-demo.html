@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kong API Gateway 入门演示</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79c0ff;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+      --purple: #bc8cff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      padding: 0.75rem 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.9rem;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    /* Code */
+    code {
+      background: var(--surface2);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'SF Mono', Consolas, monospace;
+      font-size: 0.85em;
+      color: var(--purple);
+    }
+
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: var(--text);
+    }
+
+    /* Tags */
+    .tag {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .tag-safe { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .tag-warning { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .tag-danger { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+    .tag-accent { background: rgba(88, 166, 255, 0.2); color: var(--accent); }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+    }
+
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    tr:hover { background: var(--surface2); }
+
+    /* Flow Diagram */
+    .flow-diagram {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      margin: 1rem 0;
+    }
+
+    .flow-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .flow-box {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1.25rem;
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .flow-box.client { border-color: var(--accent); }
+    .flow-box.kong { border-color: var(--warning); }
+    .flow-box.upstream { border-color: var(--success); }
+
+    .flow-arrow {
+      color: var(--text-muted);
+      font-size: 1.5rem;
+    }
+
+    .flow-label {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      margin-top: 0.25rem;
+    }
+
+    /* Architecture */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .arch-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .arch-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .arch-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Steps */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      counter-increment: step;
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .step-num::before { content: counter(step); }
+
+    .step-content { flex: 1; }
+
+    .step-title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    .step-desc {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Plugin cards */
+    .plugin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .plugin-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .plugin-name {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .plugin-type {
+      font-size: 0.75rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 0.5rem;
+    }
+
+    .plugin-type.auth { background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .plugin-type.rate { background: rgba(210, 153, 34, 0.2); color: var(--warning); }
+    .plugin-type.security { background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+    .plugin-type.log { background: rgba(188, 140, 255, 0.2); color: var(--purple); }
+
+    .plugin-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    /* Command blocks */
+    .cmd-block {
+      background: #000;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+      font-family: monospace;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      overflow-x: auto;
+    }
+
+    .cmd-block .prompt { color: var(--success); }
+    .cmd-block .cmd { color: var(--text); }
+    .cmd-block .comment { color: var(--text-muted); }
+
+    /* Quiz */
+    .quiz-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .quiz-question {
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+
+    .quiz-options { display: grid; gap: 0.5rem; }
+
+    .quiz-option {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .quiz-option:hover { background: var(--surface); }
+    .quiz-option input { accent-color: var(--accent); }
+
+    .quiz-result {
+      margin-top: 0.75rem;
+      padding: 0.75rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .quiz-result.correct { display: block; background: rgba(63, 185, 80, 0.2); color: var(--success); }
+    .quiz-result.wrong { display: block; background: rgba(248, 81, 73, 0.2); color: var(--danger); }
+
+    /* Summary */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .summary-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .summary-title {
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .summary-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Kong API Gateway 完全指南</h1>
+<p class="subtitle">理解 Kong 网关的核心概念与快速部署</p>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">📖 概念总览</button>
+  <button class="tab-btn" data-tab="architecture">🏗️ 架构解析</button>
+  <button class="tab-btn" data-tab="docker">🐳 快速部署</button>
+  <button class="tab-btn" data-tab="plugins">🔌 插件系统</button>
+  <button class="tab-btn" data-tab="quiz">📝 自测题</button>
+</div>
+
+<!-- Tab: Overview -->
+<div class="tab-content active" id="tab-overview">
+
+  <div class="card">
+    <h2>什么是 Kong？</h2>
+    <p style="color: var(--text-muted); margin-bottom: 1rem;">
+      Kong 是一个<strong>云原生、可扩展的 API 网关</strong>，基于 NGINX 构建，提供高性能的 API 管理能力。
+    </p>
+    <div class="arch-grid">
+      <div class="arch-item">
+        <div class="arch-title">🔀 智能路由</div>
+        <div class="arch-desc">基于 Host、Path、Method 等条件将请求路由到不同上游服务</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-title">🔐 安全认证</div>
+        <div class="arch-desc">支持 API Key、JWT、OAuth2、Basic Auth 等多种认证方式</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-title">⚡ 限流保护</div>
+        <div class="arch-desc">保护上游服务免受过载，支持本地/Redis/PG 限流策略</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-title">📊 日志监控</div>
+        <div class="arch-desc">请求日志、Prometheus 指标、健康检查</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>核心概念</h2>
+    <table>
+      <thead>
+        <tr><th>概念</th><th>说明</th><th>类比</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Service</code></td>
+          <td>上游服务的抽象</td>
+          <td>餐厅的厨房</td>
+        </tr>
+        <tr>
+          <td><code>Route</code></td>
+          <td>请求到 Service 的映射规则</td>
+          <td>服务员把订单送到哪个厨房</td>
+        </tr>
+        <tr>
+          <td><code>Consumer</code></td>
+          <td>API 使用者（用户/应用）</td>
+          <td>餐厅顾客</td>
+        </tr>
+        <tr>
+          <td><code>Plugin</code></td>
+          <td>请求/响应处理逻辑</td>
+          <td>安保/收银/点菜系统</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>请求流程</h2>
+    <div class="flow-diagram">
+      <div class="flow-row">
+        <div class="flow-box client">
+          <div>👤 Client</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">HTTP/HTTPS</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box kong">
+          <div>🦍 Kong Gateway</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">路由/认证/限流</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box upstream">
+          <div>🖥️ Upstream</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted);">真实服务</div>
+        </div>
+      </div>
+      <div class="flow-label">Client → Kong（处理 Plugin）→ Upstream（返回）→ Kong（处理 Plugin）→ Client</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>关键结论</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-title">高性能</div>
+        <div class="summary-desc">基于 NGINX，Kong 可处理每秒数万请求，延迟极低</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">插件化</div>
+        <div class="summary-desc">丰富的官方/社区插件，无需重复造轮子</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">可视化</div>
+        <div class="summary-desc">可选 Konga 提供 Web UI，降低管理复杂度</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-title">K8s 原生</div>
+        <div class="summary-desc">支持 Kubernetes Ingress，可声明式配置</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Tab: Architecture -->
+<div class="tab-content" id="tab-architecture">
+
+  <div class="card">
+    <h2>Kong 架构详解</h2>
+    <pre><code>┌─────────────────────────────────────────────────────┐
+│                    Kong Gateway                       │
+│                                                      │
+│  Admin API (8001)  ────  Config  ────  Proxy (8000) │
+│                                                      │
+│  ┌─────────┐  ┌─────────┐  ┌─────────┐              │
+│  │ Service │  │  Route  │  │Consumer │  ┌─────────┐ │
+│  │ Manager │  │ Manager │  │ Manager │  │ Plugin  │ │
+│  └─────────┘  └─────────┘  └─────────┘  │ Manager │ │
+│                                          └─────────┘ │
+│                      │                                  │
+│                ┌─────▼─────┐                           │
+│                │   NGINX   │                           │
+│                │  Worker   │                           │
+│                └───────────┘                           │
+└─────────────────────────────────────────────────────────┘
+                          │
+              ┌───────────┼───────────┐
+              │           │           │
+        ┌─────▼───┐ ┌─────▼───┐ ┌─────▼───┐
+        │ Node A  │ │ Node B  │ │ Node C  │
+        │ :8000   │ │ :8000   │ │ :8000   │
+        └─────────┘ └─────────┘ └─────────┘</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>数据模型</h2>
+    <pre><code>┌──────────────┐       ┌──────────────┐       ┌──────────────┐
+│   Service    │──1:N──│    Route     │       │  Consumer    │
+├──────────────┤       ├──────────────┤       ├──────────────┤
+│ name         │       │ name         │       │ username     │
+│ url          │       │ service.id   │       │ custom_id    │
+│ protocol     │       │ paths[]      │       └──────────────┘
+│ host         │       │ methods[]    │              │
+│ port         │       │ strip_path    │              │
+│ path         │       │ preserve_uri  │              │
+└──────────────┘       └──────────────┘              │
+                                                     │
+                    ┌────────────────────────────────┘
+                    │ N:N (via Plugin config)
+                    ▼
+              ┌──────────────┐
+              │   Plugin     │
+              ├──────────────┤
+              │ name         │
+              │ config{}     │
+              │ protocols[]  │
+              │ enabled      │
+              └──────────────┘</code></pre>
+  </div>
+
+  <div class="card">
+    <h2>配置优先级</h2>
+    <table>
+      <thead>
+        <tr><th>优先级</th><th>配置来源</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-danger">1 (最高)</span></td>
+          <td>Admin API</td>
+          <td>运行时动态配置</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-warning">2</span></td>
+          <td>deck / Kong declarative config</td>
+          <td>声明式配置文件</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-accent">3</span></td>
+          <td>Environment variables</td>
+          <td>KONG_* 环境变量</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-safe">4 (最低)</span></td>
+          <td>kong.conf</td>
+          <td>配置文件默认值</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Tab: Docker -->
+<div class="tab-content" id="tab-docker">
+
+  <div class="card">
+    <h2>5 步快速启动</h2>
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <div class="step-title">创建 Docker 网络</div>
+          <div class="step-desc">让 Kong 和数据库容器互相通信</div>
+          <div class="cmd-block">
+<span class="comment"># 创建 bridge 网络</span>
+<span class="cmd">docker network create kong-net</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <div class="step-title">启动 PostgreSQL 数据库</div>
+          <div class="step-desc">Kong 使用 PostgreSQL 存储配置数据</div>
+          <div class="cmd-block">
+<span class="cmd">docker run -d \
+  --name kong-database \
+  --network=kong-net \
+  -p 5432:5432 \
+  -e POSTGRES_USER=kong \
+  -e POSTGRES_PASSWORD=kong \
+  -e POSTGRES_DB=kong \
+  postgres:13</span>
+<span class="comment"># 等待 5 秒</span>
+<span class="cmd">sleep 5</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <div class="step-title">初始化 Kong 数据库</div>
+          <div class="step-desc">运行数据库迁移，创建必要的表结构</div>
+          <div class="cmd-block">
+<span class="cmd">docker run --rm \
+  --network=kong-net \
+  -e KONG_DATABASE=postgres \
+  -e KONG_PG_HOST=kong-database \
+  -e KONG_PG_USER=kong \
+  -e KONG_PG_PASSWORD=kong \
+  kong:latest kong migrations bootstrap</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <div class="step-title">启动 Kong Gateway</div>
+          <div class="step-desc">暴露 8000（代理）和 8001（管理）端口</div>
+          <div class="cmd-block">
+<span class="cmd">docker run -d \
+  --name kong \
+  --network=kong-net \
+  -p 8000:8000 \
+  -p 8443:8443 \
+  -p 8001:8001 \
+  -p 8444:8444 \
+  -e KONG_DATABASE=postgres \
+  -e KONG_PG_HOST=kong-database \
+  -e KONG_PG_USER=kong \
+  -e KONG_PG_PASSWORD=kong \
+  kong:latest</span></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <div class="step-title">验证 Kong 运行状态</div>
+          <div class="step-desc">检查 Kong Admin API 是否响应</div>
+          <div class="cmd-block">
+<span class="cmd">curl http://localhost:8001</span>
+<span class="comment"># 应返回 JSON，包含 version 和 tagline 字段</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>一键启动（docker-compose）</h2>
+    <pre><code>version: '3.8'
+
+services:
+  kong-database:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
+    networks:
+      - kong-net
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kong-migration:
+    image: kong:latest
+    command: kong migrations bootstrap
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    networks:
+      - kong-net
+
+  kong:
+    image: kong:latest
+    depends_on:
+      kong-migration:
+        condition: service_started
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    networks:
+      - kong-net
+
+networks:
+  kong-net:
+    driver: bridge</code></pre>
+    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 0.75rem;">
+      使用方法：<code>docker-compose up -d</code>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>常用端口</h2>
+    <table>
+      <thead>
+        <tr><th>端口</th><th>用途</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>8000</code></td>
+          <td>代理 HTTP</td>
+          <td>接收客户端请求，转发到上游</td>
+        </tr>
+        <tr>
+          <td><code>8443</code></td>
+          <td>代理 HTTPS</td>
+          <td>HTTPS 代理端口</td>
+        </tr>
+        <tr>
+          <td><code>8001</code></td>
+          <td>Admin HTTP</td>
+          <td>管理 API（创建 Service/Route/Plugin）</td>
+        </tr>
+        <tr>
+          <td><code>8444</code></td>
+          <td>Admin HTTPS</td>
+          <td>Admin API HTTPS</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- Tab: Plugins -->
+<div class="tab-content" id="tab-plugins">
+
+  <div class="card">
+    <h2>插件分类</h2>
+    <div class="plugin-grid">
+      <div class="plugin-item">
+        <div class="plugin-type auth">认证</div>
+        <div class="plugin-name">key-auth</div>
+        <div class="plugin-desc">API Key 认证，最简单的认证方式</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type auth">认证</div>
+        <div class="plugin-name">jwt</div>
+        <div class="plugin-desc">JWT Token 认证，支持 RS256/HS256</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type auth">认证</div>
+        <div class="plugin-name">oauth2</div>
+        <div class="plugin-desc">OAuth2 授权码模式</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type rate">限流</div>
+        <div class="plugin-name">rate-limiting</div>
+        <div class="plugin-desc">请求频率限制</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type security">安全</div>
+        <div class="plugin-name">cors</div>
+        <div class="plugin-desc">跨域资源共享配置</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type security">安全</div>
+        <div class="plugin-name">ip-restriction</div>
+        <div class="plugin-desc">IP 黑名单/白名单</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type log">日志</div>
+        <div class="plugin-name">prometheus</div>
+        <div class="plugin-desc">Prometheus 指标采集</div>
+      </div>
+      <div class="plugin-item">
+        <div class="plugin-type log">日志</div>
+        <div class="plugin-name">file-log</div>
+        <div class="plugin-desc">请求日志写入文件</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>插件配置示例</h2>
+
+    <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 0.75rem;">启用 API Key 认证</h3>
+    <pre><code># 1. 启用 key-auth 插件
+curl -X POST http://localhost:8001/plugins \
+  -d "name=key-auth" \
+  -d "config.key_names=apikey,X-API-Key"
+
+# 2. 创建 Consumer
+curl -X POST http://localhost:8001/consumers \
+  -d "username=my-app"
+
+# 3. 为 Consumer 生成 API Key
+curl -X POST http://localhost:8001/consumers/my-app/key-auth \
+  -d "key=abc123-secret-key"
+
+# 4. 请求时携带 Key
+curl -H "apikey: abc123-secret-key" http://localhost:8000/your-route</code></pre>
+
+    <h3 style="font-size: 0.95rem; color: var(--text-muted); margin: 1.5rem 0 0.75rem;">启用限流（每分钟 100 次）</h3>
+    <pre><code>curl -X POST http://localhost:8001/plugins \
+  -d "name=rate-limiting" \
+  -d "config.minute=100" \
+  -d "config.policy=local"</code></pre>
+
+    <h3 style="font-size: 0.95rem; color: var(--text-muted); margin: 1.5rem 0 0.75rem;">启用 CORS</h3>
+    <pre><code>curl -X POST http://localhost:8001/plugins \
+  -d "name=cors" \
+  -d "config.origins=*" \
+  -d "config.methods=GET,POST,PUT,DELETE" \
+  -d "config.headers=Content-Type,Authorization" \
+  -d "config.credentials=true" \
+  -d "config.max_age=3600"</code></pre>
+
+  </div>
+
+  <div class="card">
+    <h2>插件执行阶段</h2>
+    <pre><code>请求生命周期中的插件执行点：
+
+  1. SSL Certificate        ←--
+  2. Access                 ←-- Plugin 逻辑主要在这里
+  3. Header Filter          ←--
+  4. Body Filter            ←--
+  5. Log                    ←-- 记录日志/发送监控数据
+
+每个插件可绑定到多个阶段：
+- rewrite: 重写请求
+- access: 认证/限流/路由决策
+- header_filter: 修改响应头
+- body_filter: 修改响应体
+- log: 记录日志</code></pre>
+  </div>
+
+</div>
+
+<!-- Tab: Quiz -->
+<div class="tab-content" id="tab-quiz">
+
+  <div class="card">
+    <h2>自测题</h2>
+
+    <div class="quiz-item">
+      <div class="quiz-question">1. Kong Gateway 的管理 API 默认端口是？</div>
+      <div class="quiz-options">
+        <label class="quiz-option">
+          <input type="radio" name="q1" value="a">
+          <span>8000</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q1" value="b">
+          <span>8001</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q1" value="c">
+          <span>5432</span>
+        </label>
+      </div>
+      <div class="quiz-result" data-answer="b">✅ 正确！8001 是 Kong Admin HTTP 端口，用于管理 Service/Route/Plugin</div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-question">2. Kong 中，谁负责将请求路由到上游服务？</div>
+      <div class="quiz-options">
+        <label class="quiz-option">
+          <input type="radio" name="q2" value="a">
+          <span>Service</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q2" value="b">
+          <span>Route</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q2" value="c">
+          <span>Consumer</span>
+        </label>
+      </div>
+      <div class="quiz-result" data-answer="b">✅ 正确！Route 定义了请求如何路由到 Service，Service 是上游服务的抽象</div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-question">3. 以下哪个不是 Kong 的认证插件？</div>
+      <div class="quiz-options">
+        <label class="quiz-option">
+          <input type="radio" name="q3" value="a">
+          <span>jwt</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q3" value="b">
+          <span>rate-limiting</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q3" value="c">
+          <span>oauth2</span>
+        </label>
+      </div>
+      <div class="quiz-result" data-answer="b">✅ 正确！rate-limiting 是限流插件，不是认证插件</div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-question">4. Kong 的数据存储支持哪些数据库？</div>
+      <div class="quiz-options">
+        <label class="quiz-option">
+          <input type="radio" name="q4" value="a">
+          <span>仅 PostgreSQL</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q4" value="b">
+          <span>PostgreSQL 或 Cassandra</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q4" value="c">
+          <span>仅 MySQL</span>
+        </label>
+      </div>
+      <div class="quiz-result" data-answer="b">✅ 正确！Kong 支持 PostgreSQL（默认）和 Cassandra 两种数据库</div>
+    </div>
+
+    <div class="quiz-item">
+      <div class="quiz-question">5. Kong 的核心构建基础是什么？</div>
+      <div class="quiz-options">
+        <label class="quiz-option">
+          <input type="radio" name="q5" value="a">
+          <span>Apache HTTP Server</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q5" value="b">
+          <span>NGINX</span>
+        </label>
+        <label class="quiz-option">
+          <input type="radio" name="q5" value="c">
+          <span>Tra

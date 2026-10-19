@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>乐观锁与悲观锁 - 交互式演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid #2a2a3a;
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.2em;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1em;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: #1a1a2e;
+            padding: 6px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            flex: 1;
+            min-width: 140px;
+            padding: 14px 20px;
+            background: transparent;
+            border: none;
+            color: #888;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .tab-btn:hover {
+            background: #252540;
+            color: #b0b0c0;
+        }
+        
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            border: 1px solid #2a2a3a;
+        }
+        
+        .card h2 {
+            font-size: 1.4em;
+            margin-bottom: 20px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card h2 .icon {
+            font-size: 1.2em;
+        }
+        
+        .card h3 {
+            font-size: 1.1em;
+            color: #a0a0b0;
+            margin: 20px 0 12px;
+        }
+        
+        /* 对比表格 */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        
+        .comparison-table th {
+            background: #252540;
+            color: #a0a0b0;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .comparison-table tr:hover {
+            background: #1f1f35;
+        }
+        
+        .comparison-table .optimistic {
+            color: #4ade80;
+        }
+        
+        .comparison-table .pessimistic {
+            color: #f87171;
+        }
+        
+        /* 代码块 */
+        .code-block {
+            background: #12121f;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+            font-family: "SF Mono", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            border: 1px solid #2a2a3a;
+            margin: 16px 0;
+        }
+        
+        .code-block .keyword {
+            color: #c792ea;
+        }
+        
+        .code-block .string {
+            color: #c3e88d;
+        }
+        
+        .code-block .comment {
+            color: #546e7a;
+        }
+        
+        .code-block .number {
+            color: #f78c6c;
+        }
+        
+        .code-block .function {
+            color: #82aaff;
+        }
+        
+        .code-block .variable {
+            color: #f07178;
+        }
+        
+        /* 模拟演示区 */
+        .demo-area {
+            background: #12121f;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 20px 0;
+            border: 1px solid #2a2a3a;
+        }
+        
+        .demo-title {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .demo-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .demo-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .demo-btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        
+        .demo-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .demo-btn-secondary {
+            background: #2a2a3a;
+            color: #e0e0e0;
+        }
+        
+        .demo-btn-secondary:hover {
+            background: #3a3a50;
+        }
+        
+        .demo-btn-danger {
+            background: #dc2626;
+            color: #fff;
+        }
+        
+        .demo-output {
+            background: #0a0a14;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: "SF Mono", "Fira Code", Consolas, monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            color: #888;
+        }
+        
+        .demo-output .log-info { color: #4ade80; }
+        .demo-output .log-warn { color: #fbbf24; }
+        .demo-output .log-error { color: #f87171; }
+        .demo-output .log-success { color: #38bdf8; }
+        
+        /* 状态可视化 */
+        .state-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        
+        .state-card {
+            background: #252540;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .state-card .label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+        
+        .state-card .value {
+            font-size: 2em;
+            font-weight: 700;
+            color: #fff;
+        }
+        
+        .state-card .value.stock { color: #4ade80; }
+        .state-card .value.version { color: #fbbf24; }
+        .state-card .value.lock { color: #f87171; }
+        
+        /* 流程图 */
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .flow-step {
+            background: #252540;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 14px;
+            color: #e0e0e0;
+            position: relative;
+        }
+        
+        .flow-step.pessimistic {
+            border-left: 3px solid #f87171;
+        }
+        
+        .flow-step.optimistic {
+            border-left: 3px solid #4ade80;
+        }
+        
+        .flow-arrow {
+            color: #666;
+            font-size: 18px;
+        }
+        
+        /* 问题卡片 */
+        .problem-card {
+            background: linear-gradient(135deg, rgba(248, 113, 113, 0.1) 0%, rgba(248, 113, 113, 0.05) 100%);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .problem-card h4 {
+            color: #f87171;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        
+        .solution-card {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(74, 222, 128, 0.05) 100%);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 12px;
+            padding: 24px;
+            margin: 16px 0;
+        }
+        
+        .solution-card h4 {
+            color: #4ade80;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+        
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1a1a2e;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #3a3a50;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #4a4a60;
+        }
+        
+        /* 标签 */
+        .tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+        
+        .tag-red { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .tag-green { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .tag-blue { background: rgba(56, 189, 248, 0.2); color: #38bdf8; }
+        .tag-yellow { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+        
+        /* 进度条 */
+        .progress-bar {
+            height: 8px;
+            background: #2a2a3a;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.success { background: linear-gradient(90deg, #4ade80, #22c55e); }
+        .progress-fill.danger { background: linear-gradient(90deg, #f87171, #dc2626); }
+        .progress-fill.warning { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 乐观锁与悲观锁</h1>
+            <p class="subtitle">并发控制的核心机制 - 交互式学习演示</p>
+        </header>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('overview')">📋 概述</button>
+            <button class="tab-btn" onclick="showTab('pessimistic')">🔒 悲观锁实现</button>
+            <button class="tab-btn" onclick="showTab('optimistic')">⚡ 乐观锁实现</button>
+            <button class="tab-btn" onclick="showTab('problems')">⚠️ 问题与解决</button>
+        </div>
+        
+        <!-- Tab 1: 概述 -->
+        <div id="overview" class="tab-content active">
+            <div class="card">
+                <h2><span class="icon">📋</span> 核心概念对比</h2>
+                
+                <h3>悲观锁 vs 乐观锁</h3>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>维度</th>
+                            <th class="pessimistic">悲观锁</th>
+                            <th class="optimistic">乐观锁</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>策略</td>
+                            <td>先加锁，后操作</td>
+                            <td>先操作，后验证</td>
+                        </tr>
+                        <tr>
+                            <td>实现</td>
+                            <td>数据库锁/分布式锁</td>
+                            <td>版本号/CAS</td>
+                        </tr>
+                        <tr>
+                            <td>冲突处理</td>
+                            <td>阻塞等待</td>
+                            <td>失败重试</td>
+                        </tr>
+                        <tr>
+                            <td>性能特征</td>
+                            <td>冲突多时性能低</td>
+                            <td>冲突少时性能高</td>
+                        </tr>
+                        <tr>
+                            <td>适用场景</td>
+                            <td>写多读少</td>
+                            <td>读多写少</td>
+                        </tr>
+                        <tr>
+                            <td>死锁风险</td>
+                            <td>有风险</td>
+                            <td>无</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🔄</span> 工作流程图解</h2>
+                
+                <h3 style="color: #f87171;">悲观锁流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step pessimistic">① 获取锁</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step pessimistic">② 操作数据</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step pessimistic">③ 释放锁</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step pessimistic">④ 完成</div>
+                </div>
+                <p style="color: #888; font-size: 14px; text-align: center;">
+                    其他线程在①阶段阻塞等待，直到锁释放
+                </p>
+                
+                <h3 style="color: #4ade80; margin-top: 30px;">乐观锁流程</h3>
+                <div class="flow-diagram">
+                    <div class="flow-step optimistic">① 读取数据<br><small>记录版本号</small></div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step optimistic">② 业务计算</div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step optimistic">③ 更新时<br><small>验证版本</small></div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-step optimistic">④ 成功/重试</div>
+                </div>
+                <p style="color: #888; font-size: 14px; text-align: center;">
+                    版本匹配则成功，不匹配则重试（无阻塞）
+                </p>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🎯</span> 选择决策树</h2>
+                <div class="code-block" style="background: #1a1a2e;">
+<span class="keyword">开始</span>
+  │
+  ├─ 并发量大、冲突频繁？
+  │    ├─ <span class="tag tag-red">是</span> ──→ <span class="keyword">悲观锁</span>
+  │    └─ <span class="tag tag-green">否</span>
+  │         │
+  │         ├─ 事务时间长？
+  │         │    ├─ <span class="tag tag-red">是</span> ──→ <span class="keyword">乐观锁</span>
+  │         │    └─ <span class="tag tag-green">否</span>
+  │         │         │
+  │         │         └─ 写多还是读多？
+  │         │              ├─ <span class="tag tag-red">写多</span> ──→ <span class="keyword">悲观锁</span>
+  │         │              └─ <span class="tag tag-green">读多</span> ──→ <span class="keyword">乐观锁</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 2: 悲观锁实现 -->
+        <div id="pessimistic" class="tab-content">
+            <div class="card">
+                <h2><span class="icon">🔒</span> Redis SETNX 分布式锁</h2>
+                
+                <h3>核心代码实现</h3>
+                <div class="code-block"><span class="comment">// 获取锁</span>
+<span class="keyword">public</span> <span class="function">boolean acquireLock</span>(String lockKey, String requestId, <span class="keyword">long</span> expireTimeMs) {
+    String result = jedis.<span class="function">set</span>(lockKey, requestId, <span class="string">"NX"</span>, <span class="string">"PX"</span>, expireTimeMs);
+    <span class="keyword">return</span> <span class="string">"OK"</span>.equals(result);
+}
+
+<span class="comment">// 释放锁（Lua脚本保证原子性）</span>
+<span class="keyword">public</span> <span class="function">boolean releaseLock</span>(String lockKey, String requestId) {
+    String script =
+        <span class="string">"if redis.call('get', KEYS[1]) == ARGV[1] then "</span> +
+        <span class="string">"    return redis.call('del', KEYS[1]) "</span> +
+        <span class="string">"else "</span> +
+        <span class="string">"    return 0 "</span> +
+        <span class="string">"end"</span>;
+    Object result = jedis.<span class="function">eval</span>(script, <span class="number">1</span>, lockKey, requestId);
+    <span class="keyword">return</span> <span class="number">1L</span>.equals(result);
+}</div>
+                
+                <h3>数据库行锁示例</h3>
+                <div class="code-block"><span class="comment">-- 事务中使用 FOR UPDATE 锁定行</span>
+<span class="keyword">BEGIN</span>;
+
+<span class="comment">-- 锁定 id=1 的行，其他事务无法修改</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> accounts <span class="keyword">WHERE</span> id = <span class="number">1</span> <span class="keyword">FOR UPDATE</span>;
+
+<span class="comment">-- 执行更新（此时其他事务无法修改 id=1）</span>
+<span class="keyword">UPDATE</span> accounts <span class="keyword">SET</span> balance = balance - <span class="number">100</span> <span class="keyword">WHERE</span> id = <span class="number">1</span>;
+
+<span class="keyword">COMMIT</span>;
+<span class="comment">-- 锁自动释放</span></div>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🎮</span> 悲观锁模拟演示</h2>
+                
+                <div class="demo-area">
+                    <div class="demo-title">模拟场景：两个线程竞争同一把锁</div>
+                    
+                    <div class="state-grid">
+                        <div class="state-card">
+                            <div class="label">锁状态</div>
+                            <div class="value lock" id="lock-status">🔓 未锁定</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">持有者</div>
+                            <div class="value" id="lock-holder">-</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">线程A</div>
+                            <div class="value" id="thread-a-status">⏸️ 等待</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">线程B</div>
+                            <div class="value" id="thread-b-status">⏸️ 等待</div>
+                        </div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="demo-btn demo-btn-primary" onclick="runPessimisticDemo()">▶️ 启动演示</button>
+                        <button class="demo-btn demo-btn-secondary" onclick="resetPessimisticDemo()">🔄 重置</button>
+                    </div>
+                    
+                    <div class="demo-output" id="pessimistic-output">
+<span class="log-info">[系统] 点击"启动演示"开始...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 3: 乐观锁实现 -->
+        <div id="optimistic" class="tab-content">
+            <div class="card">
+                <h2><span class="icon">⚡</span> 版本号机制</h2>
+                
+                <h3>数据库更新语句</h3>
+                <div class="code-block"><span class="comment">-- 表结构需要包含 version 字段</span>
+<span class="keyword">CREATE TABLE</span> products (
+    id <span class="keyword">BIGINT PRIMARY KEY</span>,
+    name <span class="keyword">VARCHAR</span>(<span class="number">100</span>),
+    stock <span class="keyword">INT</span>,
+    version <span class="keyword">INT DEFAULT</span> <span class="number">0</span>
+);
+
+<span class="comment">-- 关键：UPDATE 时检查 version</span>
+<span class="keyword">UPDATE</span> products 
+<span class="keyword">SET</span> stock = stock - <span class="number">1</span>, 
+    version = version + <span class="number">1</span> 
+<span class="keyword">WHERE</span> id = <span class="number">1</span> 
+  <span class="keyword">AND</span> version = <span class="number">1</span>;  <span class="comment">-- ← 乐观锁核心：版本匹配才更新</span>
+
+<span class="comment">-- 影响行数为 0 时表示版本冲突，需要重试</span></div>
+                
+                <h3>Java CAS 实现</h3>
+                <div class="code-block"><span class="keyword">import</span> java.util.concurrent.atomic.AtomicReference;
+
+<span class="keyword">public class</span> <span class="function">AtomicStock</span> {
+    <span class="keyword">private final</span> AtomicReference<Integer> stock = <span class="keyword">new</span> AtomicReference<>(<span class="number">100</span>);
+    
+    <span class="keyword">public</span> <span class="function">boolean deduct</span>(<span class="keyword">int</span> quantity) {
+        <span class="keyword">while</span> (<span class="keyword">true</span>) {
+            Integer current = stock.<span class="function">get</span>();
+            <span class="keyword">if</span> (current < quantity) {
+                <span class="keyword">return false</span>;  <span class="comment">// 库存不足</span>
+            }
+            <span class="comment">// CAS：只有 current 没变时才更新成功</span>
+            <span class="keyword">if</span> (stock.<span class="function">compareAndSet</span>(current, current - quantity)) {
+                <span class="keyword">return true</span>;   <span class="comment">// 扣减成功</span>
+            }
+            <span class="comment">// 否则 current 已被其他线程修改，自旋重试</span>
+        }
+    }
+}</div>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🎮</span> 乐观锁模拟演示</h2>
+                
+                <div class="demo-area">
+                    <div class="demo-title">模拟场景：并发扣减库存（版本号机制）</div>
+                    
+                    <div class="state-grid">
+                        <div class="state-card">
+                            <div class="label">当前库存</div>
+                            <div class="value stock" id="stock-value">10</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">版本号</div>
+                            <div class="value version" id="version-value">1</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">线程A 版本</div>
+                            <div class="value" id="thread-a-version">-</div>
+                        </div>
+                        <div class="state-card">
+                            <div class="label">线程B 版本</div>
+                            <div class="value" id="thread-b-version">-</div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-bar">
+                        <div class="progress-fill success" id="stock-progress" style="width: 100%;"></div>
+                    </div>
+                    
+                    <div class="demo-controls">
+                        <button class="demo-btn demo-btn-primary" onclick="runOptimisticDemo()">▶️ 启动演示</button>
+                        <button class="demo-btn demo-btn-secondary" onclick="resetOptimisticDemo()">🔄 重置</button>
+                    </div>
+                    
+                    <div class="demo-output" id="optimistic-output">
+<span class="log-info">[系统] 点击"启动演示"开始...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 4: 问题与解决 -->
+        <div id="problems" class="tab-content">
+            <div class="card">
+                <h2><span class="icon">⚠️</span> 常见问题</h2>
+                
+                <div class="problem-card">
+                    <h4>1. ABA 问题</h4>
+                    <p style="color: #ccc; margin-bottom: 12px;">
+                        线程 A 读取数据为 A，线程 B 改为 B，线程 C 又改回 A。线程 A 看到的仍是 A，误以为数据没变。
+                    </p>
+                    <div class="code-block" style="font-size: 12px;"><span class="comment">时间线:</span>
+T1: 线程A读取 → <span class="variable">A</span>
+T2: 线程B修改 → <span class="variable">B</span>
+T3: 线程C修改 → <span class="variable">A</span>  <span class="comment">// 变回来了！</span>
+T4: 线程A CAS → <span class="tag tag-green">成功</span>  <span class="comment">// 但中间被改过</span></div>
+                    
+                    <div class="solution-card">
+                        <h4>✓ 解决方案：版本号机制</h4>
+                        <p style="color: #ccc;">
+                            即使值相同，版本号也不同。CAS 时同时检查值和版本号。
+                        </p>
+                        <div class="code-block" style="font-size: 12px; margin-top: 12px;"><span class="comment">// 只有 值 AND 版本号 都匹配时才更新</span>
+<span class="keyword">if</span> (value == expectedValue && version == expectedVersion) {
+    <span class="comment">// 更新成功，version++</span>
+}</div>
+                    </div>
+                </div>
+                
+                <div class="problem-card">
+                    <h4>2. 重试风暴</h4>
+                    <p style="color: #ccc; margin-bottom: 12px;">
+                        高并发下大量请求同时版本冲突，触发重试，可能加剧系统负载。
+                    </p>
+                    
+                    <div class="solution-card">
+                        <h4>✓ 解决方案：指数退避 + 随机化</h4>
+                        <div class="code-block" style="font-size: 12px;"><span class="comment">// 指数退避重试</span>
+<span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i < maxRetries; i++) {
+    <span class="keyword">try</span> {
+        <span class="keyword">return</span> operation.<span class="function">get</span>();
+    } <span class="keyword">catch</span> (OptimisticLockException e) {
+        <span class="keyword">long</span> backoff = (<span class="keyword">long</span>) Math.<span class="function">pow</span>(<span class="number">2</span>, i) * <span class="number">100</span>; <span class="comment">// 100, 200, 400ms...</span>
+        <span class="keyword">int</span> jitter = random.<span class="function">nextInt</span>(<span class="number">100</span>); <span class="comment">// 添加随机抖动</span>
+        Thread.<span class="function">sleep</span>(backoff + jitter);
+    }
+}</div>
+                    </div>
+                </div>
+                
+                <div class="problem-card">
+                    <h4>3. 分布式环境</h4>
+                    <p style="color: #ccc; margin-bottom: 12px;">
+                        单机 CAS 在分布式环境中无效，需要分布式锁协调多台机器。
+                    </p>
+                    
+                    <div class="solution-card">
+                        <h4>✓ 解决方案：Redis 分布式锁</h4>
+                        <div class="code-block" style="font-size: 12px;"><span class="comment">// 使用 Redisson</span>
+RLock lock = redisson.<span class="function">getLock</span>(lockKey);
+<span class="keyword">boolean</span> acquired = lock.<span class="function">tryLock</span>(<span class="number">10</span>, <span class="number">30</span>, TimeUnit.<span class="variable">SECONDS</span>);
+<span class="keyword">try</span> {
+    <span class="keyword">if</span> (acquired) {
+        task.<span class="function">run</span>();
+    }
+} <span class="keyword">finally</span> {
+    <span class="keyword">if</span> (acquired && lock.<span class="function">isHeldByCurrentThread</span>()) {
+        lock.<span class="function">unlock</span>();
+    }
+}</div>
+                    </div>
+                </div>
+                
+                <div class="problem-card">
+                    <h4>4. 死锁预防</h4>
+                    <p style="color: #ccc; margin-bottom: 12px;">
+                        多把锁无序获取时，可能形成循环等待，产生死锁。
+                    </p>
+                    
+                    <div class="solution-card">
+                        <h4>✓ 解决方案：固定加锁顺序 + 锁超时</h4>
+                        <div class="code-block" style="font-size: 12px;"><span class="comment">// 方案1：固定顺序（按 ID 大小）</span>
+Account first = from.getId() < to.getId() ? from : to;
+Account second = from.getId() < to.getId() ? to : from;
+
+<span class="keyword">synchronized</span> (first) {
+    <span class="keyword">synchronized</span> (second) {
+        <span class="comment">// 转账操作</span>
+    }
+}
+
+<span class="comment">// 方案2：锁超时</span>
+<span class="keyword">boolean</span> acquired = lock.<span class="function">tryLock</span>(<span class="number">5</span>, <span class="number">30</span>, TimeUnit.<span class="variable">SECONDS</span>);
+<span class="keyword">if</span> (!acquired) {
+    <span class="keyword">throw new</span> <span class="function">LockTimeoutException</span>(<span class="string">"获取锁超时"</span>);
+}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🎮</span> ABA 问题演示</h2>
+                
+                <div class="demo-area">
+                    <div class="demo-title">模拟场景：ABA 问题（不使用版本号）</div>
+                    
+                    <div class="demo-controls">
+                        <button class="demo-btn demo-btn-primary" onclick="runABADemo()">▶️ 演示 ABA 问题</button>
+                        <button class="demo-btn demo-btn-secondary" onclick="runABAWithVersionDemo()">✓ 使用版本号演示</button>
+                    </div>
+                    
+                    <div class="demo-output" id="aba-output">
+<span class="log-info">[系统] 点击按钮开始演示...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Tab 切换
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+        
+        // 悲观锁演示
+        let pessimisticRunning = false;
+        
+        function runPessimisticDemo() {
+            if (pessimisticRunning) return;
+            pessimisticRunning = true;
+            
+            const output = document.getElementById('pessimistic-output');
+            const lockStatus = document.getElementById('lock-status');
+            const lockHolder = document.getElementById('lock-holder');
+            const threadA = document.getElementById('thread-a-status');
+            const threadB = document.getElementById('thread-b-status');
+            
+            output.innerHTML = '';
+            lockStatus.textContent = '🔓 未锁定';
+            lockHolder.textContent = '-';
+            threadA.textContent = '⏸️ 等待';
+            threadB.textContent = '⏸️ 等待';
+            
+            let step = 0;
+            
+            function addLog(msg, type = 'info') {
+                const classMap = { info: 'log-info', warn: 'log-warn', error: 'log-error', success: 'log-success' };
+                output.innerHTML += `<span class="${classMap[type]}">[T${Date.now() % 1000}] ${msg}</span>\n`;
+                output.scrollTop = output.scrollHeight;
+            }
+            
+            function runStep() {
+                if (step === 0) {
+                    addLog('线程A

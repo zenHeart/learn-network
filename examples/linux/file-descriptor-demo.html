@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Linux 文件句柄交互演示</title>
+  <style>
+    :root {
+      --primary: #0066cc;
+      --primary-dark: #004499;
+      --bg: #f5f7fa;
+      --card-bg: #ffffff;
+      --text: #333;
+      --text-light: #666;
+      --border: #e1e5eb;
+      --success: #28a745;
+      --warning: #ffc107;
+      --danger: #dc3545;
+      --code-bg: #f4f4f4;
+      --radius: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 30px 20px;
+      margin-bottom: 30px;
+      border-radius: var(--radius);
+    }
+
+    .header h1 {
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 0.95rem;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 20px;
+      padding: 0 10px;
+    }
+
+    .tab-btn {
+      padding: 10px 18px;
+      border: none;
+      background: var(--card-bg);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .tab-content {
+      display: none;
+      background: var(--card-bg);
+      padding: 25px;
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Sections */
+    h2 {
+      font-size: 1.3rem;
+      margin-bottom: 15px;
+      color: var(--text);
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 8px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      margin: 20px 0 10px;
+      color: var(--text);
+    }
+
+    p {
+      margin-bottom: 12px;
+      color: var(--text-light);
+    }
+
+    /* Code Blocks */
+    pre {
+      background: var(--code-bg);
+      padding: 15px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.85rem;
+      margin-bottom: 15px;
+      border: 1px solid var(--border);
+    }
+
+    code {
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .cmd {
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .comment {
+      color: #6a9955;
+    }
+
+    /* Info Boxes */
+    .info-box {
+      padding: 15px;
+      border-radius: var(--radius);
+      margin: 15px 0;
+    }
+
+    .info-box.info {
+      background: #e7f3ff;
+      border-left: 4px solid var(--primary);
+    }
+
+    .info-box.warning {
+      background: #fff3cd;
+      border-left: 4px solid var(--warning);
+    }
+
+    .info-box.danger {
+      background: #f8d7da;
+      border-left: 4px solid var(--danger);
+    }
+
+    .info-box.success {
+      background: #d4edda;
+      border-left: 4px solid var(--success);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--bg);
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    tr:hover {
+      background: var(--bg);
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    /* Simulators */
+    .simulator {
+      background: var(--bg);
+      padding: 20px;
+      border-radius: var(--radius);
+      margin: 15px 0;
+    }
+
+    .simulator-log {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 15px;
+      border-radius: var(--radius);
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.8rem;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 15px;
+    }
+
+    .simulator-log .info {
+      color: #4ec9b0;
+    }
+
+    .simulator-log .warn {
+      color: #dcdcaa;
+    }
+
+    .simulator-log .error {
+      color: #f48771;
+    }
+
+    .simulator-log .success {
+      color: #6a9955;
+    }
+
+    .simulator-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+    }
+
+    /* Progress */
+    .progress-bar {
+      width: 100%;
+      height: 24px;
+      background: var(--bg);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--primary));
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    /* Cards Grid */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      margin: 15px 0;
+    }
+
+    .card {
+      background: var(--bg);
+      padding: 15px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+
+    .card h4 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+
+    .card p {
+      font-size: 0.85rem;
+      margin: 0;
+    }
+
+    /* Quiz */
+    .quiz-question {
+      margin: 20px 0;
+      padding: 20px;
+      background: var(--bg);
+      border-radius: var(--radius);
+    }
+
+    .quiz-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .quiz-option {
+      padding: 12px 15px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .quiz-option:hover {
+      border-color: var(--primary);
+    }
+
+    .quiz-option.correct {
+      background: #d4edda;
+      border-color: var(--success);
+    }
+
+    .quiz-option.incorrect {
+      background: #f8d7da;
+      border-color: var(--danger);
+    }
+
+    /* Footer */
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--text-light);
+      font-size: 0.85rem;
+      margin-top: 30px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <h1>🖥️ Linux 文件句柄交互演示</h1>
+      <p>理解文件描述符、lsof 命令、ulimit 限制以及"Too many open files"错误的原理</p>
+    </header>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview">📚 概念总览</button>
+      <button class="tab-btn" data-tab="lsof">🔍 lsof 命令</button>
+      <button class="tab-btn" data-tab="limits">⚙️ 限制配置</button>
+      <button class="tab-btn" data-tab="simulator">🧪 模拟实验</button>
+      <button class="tab-btn" data-tab="troubleshooting">🔧 问题排查</button>
+      <button class="tab-btn" data-tab="quiz">📝 自测题</button>
+    </div>
+
+    <!-- Tab 1: Overview -->
+    <div class="tab-content active" id="overview">
+      <h2>文件句柄（File Descriptor）概念</h2>
+      
+      <h3>什么是文件句柄？</h3>
+      <p>文件句柄是 Linux 内核为进程分配的整数标识符，用于访问文件、网络连接、管道等资源。</p>
+      
+      <div class="info-box info">
+        <strong>💡 关键概念：</strong>文件句柄（FD）是内核层面的标识符，进程通过它与内核交互访问各种 I/O 资源。
+      </div>
+
+      <h3>标准文件描述符</h3>
+      <p>每个进程启动时默认有三个标准文件描述符：</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>FD</th>
+            <th>名称</th>
+            <th>默认关联</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>0</code></td>
+            <td>stdin</td>
+            <td>标准输入（键盘）</td>
+          </tr>
+          <tr>
+            <td><code>1</code></td>
+            <td>stdout</td>
+            <td>标准输出（终端）</td>
+          </tr>
+          <tr>
+            <td><code>2</code></td>
+            <td>stderr</td>
+            <td>标准错误输出（终端）</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>FD 与 FILE* 的区别</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <h4>文件句柄（FD）</h4>
+          <p>内核层面的整数标识符，直接与系统调用交互</p>
+        </div>
+        <div class="card">
+          <h4>文件指针（FILE*）</h4>
+          <p>C 标准库封装后的结构体，包含 FD 和缓冲区的信息</p>
+        </div>
+      </div>
+
+      <h3>文件句柄可以指向什么？</h3>
+      <ul style="margin-left: 20px; color: var(--text-light);">
+        <li>📄 普通文件</li>
+        <li>📁 目录</li>
+        <li>🔌 网络套接字（Socket）</li>
+        <li> Pipe/管道</li>
+        <li>⌨️ 设备文件（/dev/...）</li>
+        <li>🔊 终端（TTY）</li>
+      </ul>
+    </div>
+
+    <!-- Tab 2: lsof -->
+    <div class="tab-content" id="lsof">
+      <h2>lsof 命令详解</h2>
+      
+      <p><code>lsof</code>（List Open Files）是最常用的查看进程打开文件的工具。</p>
+
+      <h3>基本用法</h3>
+      <pre><code class="cmd">lsof</code>                    # 查看所有打开的文件
+<span class="comment"># 输出示例</span>
+COMMAND  PID  USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+init     1    root   0u   CHR  136,0  0t0      3  /dev/pts/0
+sshd    1234 root   3u   IPv4 12345  0t0      TCP *:22 (LISTEN)</code></pre>
+
+      <h3>常用命令选项</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>选项</th>
+            <th>说明</th>
+            <th>示例</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>-p &lt;PID&gt;</code></td>
+            <td>查看指定进程</td>
+            <td><code>lsof -p 1234</code></td>
+          </tr>
+          <tr>
+            <td><code>-u &lt;user&gt;</code></td>
+            <td>查看指定用户</td>
+            <td><code>lsof -u root</code></td>
+          </tr>
+          <tr>
+            <td><code>-i</code></td>
+            <td>查看网络连接</td>
+            <td><code>lsof -i</code></td>
+          </tr>
+          <tr>
+            <td><code>-i:80</code></td>
+            <td>查看端口</td>
+            <td><code>lsof -i:80</code></td>
+          </tr>
+          <tr>
+            <td><code>+D &lt;dir&gt;</code></td>
+            <td>递归查看目录</td>
+            <td><code>lsof +D /tmp</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>FD 字段说明</h3>
+      <div class="info-box info">
+        <p>FD 字段格式：<code>数字 + 模式字母</code></p>
+        <ul style="margin: 10px 0 0 20px;">
+          <li><code>u</code> - 读/写模式打开</li>
+          <li><code>r</code> - 只读</li>
+          <li><code>w</code> - 只写</li>
+          <li><code>txt</code> - 程序代码段</li>
+          <li><code>mem</code> - 内存映射文件</li>
+        </ul>
+      </div>
+
+      <h3>实用案例</h3>
+      <pre><code><span class="comment"># 查看 SSH 连接</span>
+<span class="cmd">lsof -iTCP:22</span>
+
+<span class="comment"># 查看某个用户的所有网络连接</span>
+<span class="cmd">lsof -u www-data -i</span>
+
+<span class="comment"># 查看正在使用 /var/log/syslog 的进程</span>
+<span class="cmd">lsof /var/log/syslog</span>
+
+<span class="comment"># 查看端口 443 上的进程（包含命令）</span>
+<span class="cmd">lsof -i:443 -P -n</span>
+
+<span class="comment"># 找出打开文件最多的进程 TOP 5</span>
+<span class="cmd">lsof 2>/dev/null | awk '{print $2}' | sort | uniq -c | sort -rn | head -5</span></code></pre>
+    </div>
+
+    <!-- Tab 3: Limits -->
+    <div class="tab-content" id="limits">
+      <h2>文件句柄限制配置</h2>
+
+      <h3>三级限制体系</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <h4>🔧 系统级</h4>
+          <p>kernel.filemax<br>所有进程的总限制</p>
+        </div>
+        <div class="card">
+          <h4>👤 用户级</h4>
+          <p>ulimit -n<br>单个用户的限制</p>
+        </div>
+        <div class="card">
+          <h4>📦 进程级</h4>
+          <p>RLIMIT_NOFILE<br>单个进程的限制</p>
+        </div>
+      </div>
+
+      <h3>查看当前限制</h3>
+      <pre><code><span class="comment"># 查看系统最大 FD 数量</span>
+<span class="cmd">cat /proc/sys/fs/file-max</span>
+<span class="comment"># 输出：65536</span>
+
+<span class="comment"># 查看系统 FD 使用情况</span>
+<span class="cmd">cat /proc/sys/fs/file-nr</span>
+<span class="comment"># 输出：1200  0  65536</span>
+<span class="comment"># 含义：已分配 1200 | 分配但未使用 0 | 系统上限 65536</span>
+
+<span class="comment"># 查看当前用户限制</span>
+<span class="cmd">ulimit -n</span>
+<span class="comment"># 输出：1024</span>
+
+<span class="comment"># 查看某个进程的限制</span>
+<span class="cmd">cat /proc/$$/limits</span>
+<span class="comment"># 找到 "Max open files" 行</span></code></pre>
+
+      <h3>修改限制</h3>
+      
+      <h4>临时修改（当前会话）</h4>
+      <pre><code><span class="comment"># 临时提高限制（会话说有效）</span>
+<span class="cmd">ulimit -n 65536</span>
+
+<span class="comment"># 验证</span>
+<span class="cmd">ulimit -n</span></code></pre>
+
+      <h4>永久修改（用户级）</h4>
+      <pre><code><span class="comment"># 编辑 /etc/security/limits.conf</span>
+<span class="comment"># 添加以下两行：</span>
+*               soft    nofile          65536
+*               hard    nofile          65536
+
+<span class="comment"># 然后重新登录或执行</span>
+<span class="cmd">source /etc/security/limits.conf</span></code></pre>
+
+      <h4>永久修改（系统级）</h4>
+      <pre><code><span class="comment"># 临时</span>
+<span class="cmd">echo 200000 > /proc/sys/fs/file-max</span>
+
+<span class="comment"># 永久 - 编辑 /etc/sysctl.conf</span>
+<span class="cmd">echo "fs.file-max = 200000" >> /etc/sysctl.conf</span>
+<span class="cmd">sysctl -p</span></code></pre>
+
+      <div class="info-box warning">
+        <strong>⚠️ 注意：</strong>系统级限制需要 root 权限，修改后可能影响系统稳定性，请谨慎操作。
+      </div>
+    </div>
+
+    <!-- Tab 4: Simulator -->
+    <div class="tab-content" id="simulator">
+      <h2>文件句柄泄露模拟</h2>
+      
+      <p>本模拟器演示如何打开大量文件句柄并观察系统限制的反应。</p>
+
+      <div class="simulator">
+        <h4>🧪 文件句柄模拟器</h4>
+        
+        <div>
+          <label>选择要打开的文件数量：</label>
+          <select id="leak-limit" style="padding: 8px; margin: 10px 0; border-radius: 4px; border: 1px solid var(--border);">
+            <option value="10">10 个文件（安全）</option>
+            <option value="50">50 个文件（安全）</option>
+            <option value="100">100 个文件（注意）</option>
+            <option value="500">500 个文件（危险）</option>
+          </select>
+        </div>
+
+        <div class="progress-bar">
+          <div class="progress-bar-fill" id="sim-progress" style="width: 0%;">
+            <span id="sim-progress-text">0%</span>
+          </div>
+        </div>
+
+        <div class="simulator-log" id="sim-log">
+          <div class="info">▶ 模拟器准备就绪，点击"开始模拟"按钮开始实验...</div>
+        </div>
+
+        <div class="simulator-controls">
+          <button class="btn btn-primary" id="btn-start">🚀 开始模拟</button>
+          <button class="btn btn-danger" id="btn-cleanup" disabled>🧹 清理</button>
+          <button class="btn" id="btn-reset">🔄 重置</button>
+        </div>
+      </div>
+
+      <h3>常见触发场景</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <h4>📁 文件句柄泄露</h4>
+          <p>打开文件后未正确 close()，常见于异常处理未释放资源</p>
+        </div>
+        <div class="card">
+          <h4>🌐 并发连接过多</h4>
+          <p>Web 服务器同时处理大量请求，每个连接占用一个 FD</p>
+        </div>
+        <div class="card">
+          <h4>📝 日志未轮转</h4>
+          <p>日志持续增长，打开大量日志文件描述符</p>
+        </div>
+      </div>
+
+      <h3>各语言 FD 泄漏示例</h3>
+      
+      <h4>Python（错误示例）</h4>
+      <pre><code><span class="comment"># ❌ 错误：打开文件未关闭</span>
+def read_files(filenames):
+    results = []
+    for filename in filenames:
+        f = open(filename, 'r')  <span class="comment"># 打开但 never close!</span>
+        results.append(f.read())
+    return results
+
+<span class="comment"># ✅ 正确：使用 with 语句自动关闭</span>
+def read_files_correct(filenames):
+    results = []
+    for filename in filenames:
+        with open(filename, 'r') as f:
+            results.append(f.read())
+    return results</code></pre>
+
+      <h4>Node.js（错误示例）</h4>
+      <pre><code><span class="comment">// ❌ 错误：未关闭文件流</span>
+const readFiles = async (filenames) => {
+  const streams = filenames.map(f => fs.createReadStream(f));
+  <span class="comment">// streams 永不关闭!</span>
+  return Promise.all(streams.map(s => s.text()));
+};
+
+<span class="comment">// ✅ 正确：使用 pipeline 或手动关闭</span>
+const readFilesCorrect = async (filenames) => {
+  const results = [];
+  for (const filename of filenames) {
+    const stream = fs.createReadStream(filename);
+    const content = await streamToString(stream);
+    stream.close();  <span class="comment">// 手动关闭</span>
+    results.push(content);
+  }
+  return results;
+};</code></pre>
+    </div>
+
+    <!-- Tab 5: Troubleshooting -->
+    <div class="tab-content" id="troubleshooting">
+      <h2>问题排查流程</h2>
+
+      <h3>错误现象</h3>
+      <div class="info-box danger">
+        <ul style="margin: 0;">
+          <li>日志中出现 "Too many open files" 错误</li>
+          <li>新建连接失败（socket 申请 FD 失败）</li>
+          <li>特定服务无法启动</li>
+          <li>系统日志中出现 EMFILE 错误</li>
+        </ul>
+      </div>
+
+      <h3>排查步骤</h3>
+      <pre><code><span class="comment"># Step 1: 确认问题</span>
+<span class="cmd">cat /proc/sys/fs/file-nr</span>
+<span class="comment"># 查看是否接近系统上限</span>
+
+<span class="comment"># Step 2: 找出 FD 使用最多的进程</span>
+<span class="cmd">lsof 2>/dev/null | awk '{print $2}' | sort | uniq -c | sort -rn | head -10</span>
+
+<span class="comment"># Step 3: 查看可疑进程</span>
+<span class="cmd">lsof -p &lt;PID&gt;</span>
+
+<span class="comment"># Step 4: 检查网络连接（可能是 socket 泄露）</span>
+<span class="cmd">lsof -i | wc -l</span>
+
+<span class="comment"># Step 5: 持续监控（观察 FD 增长趋势）</span>
+<span class="cmd">watch -n 1 'lsof -p &lt;PID&gt; | wc -l'</span></code></pre>
+
+      <h3>快速修复</h3>
+      <pre><code><span class="comment"># 方法1: 提高用户限制（临时）</span>
+<span class="cmd">ulimit -n 65536</span>
+
+<span class="comment"># 方法2: 重启问题进程</span>
+<span class="cmd">kill -9 &lt;PID&gt;</span>
+<span class="comment"># 或</span>
+<span class="cmd">systemctl restart &lt;service&gt;</span>
+
+<span class="comment"># 方法3: 如果是文件泄露，查找未关闭的文件</span>
+<span class="cmd">lsof -p &lt;PID&gt; | grep -v "^COMMAND" | awk '{print $NF}' | sort | uniq -c | sort -rn | head</span></code></pre>
+
+      <h3>预防措施</h3>
+      <div class="cards-grid">
+        <div class="card">
+          <h4>✅ 使用 with/try-finally</h4>
+          <p>确保资源在任何情况下都被释放</p>
+        </div>
+        <div class="card">
+          <h4>✅ 监控告警</h4>
+          <p>设置 FD 使用率阈值，超限时告警</p>
+        </div>
+        <div class="card">
+          <h4>✅ 日志轮转</h4>
+          <p>配置 logrotate 避免日志文件无限增长</p>
+        </div>
+        <div class="card">
+          <h4>✅ 连接池</h4>
+          <p>使用连接池管理数据库/网络连接</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 6: Quiz -->
+    <div class="tab-content" id="quiz">
+      <h2>自测题</h2>
+      
+      <div class="quiz-question" data-question="1">
+        <h4>问题 1：文件描述符 FD 0、1、2 分别代表什么？</h4>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="a">
+            A. stdin、stdout、stderr
+          </div>
+          <div class="quiz-option" data-answer="b">
+            B. stdout、stderr、stdin
+          </div>
+          <div class="quiz-option" data-answer="c">
+            C. stderr、stdin、stdout
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-question" data-question="2">
+        <h4>问题 2：查看进程 PID=1234 打开的所有文件的正确命令是？</h4>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="a">
+            A. lsof -p 1234
+          </div>
+          <div class="quiz-option" data-answer="b">
+            B. lsof -u 1234
+          </div>
+          <div class="quiz-option" data-answer="c">
+            C. lsof -i 1234
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-question" data-question="3">
+        <h4>问题 3："Too many open files" 错误的根本原因是？</h4>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="a">
+            A. 进程打开的文件句柄数达到了系统/用户限制
+          </div>
+          <div class="quiz-option" data-answer="b">
+            B. 磁盘空间不足
+          </div>
+          <div class="quiz-option" data-answer="c">
+            C. 内存不足
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-question" data-question="4">
+        <h4>问题 4：查看系统级最大文件句柄数的命令是？</h4>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="a">
+            A. cat /proc/sys/fs/file-max
+          </div>
+          <div class="quiz-option" data-answer="b">
+            B. ulimit -n
+          </div>
+          <div class="quiz-option" data-answer="c">
+            C. lsof | wc -l
+          </div>
+        </div>
+      </div>
+
+      <div class="quiz-question" data-question="5">
+        <h4>问题 5：在 Python 中，哪个是正确的文件操作方式？</h4>
+        <div class="quiz-options">
+          <div class="quiz-option" data-answer="a">
+            A. f = open('file.txt'); f.read(); f.close()
+          </div>
+          <div class="quiz-option" data-answer="b">
+            B. with open('file.txt') as f: f.read()
+          </div>
+          <div class="quiz-option" data-answer="c">
+            C. open('file.txt').read()
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 30px;">
+        <button class="btn btn-primary" id="btn-check-answers">📊 检查答案</button>
+        <span id="quiz-result" style="margin-left: 20px; font-weight: 500;"></span>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>📚 Linux 文件句柄完全指南 | learn-network 仓库</p>
+    </footer>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.dataset.tab;
+        
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        btn.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+      });
+    });
+
+    // Quiz
+    const answers = {
+      1: 'a',  // stdin, stdout, stderr
+      2: 'a',  // lsof -p
+      3: 'a',  // FD limit reached
+      4: 'a',  // file-max
+      5: 'b'   // with statement
+    };
+
+    document.querySelectorAll('.quiz-option').forEach(option => {
+      option.addEventListener('click', () => {
+        const question = option.closest('.quiz-question');
+        const opts = question.querySelectorAll('.quiz-option');
+        opts.forEach(o => o.classList.remove('correct', 'incorrect'));
+        option.classList.add('selected');
+      });
+    });
+
+    document.getElementById('btn-check-answers').addEventListener('click', () => {
+      let correct = 0;
+      const questions = document.querySelectorAll('.quiz-question');
+      
+      questions.forEach(q => {
+        const qNum = q.dataset.question;
+        const selected = q.querySelector('.quiz-option.selected');
+        const opts = q.querySelectorAll('.quiz-option');
+        
+        opts.forEach(o => o.classList.remove('correct', 'incorrect'));
+        
+        if (selected) {
+          if (selected.dataset.answer === answers[qNum]) {
+            selected.classList.add('correct');
+            correct++;
+          } else {
+            selected.classList.add('incorrect');
+            // Show correct answer
+            opts.forEach(o => {
+              if (o.dataset.answer === answers[qNum]) {
+                o.classList.add('correct');
+              }
+            });
+          }
+        }
+      });
+      
+      const total = Object.keys(answers).length;
+      document.getElementById('quiz-result').textContent = 
+        `正确 ${correct}/${total}`;
+    });
+
+    // Simulator
+    const simLog = document.getElementById('sim-log');
+    const simProgress = document.getElementById('sim-progress');
+    const simProgressText = document.getElementById('sim-progress-text');
+    const btnStart = document.getElementById('btn-start');
+    const btnCleanup = document.getElementById('btn-cleanup');
+    const btnReset = document.getElementById('btn-reset');
+    
+    let openFds = [];
+    let isSimulating = false;
+    let simulationInterval = null;
+
+    function addLog(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      simLog.appendChild(div);
+      simLog.scrollTop = simLog.scrollHeight;
+    }
+
+    function updateProgress(current, total) {
+      const percent = Math.round((current / total) * 100);
+      simProgress.style.width = percent + '%';
+      simProgressText.textContent = `${current}/${total} (${percent}%)`;
+    }
+
+    btnStart.addEventListener('click', () => {
+      if (isSimulating) return;
+      
+      const limit = parseInt(document.getElementById('leak-limit').value);
+      isSimulating = true;
+      openFds = [];
+      
+      addLog(`🚀 开始模拟：计划打开 ${limit} 个文件句柄`, 'info');
+      btnStart.disabled = true;
+      btnCleanup.disabled = false;
+      
+      let count = 0;
+      const baseLimit = 1024; // 假设 ulimit -n = 1024
+      
+      simulationInterval = setInterval(() => {
+        if (count >= limit) {
+          clearInterval(simulationInterval);
+          isSimulating = false;
+          
+          if (limit > baseLimit * 0.8) {
+            addLog(`⚠️ 警告：已打开 ${count} 个文件，接近限制 ${baseLimit}`, 'warn');
+            addLog(`🔴 错误：EMFILE - Too many open files`, 'error');
+            addLog(`💡 解决方案：增加 ulimit -n 或修复代码中的 FD 泄露`, 'warn');
+          } else {
+            addLog(`✅ 成功打开 ${count} 个文件句柄（安全范围内）`, 'success');
+          }
+          btnStart.disabled = false;
+          return;
+        }
+        
+        // 模拟打开文件
+        const fd = count + 100; // 模拟 FD 编号
+        openFds.push(fd);
+        addLog(`📂 Opened FD ${fd}: /tmp/fd_test_${count}.txt`);
+        
+        count++;
+        updateProgress(count, limit);
+      }, 30);
+    });
+
+    btnCleanup.addEventListener('click', () => {
+      addLog('🧹 开始清理文件句柄...', 'info');
+      
+      let count = 0;
+      const cleanupInterval = setInterval(() => {
+        if (count >= open

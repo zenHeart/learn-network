@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>乐观锁 vs 悲观锁 — 交互式演示</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --card: #13131a;
+      --border: #2a2a3a;
+      --text: #e0e0f0;
+      --muted: #8888a0;
+      --accent: #7c6aef;
+      --pessimistic: #ef6a6a;
+      --optimistic: #6aefef;
+      --success: #6aef8a;
+      --warning: #efef6a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { text-align: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tab-btn { padding: 0.5rem 1.2rem; background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 0.85rem; transition: all 0.2s; }
+    .tab-btn:hover { border-color: var(--accent); color: var(--text); }
+    .tab-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.2rem; }
+    .card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; }
+    .badge-pessimistic { background: rgba(239,106,106,0.2); color: var(--pessimistic); }
+    .badge-optimistic { background: rgba(106,239,239,0.2); color: var(--optimistic); }
+    .badge-success { background: rgba(106,239,138,0.2); color: var(--success); }
+    .badge-warning { background: rgba(239,239,106,0.2); color: var(--warning); }
+    .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 640px) { .comparison-grid { grid-template-columns: 1fr; } }
+    .lock-diagram { font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.82rem; background: #0d0d14; border-radius: 8px; padding: 1rem; overflow-x: auto; margin-bottom: 1rem; white-space: pre; line-height: 1.8; }
+    .pessimistic-diagram { border-left: 3px solid var(--pessimistic); }
+    .optimistic-diagram { border-left: 3px solid var(--optimistic); }
+    .code-block { background: #0d0d14; border-radius: 8px; padding: 1rem; overflow-x: auto; font-family: 'Fira Code', 'Consolas', monospace; font-size: 0.8rem; line-height: 1.7; margin-bottom: 1rem; }
+    .code-block .keyword { color: #c792ea; }
+    .code-block .string { color: #a6e22e; }
+    .code-block .comment { color: #75715e; }
+    .code-block .function { color: #66d9ef; }
+    .code-block .number { color: #fd971f; }
+    .code-block .type { color: #ae81ff; }
+    .demo-controls { display: flex; gap: 0.75rem; justify-content: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .demo-btn { padding: 0.6rem 1.5rem; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer; font-size: 0.85rem; font-weight: 600; transition: all 0.2s; }
+    .demo-btn:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-1px); }
+    .demo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .demo-btn.primary { background: var(--accent); border-color: var(--accent); }
+    .demo-btn.pessimistic-btn { border-color: var(--pessimistic); color: var(--pessimistic); }
+    .demo-btn.optimistic-btn { border-color: var(--optimistic); color: var(--optimistic); }
+    .demo-state { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+    @media (max-width: 640px) { .demo-state { grid-template-columns: 1fr; } }
+    .state-box { background: #0d0d14; border-radius: 8px; padding: 1rem; text-align: left; }
+    .state-box h4 { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 500; }
+    .state-value { font-size: 2rem; font-weight: 700; font-family: 'Fira Code', monospace; }
+    .state-value.balance { color: var(--success); }
+    .state-value.version { color: var(--accent); }
+    .state-value.lock { color: var(--pessimistic); }
+    .state-value.mode-badge { display: inline-block; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 1rem; margin-top: 0.3rem; }
+    .mode-optimistic { background: rgba(106,239,239,0.15); color: var(--optimistic); }
+    .mode-pessimistic { background: rgba(239,106,106,0.15); color: var(--pessimistic); }
+    .log-box { background: #0d0d14; border-radius: 8px; padding: 1rem; max-height: 280px; overflow-y: auto; font-family: 'Fira Code', monospace; font-size: 0.78rem; text-align: left; line-height: 1.8; }
+    .log-line { display: flex; gap: 0.5rem; margin-bottom: 0.1rem; }
+    .log-time { color: var(--muted); min-width: 55px; }
+    .log-tx-a { color: var(--pessimistic); }
+    .log-tx-b { color: var(--optimistic); }
+    .log-success { color: var(--success); }
+    .log-conflict { color: var(--warning); }
+    .log-wait { color: var(--muted); }
+    .log-info { color: var(--accent); }
+    .summary-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1rem 0; }
+    .summary-table th, .summary-table td { padding: 0.6rem 0.8rem; border: 1px solid var(--border); text-align: left; }
+    .summary-table th { background: #0d0d14; color: var(--muted); font-weight: 500; }
+    .summary-table td { background: var(--card); }
+    .flow-chart { background: #0d0d14; border-radius: 8px; padding: 1.5rem; margin: 1rem 0; }
+    .flow-row { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+    .flow-node { padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600; text-align: center; min-width: 80px; }
+    .flow-start { background: var(--accent); color: #fff; }
+    .flow-lock { background: var(--pessimistic); color: #fff; }
+    .flow-check { background: var(--optimistic); color: #000; }
+    .flow-success { background: var(--success); color: #000; }
+    .flow-retry { background: var(--warning); color: #000; }
+    .flow-arrow { color: var(--muted); font-size: 1.2rem; }
+    .quiz-box { background: #0d0d14; border-radius: 8px; padding: 1.2rem; margin: 1rem 0; }
+    .quiz-question { font-weight: 600; margin-bottom: 0.8rem; }
+    .quiz-options { display: flex; flex-direction: column; gap: 0.5rem; }
+    .quiz-option { padding: 0.6rem 1rem; background: var(--card); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.85rem; transition: all 0.2s; text-align: left; }
+    .quiz-option:hover:not(.selected) { border-color: var(--accent); }
+    .quiz-option.selected.correct { border-color: var(--success); background: rgba(106,239,138,0.1); }
+    .quiz-option.selected.wrong { border-color: var(--pessimistic); background: rgba(239,106,106,0.1); }
+    .quiz-result { margin-top: 0.8rem; padding: 0.8rem; border-radius: 6px; font-size: 0.85rem; display: none; }
+    .quiz-result.show { display: block; }
+    .quiz-result.correct { background: rgba(106,239,138,0.1); color: var(--success); }
+    .quiz-result.wrong { background: rgba(239,106,106,0.1); color: var(--pessimistic); }
+    .scenario-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; margin: 1rem 0; }
+    .scenario-card { background: #0d0d14; border-radius: 8px; padding: 1rem; }
+    .scenario-card h4 { font-size: 0.85rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+    .scenario-card p { font-size: 0.8rem; color: var(--muted); }
+    .progress-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 1rem; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--success); transition: width 0.3s; }
+    .reset-info { text-align: center; margin-top: 1rem; font-size: 0.8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>🔐 乐观锁 vs 悲观锁 — 交互式演示</h1>
+  <p class="subtitle">理解并发控制的两种核心策略：通过可视化动画、代码示例和动手实验</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">📖 概念总览</button>
+  <button class="tab-btn" data-tab="pessimistic">🔴 悲观锁</button>
+  <button class="tab-btn" data-tab="optimistic">🔵 乐观锁</button>
+  <button class="tab-btn" data-tab="interactive">🧪 交互实验</button>
+  <button class="tab-btn" data-tab="compare">⚖️ 对比选择</button>
+  <button class="tab-btn" data-tab="quiz">📝 自测题</button>
+</div>
+
+<!-- ========== 概念总览 ========== -->
+<div class="tab-content active" id="tab-overview">
+  <div class="card">
+    <h3>💡 核心概念</h3>
+    <div class="comparison-grid">
+      <div style="background:#0d0d14;border-radius:8px;padding:1rem;border-left:3px solid var(--pessimistic);">
+        <h4 style="color:var(--pessimistic);margin-bottom:0.5rem;font-size:0.9rem;">🔴 悲观锁</h4>
+        <p style="font-size:0.82rem;color:var(--muted);">"先加锁再操作" — 悲观的认为数据一定会被并发修改</p>
+        <ul style="font-size:0.82rem;color:var(--muted);margin-top:0.5rem;padding-left:1.2rem;">
+          <li>冲突处理：阻塞等待</li>
+          <li>适用：冲突频繁场景</li>
+        </ul>
+      </div>
+      <div style="background:#0d0d14;border-radius:8px;padding:1rem;border-left:3px solid var(--optimistic);">
+        <h4 style="color:var(--optimistic);margin-bottom:0.5rem;font-size:0.9rem;">🔵 乐观锁</h4>
+        <p style="font-size:0.82rem;color:var(--muted);">"先操作后检查" — 乐观的认为冲突很少见</p>
+        <ul style="font-size:0.82rem;color:var(--muted);margin-top:0.5rem;padding-left:1.2rem;">
+          <li>冲突处理：版本检测 + 重试</li>
+          <li>适用：冲突较少场景</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🔄 执行流程对比</h3>
+    <div class="flow-chart">
+      <div style="margin-bottom:1.5rem;">
+        <h4 style="font-size:0.85rem;color:var(--pessimistic);margin-bottom:0.5rem;">悲观锁：先锁后操作</h4>
+        <div class="flow-row">
+          <div class="flow-node flow-start">开始</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node flow-lock">获取锁</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="background:#3a3a4a;color:var(--text)">操作</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node flow-lock">释放锁</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node flow-success">成功</div>
+        </div>
+      </div>
+      <div>
+        <h4 style="font-size:0.85rem;color:var(--optimistic);margin-bottom:0.5rem;">乐观锁：操作后检查版本</h4>
+        <div class="flow-row">
+          <div class="flow-node flow-start">开始</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node" style="background:#3a3a4a;color:var(--text)">操作</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node flow-check">检查版本</div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node flow-success">✅ 成功</div>
+          <span class="flow-arrow">↺</span>
+          <div class="flow-node flow-retry">❌ 重试</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📊 典型场景</h3>
+    <div class="scenario-grid">
+      <div class="scenario-card">
+        <h4>💰 金融余额扣减 <span class="badge badge-pessimistic">悲观锁</span></h4>
+        <p>一致性要求极高，扣成负数后果严重</p>
+      </div>
+      <div class="scenario-card">
+        <h4>📦 电商库存 <span class="badge badge-warning">混合</span></h4>
+        <p>高并发秒杀，乐观锁优先+悲观锁兜底</p>
+      </div>
+      <div class="scenario-card">
+        <h4>👤 用户资料更新 <span class="badge badge-optimistic">乐观锁</span></h4>
+        <p>各自修改自己的数据，冲突概率极低</p>
+      </div>
+      <div class="scenario-card">
+        <h4>🎫 座位预订 <span class="badge badge-pessimistic">悲观锁</span></h4>
+        <p>超卖后果严重，SELECT FOR UPDATE</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 悲观锁详解 ========== -->
+<div class="tab-content" id="tab-pessimistic">
+  <div class="card">
+    <h3>🔴 悲观锁实现方式</h3>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;color:var(--pessimistic);">1. 数据库行锁</h4>
+    <div class="code-block"><span class="keyword">SELECT</span> balance <span class="keyword">FROM</span> accounts <span class="keyword">WHERE</span> user_id = <span class="number">1</span> <span class="keyword">FOR UPDATE</span>;
+<span class="comment">-- 其他事务读取/修改同一行会被阻塞</span></div>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;color:var(--pessimistic);">2. Redis 分布式锁</h4>
+    <div class="code-block"><span class="keyword">const</span> lock = <span class="keyword">await</span> redis.<span class="function">set</span>(<span class="string">'order:lock:1'</span>, uuid, <span class="string">'NX'</span>, <span class="string">'PX'</span>, <span class="number">30000</span>);
+<span class="keyword">if</span> (lock === <span class="string">'OK'</span>) {
+  <span class="keyword">try</span> { <span class="comment">/* 业务操作 */</span> } 
+  <span class="keyword">finally</span> { <span class="keyword">await</span> redis.<span class="function">eval</span>(unlockScript, <span class="number">1</span>, lockKey, uuid); }
+}</div>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;color:var(--pessimistic);">3. 死锁避免：统一加锁顺序</h4>
+    <div class="code-block"><span class="comment">// ✅ 正确：统一按 ID 大小排序</span>
+<span class="type">Long</span> first = Math.<span class="function">min</span>(fromId, toId);
+<span class="type">Long</span> second = Math.<span class="function">max</span>(fromId, toId);
+<span class="function">lock</span>(first); <span class="function">lock</span>(second);</div>
+  </div>
+  <div class="card">
+    <h3>⏱️ 悲观锁时序</h3>
+    <div class="pessimistic-diagram lock-diagram">TX-A (🔴)                         TX-B (🟡)
+────────────────────────────────────────────────────
+START
+│
+├─ SELECT ... FOR UPDATE 🔒
+│
+│                           START
+│                           ├─ SELECT ... FOR UPDATE
+│                           │   └─ ⏳ 等待锁...
+│
+├─ UPDATE balance
+├─ COMMIT 🔓
+│
+│                           │  🔒 获取锁
+│                           ├─ SELECT (读取TX-A更新后的值)
+│                           ├─ UPDATE
+│                           └─ COMMIT</div>
+  </div>
+  <div class="card">
+    <h3>⚠️ 常见问题</h3>
+    <table class="summary-table">
+      <thead><tr><th>问题</th><th>描述</th><th>解决方案</th></tr></thead>
+      <tbody>
+        <tr><td>🔴 死锁</td><td>A锁X等Y，B锁Y等X</td><td>统一顺序 + 超时</td></tr>
+        <tr><td>🔴 性能瓶颈</td><td>锁持有时间长</td><td>减少粒度</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== 乐观锁详解 ========== -->
+<div class="tab-content" id="tab-optimistic">
+  <div class="card">
+    <h3>🔵 乐观锁实现方式</h3>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;color:var(--optimistic);">1. 版本号机制</h4>
+    <div class="code-block"><span class="comment">-- 读取: SELECT balance, version FROM accounts WHERE id=1;</span>
+<span class="comment">-- 返回: balance=1000, version=5</span>
+
+<span class="keyword">UPDATE</span> accounts
+<span class="keyword">SET</span>    balance = balance - <span class="number">100</span>,
+          version = version + <span class="number">1</span>
+<span class="keyword">WHERE</span> id = <span class="number">1</span> <span class="keyword">AND</span> version = <span class="number">5</span>;
+<span class="comment">-- rows=1 → 成功 | rows=0 → 冲突!</span></div>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;color:var(--optimistic);">2. CAS — CPU 级别无锁</h4>
+    <div class="code-block"><span class="keyword">int</span> current;
+<span class="keyword">do</span> {
+  current = <span class="function">get</span>();
+} <span class="keyword">while</span> (!<span class="function">compareAndSet</span>(current, current + <span class="number">1</span>));
+<span class="comment">// CAS 失败则循环重试</span></div>
+  </div>
+  <div class="card">
+    <h3>⏱️ 乐观锁时序</h3>
+    <div class="optimistic-diagram lock-diagram">TX-A (🔵)                         TX-B (🟢)
+────────────────────────────────────────────────────
+START
+│
+├─ SELECT bal=1000, v=5
+│
+│                           START
+│                           ├─ SELECT bal=1000, v=5
+│
+├─ UPDATE ... WHERE v=5 → ✓ 成功(v=6)
+├─ COMMIT
+│
+│                           ├─ UPDATE ... WHERE v=5 → ✗ 失败!(v=6)
+│                           │  ⚠️ 乐观锁冲突!
+│                           ├─ 重读: SELECT bal=900, v=6
+│                           ├─ UPDATE ... WHERE v=6 → ✓ 成功
+│                           └─ COMMIT</div>
+  </div>
+  <div class="card">
+    <h3>⚠️ 常见问题</h3>
+    <table class="summary-table">
+      <thead><tr><th>问题</th><th>描述</th><th>解决方案</th></tr></thead>
+      <tbody>
+        <tr><td>❗ ABA 问题</td><td>A→B→A，CAS通过但实际被改过</td><td>版本号扩展CAS</td></tr>
+        <tr><td>⚠️ 重试风暴</td><td>热点行大量并发重试</td><td>限流 + 退避策略</td></tr>
+        <tr><td>⚠️ 无界重试</td><td>冲突持续时无限循环</td><td>最大重试次数</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== 交互实验 ========== -->
+<div class="tab-content" id="tab-interactive">
+  <div class="card">
+    <h3>🧪 并发扣款模拟</h3>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1.5rem;">模拟两个事务同时从账户扣款，观察锁的不同行为</p>
+
+    <div class="demo-state">
+      <div class="state-box">
+        <h4>💰 账户余额</h4>
+        <div class="state-value balance" id="balance">1000</div>
+      </div>
+      <div class="state-box">
+        <h4>🏷️ 版本号</h4>
+        <div class="state-value version" id="version">1</div>
+      </div>
+      <div class="state-box">
+        <h4>🔒 锁状态</h4>
+        <div class="state-value lock" id="lock-status">未锁定</div>
+      </div>
+      <div class="state-box">
+        <h4>📊 当前模式</h4>
+        <div>
+          <span class="state-value mode-badge mode-optimistic" id="mode-badge">乐观锁</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-controls">
+      <button class="demo-btn" id="toggle-mode-btn" onclick="toggleMode()">切换: 乐观锁 ↔ 悲观锁</button>
+      <button class="demo-btn primary" id="reset-btn" onclick="resetDemo()">🔄 重置</button>
+    </div>
+
+    <div class="demo-controls" style="margin-bottom:1rem;">
+      <button class="demo-btn pessimistic-btn" id="pessimistic-btn" onclick="runPessimistic()">🔴 悲观锁: 事务A扣100</button>
+      <button class="demo-btn optimistic-btn" id="optimistic-btn" onclick="runOptimistic()">🔵 乐观锁: 事务B扣100</button>
+      <button class="demo-btn" id="concurrent-btn" onclick="runConcurrent()">⚡ 并发执行</button>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+
+    <div class="log-box" id="log-box"></div>
+    <div class="reset-info">余额 < 0 时需要重置 | 版本号表示乐观锁检测到冲突的次数</div>
+  </div>
+</div>
+
+<!-- ========== 对比选择 ========== -->
+<div class="tab-content" id="tab-compare">
+  <div class="card">
+    <h3>⚖️ 核心区别对比</h3>
+    <table class="summary-table">
+      <thead><tr><th>维度</th><th>乐观锁</th><th>悲观锁</th></tr></thead>
+      <tbody>
+        <tr><td>策略</td><td>先操作，后验证</td><td>先加锁，后操作</td></tr>
+        <tr><td>实现</td><td>版本号 / CAS</td><td>数据库锁 / 分布式锁</td></tr>
+        <tr><td>冲突处理</td><td>重试 / 回滚</td><td>阻塞等待</td></tr>
+        <tr><td>性能</td><td>冲突少时高效</td><td>冲突多时低效</td></tr>
+        <tr><td>适用</td><td>读多写少</td><td>写多读少</td></tr>
+        <tr><td>死锁风险</td><td>无</td><td>有</td></tr>
+        <tr><td>适用并发</td><td>高并发</td><td>低并发</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🌲 选型决策树</h3>
+    <div class="scenario-grid">
+      <div class="scenario-card">
+        <h4>❓ 问题：冲突频率高吗？</h4>
+        <p><strong style="color:var(--success)">否</strong> → 冲突少，优先乐观锁</p>
+        <p><strong style="color:var(--pessimistic)">是</strong> → 继续判断...</p>
+      </div>
+      <div class="scenario-card">
+        <h4>❓ 一致性要求高吗？</h4>
+        <p><strong style="color:var(--pessimistic)">是</strong> → 必须精确 → 悲观锁</p>
+        <p><strong style="color:var(--success)">否</strong> → 最终一致 → 混合方案</p>
+      </div>
+    </div>
+    <h4 style="font-size:0.85rem;margin:1rem 0 0.5rem;">📌 快速决策</h4>
+    <table class="summary-table">
+      <thead><tr><th>场景</th><th>推荐</th></tr></thead>
+      <tbody>
+        <tr><td>余额扣减、金融交易</td><td><span class="badge badge-pessimistic">悲观锁</span></td></tr>
+        <tr><td>库存秒杀（高并发）</td><td><span class="badge badge-warning">混合</span> 乐观锁优先 + 悲观锁兜底</td></tr>
+        <tr><td>用户资料更新</td><td><span class="badge badge-optimistic">乐观锁</span></td></tr>
+        <tr><td>座位/资源预订</td><td><span class="badge badge-pessimistic">悲观锁</span></td></tr>
+        <tr><td>配置读取</td><td><span class="badge badge-optimistic">乐观锁</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ========== 自测题 ========== -->
+<div class="tab-content" id="tab-quiz">
+  <div class="card">
+    <h3>📝 自测题</h3>
+    <div class="quiz-box">
+      <div class="quiz-question">Q1: 乐观锁用什么机制检测冲突？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">A. 锁等待机制</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)">B. 版本号 / CAS 比较</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">C. 数据库行锁</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">D. 分布式协调服务</div>
+      </div>
+      <div class="quiz-result" id="result-q1"></div>
+    </div>
+
+    <div class="quiz-box">
+      <div class="quiz-question">Q2: 以下哪个场景最适合用悲观锁？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">A. 用户修改自己的昵称</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">B. 读取博客文章列表</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)">C. 银行账户余额扣减</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">D. 更新商品浏览量</div>
+      </div>
+      <div class="quiz-result" id="result-q2"></div>
+    </div>
+
+    <div class="quiz-box">
+      <div class="quiz-question">Q3: 乐观锁的重试率突然升到 30%，说明什么？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">A. 系统非常健康</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)">B. 热点行并发过高，需重新评估方案</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">C. 应该换成悲观锁</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">D. 正常现象，无需处理</div>
+      </div>
+      <div class="quiz-result" id="result-q3"></div>
+    </div>
+
+    <div class="quiz-box">
+      <div class="quiz-question">Q4: 悲观锁在多事务按不同顺序获取多把锁时会发生什么？</div>
+      <div class="quiz-options">
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">A. 性能提升</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">B. 正常执行</div>
+        <div class="quiz-option" data-correct="true" onclick="selectOption(this)">C. 可能死锁</div>
+        <div class="quiz-option" data-correct="false" onclick="selectOption(this)">D. 乐观锁冲突</div>
+      </div>
+      <div class="quiz-result" id="result-q4"></div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============ Tab Navigation ============
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============ Interactive Demo ============
+let state = { balance: 1000, version: 1, locked: false, mode: 'optimistic' };
+let logLines = [];
+let animating = false;
+
+function log(msg, type = 'info') {
+  const time = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+  logLines.push(`<div class="log-line"><span class="log-time">${time}</span><span class="log-${type}">${msg}</span></div>`);
+  
+document.getElementById('log-box').innerHTML = logLines.join('');
+  document.getElementById('log-box').scrollTop = document.getElementById('log-box').scrollHeight;
+}
+
+function updateUI() {
+  document.getElementById('balance').textContent = state.balance;
+  document.getElementById('version').textContent = state.version;
+  document.getElementById('lock-status').textContent = state.locked ? '🔒 已锁定' : '未锁定';
+  const badge = document.getElementById('mode-badge');
+  badge.textContent = state.mode === 'optimistic' ? '乐观锁' : '悲观锁';
+  badge.className = 'state-value mode-badge ' + (state.mode === 'optimistic' ? 'mode-optimistic' : 'mode-pessimistic');
+}
+
+function delay(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
+
+function resetDemo() {
+  state = { balance: 1000, version: 1, locked: false, mode: state.mode };
+  logLines = [];
+  document.getElementById('log-box').innerHTML = '';
+  document.getElementById('progress-fill').style.width = '0%';
+  updateUI();
+  setButtons(true);
+  animating = false;
+  log('🔄 系统重置，余额=1000，版本=1', 'info');
+}
+
+function toggleMode() {
+  state.mode = state.mode === 'optimistic' ? 'pessimistic' : 'optimistic';
+  updateUI();
+  log('⚙️ 切换为: ' + (state.mode === 'optimistic' ? '乐观锁模式' : '悲观锁模式'), 'info');
+}
+
+function setButtons(enabled) {
+  document.getElementById('pessimistic-btn').disabled = !enabled;
+  document.getElementById('optimistic-btn').disabled = !enabled;
+  document.getElementById('concurrent-btn').disabled = !enabled;
+}
+
+async function runPessimistic() {
+  if (animating || state.balance < 100) {
+    if (state.balance < 100) log('❌ 余额不足，无法扣款', 'conflict');
+    return;
+  }
+  animating = true;
+  setButtons(false);
+  var fill = document.getElementById('progress-fill');
+
+  log('TX-A 🔴 开始悲观锁扣款...', 'tx-a');
+  fill.style.width = '20%';
+
+  log('TX-A 🔴 SELECT ... FOR UPDATE (等待获取锁...)', 'wait');
+  await delay(600);
+  state.locked = true;
+  updateUI();
+
+  fill.style.width = '50%';
+  log('TX-A 🔴 锁获取成功，执行 UPDATE balance=balance-100', 'tx-a');
+  await delay(600);
+  state.balance -= 100;
+  updateUI();
+
+  fill.style.width = '80%';
+  log('TX-A 🔴 COMMIT → 释放锁', 'tx-a');
+  await delay(400);
+  state.locked = false;
+  updateUI();
+
+  fill.style.width = '100%';
+  await delay(300);
+  fill.style.width = '0%';
+  log('✅ TX-A 成功，余额=' + state.balance, 'success');
+
+  animating = false;
+  setButtons(true);
+}
+
+async function runOptimistic() {
+  if (animating || state.balance < 100) {
+    if (state.balance < 100) log('❌ 余额不足，无法扣款', 'conflict');
+    return;
+  }
+  animating = true;
+  setButtons(false);
+  var fill = document.getElementById('progress-fill');
+
+  var currentVersion = state.version;
+  log('TX-B 🔵 开始乐观锁扣款 (读取版本=' + currentVersion + ')', 'tx-b');
+  fill.style.width = '20%';
+  await delay(500);
+
+  fill.style.width = '50%';
+  log('TX-B 🔵 执行 UPDATE ... WHERE version=' + currentVersion, 'tx-b');
+  await delay(500);
+
+  if (state.version === currentVersion) {
+    state.balance -= 100;
+    state.version += 1;
+    updateUI();
+    fill.style.width = '80%';
+    log('TX-B 🔵 版本匹配，扣款成功! 版本 ' + currentVersion + '→' + state.version, 'success');
+  } else {
+    log('TX-B 🔵 ⚠️ 版本冲突! 期望 ' + currentVersion + ' 实际 ' + state.version, 'conflict');
+    await delay(400);
+    log('TX-B 🔵 ↻ 重试: 重新读取版本=' + state.version, 'wait');
+    await delay(500);
+    if (state.balance >= 100) {
+      state.balance -= 100;
+      state.version += 1;
+      updateUI();
+      log('TX-B 🔵 ✅ 重试成功! 余额=' + state.balance, 'success');
+    } else {
+      log('TX-B 🔵 ❌ 重试失败: 余额不足', 'conflict');
+    }
+  }
+
+  fill.style.width = '100%';
+  await delay(300);
+  fill.style.width = '0%';
+  animating = false;
+  setButtons(true);
+}
+
+async function runConcurrent() {
+  if (animating || state.balance < 200) {
+    if (state.balance < 200) log('❌ 余额不足200，无法并发测试', 'conflict');
+    return;
+  }
+  animating = true;
+  setButtons(false);
+  var fill = document.getElementById('progress-fill');
+
+  log('⚡ 并发执行: TX-A(悲观锁) + TX-B(乐观锁) 同时扣100', 'info');
+  fill.style.width = '15%';
+
+  if (state.mode === 'pessimistic') {
+    await delay(200);
+    log('TX-A 🔴 锁定账户...', 'tx-a');
+    state.locked = true;
+    updateUI();
+    await delay(400);
+    log('TX-A 🔴 执行扣款...', 'tx-a');
+    state.balance -= 100;
+    updateUI();
+    await delay(400);
+    log('TX-A 🔴 提交并释放锁', 'tx-a');
+    state.locked = false;
+    updateUI();
+    await delay(300);
+    log('TX-B 🔵 等待锁... (被阻塞)', 'tx-b');
+    await delay(600);
+    log('TX-B 🔵 获取锁，执行扣款...', 'tx-b');
+    state.balance -= 100;
+    state.version += 1;
+    updateUI();
+    await delay(300);
+    log('TX-B 🔵 提交', 'tx-b');
+    log('✅ 并发完成! 余额=' + state.balance + ' 版本=' + state.version, 'success');
+  } else {
+    var v1 = state.version;
+    var v2 = state.version;
+    await delay(400);
+    log('TX-A 🔴 执行 UPDATE WHERE version=' + v1, 'tx-a');
+    log('TX-B 🔵 执行 UPDATE WHERE version=' + v2 + ' (同时!)', 'tx-b');
+    await delay(400);
+
+    state.balance -= 100;
+    state.version += 1;
+    updateUI();
+    log('TX-A 🔴 版本匹配 ✓ 扣款成功 (v=' + v1 + '→' + state.version + ')', 'success');
+    await delay(300);
+
+    log('TX-B 🔵 ❌ 版本冲突! (期望 v=' + v2 + ' 实际 v=' + state.version + ')', 'conflict');
+    await delay(300);
+    log('TX-B 🔵 ↻ 重试: 新版本=' + state.version, 'wait');
+    await delay(400);
+    state.balance -= 100;
+    state.version += 1;
+    updateUI();
+    log('TX-B 🔵 ✅ 重试成功! 余额=' + state.balance, 'success');
+    log('⚡ 并发完成! 余额=' + state.balance + ' 版本=' + state.version, 'info');
+  }
+
+  fill.style.width = '100%';
+  await delay(300);
+  fill.style.width = '0%';
+  animating = false;
+  setButtons(true);
+}
+
+function selectOption(el) {
+  var box = el.parentElement.parentElement;
+  box.querySelectorAll('.quiz-option').forEach(function(opt) { opt.classList.remove('selected'); });
+  el.classList.add('selected');
+
+  var boxId = box.parentElement.id;
+  var qnum = boxId.split('-')[1];
+  var resultId = 'result-q' + qnum;
+  var resultEl = document.getElementById(resultId);
+  var isCorrect = el.dataset.correct === 'true';
+
+  resultEl.className = 'quiz-result show ' + (isCorrect ? 'correct' : 'wrong');
+  var correctAnswer = box.querySelector('[data-correct="true"]').textContent;
+  resultEl.textContent = isCorrect ? '✅ 正确!' : '❌ 不对。正确答案是: ' + correctAnswer;
+}
+
+updateUI();
+log('🔄 演示已就绪，请选择操作', 'info');
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CORS 多域名 Access-Control-Allow-Origin 交互演示</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --primary-light: #818cf8;
+            --success: #10b981;
+            --success-light: #34d399;
+            --warning: #f59e0b;
+            --warning-light: #fbbf24;
+            --danger: #ef4444;
+            --danger-light: #f87171;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #273449;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #475569;
+            --border-light: #2d3748;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.7;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        header {
+            text-align: center;
+            padding: 35px 0 25px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 30px;
+        }
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+        h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary-light), var(--success-light));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+        .subtitle { color: var(--text-secondary); font-size: 1.05rem; }
+
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 25px;
+            background: var(--bg-card);
+            padding: 8px;
+            border-radius: 14px;
+            border: 1px solid var(--border-light);
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.25s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .tab-btn:hover { background: var(--bg-input); color: var(--text-primary); }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-light);
+            border-radius: 14px;
+            padding: 26px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: var(--border); }
+        .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+        .card-icon.blue { background: rgba(99, 102, 241, 0.15); }
+        .card-icon.green { background: rgba(16, 185, 129, 0.15); }
+        .card-icon.red { background: rgba(239, 68, 68, 0.15); }
+        .card-icon.yellow { background: rgba(245, 158, 11, 0.15); }
+        .card-icon.purple { background: rgba(168, 85, 247, 0.15); }
+        .card h2 { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
+        .card p { color: var(--text-secondary); margin-bottom: 14px; font-size: 0.95rem; }
+        .card h3 { font-size: 1rem; color: var(--text-primary); margin: 20px 0 10px; font-weight: 600; }
+
+        .alert {
+            padding: 16px 18px;
+            border-radius: 10px;
+            margin: 14px 0;
+            font-size: 0.9rem;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+        .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: var(--danger-light); }
+        .alert-success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--success-light); }
+        .alert-warning { background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); color: var(--warning-light); }
+        .alert-info { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.25); color: var(--primary-light); }
+
+        .code-block { background: #0d1117; border-radius: 10px; margin: 14px 0; overflow: hidden; border: 1px solid var(--border-light); }
+        .code-header { background: var(--bg-input); padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); }
+        .code-lang { color: var(--text-muted); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+        .copy-btn { background: var(--primary); border: none; padding: 5px 12px; border-radius: 5px; color: white; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: background 0.2s; }
+        .copy-btn:hover { background: var(--primary-dark); }
+        .copy-btn.copied { background: var(--success); }
+        .code-content { padding: 14px 16px; overflow-x: auto; font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.6; color: #e6edf3; }
+        .code-content .c { color: #8b949e; }
+        .code-content .k { color: #ff7b72; }
+        .code-content .s { color: #a5d6ff; }
+        .code-content .fn { color: #d2a8ff; }
+        .code-content .v { color: #ffa657; }
+        .code-content .n { color: #79c0ff; }
+
+        .data-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.9rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-light); }
+        .data-table th { background: var(--bg-input); color: var(--text-primary); padding: 11px 14px; text-align: left; font-weight: 600; }
+        .data-table td { padding: 10px 14px; color: var(--text-secondary); border-top: 1px solid var(--border-light); }
+        .data-table tr:hover td { background: var(--bg-card-hover); }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-red { background: rgba(239, 68, 68, 0.15); color: var(--danger-light); }
+        .badge-green { background: rgba(16, 185, 129, 0.15); color: var(--success-light); }
+        .badge-yellow { background: rgba(245, 158, 11, 0.15); color: var(--warning-light); }
+        .badge-blue { background: rgba(99, 102, 241, 0.15); color: var(--primary-light); }
+
+        .flowchart { background: #0d1117; border-radius: 10px; padding: 20px; margin: 14px 0; border: 1px solid var(--border-light); overflow-x: auto; }
+        .flowchart svg { display: block; margin: 0 auto; max-width: 100%; }
+
+        .comparison-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 14px 0; }
+        @media (max-width: 600px) { .comparison-grid { grid-template-columns: 1fr; } }
+        .compare-box { background: var(--bg-input); border-radius: 10px; padding: 18px; border: 1px solid var(--border-light); }
+        .compare-box h4 { font-size: 0.95rem; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .compare-box.wrong h4 { color: var(--danger-light); }
+        .compare-box.right h4 { color: var(--success-light); }
+
+        .steps { counter-reset: step; }
+        .step { position: relative; padding: 14px 14px 14px 52px; margin-bottom: 10px; background: var(--bg-input); border-radius: 8px; font-size: 0.9rem; color: var(--text-secondary); border-left: 3px solid var(--primary); }
+        .step::before { counter-increment: step; content: counter(step); position: absolute; left: 12px; top: 14px; width: 28px; height: 28px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; }
+
+        .interactive-panel { background: var(--bg-input); border-radius: 10px; padding: 20px; margin: 14px 0; border: 1px solid var(--border-light); }
+        .interactive-panel label { display: block; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; }
+        .origin-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .origin-chip { padding: 7px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: var(--text-secondary); transition: all 0.2s; }
+        .origin-chip:hover { border-color: var(--primary); color: var(--text-primary); }
+        .origin-chip.selected { background: var(--primary); border-color: var(--primary); color: white; }
+        .test-result { margin-top: 14px; padding: 14px; border-radius: 8px; font-size: 0.88rem; display: none; }
+        .test-result.show { display: block; }
+        .test-result.success { background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--success-light); }
+        .test-result.error { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); color: var(--danger-light); }
+        .test-result pre { margin-top: 8px; font-family: 'Cascadia Code', monospace; font-size: 0.82rem; color: var(--text-secondary); white-space: pre-wrap; word-break: break-all; }
+
+        .run-btn { display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; padding: 10px 22px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; margin-top: 12px; }
+        .run-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4); }
+
+        .scenario-list { display: flex; flex-direction: column; gap: 10px; margin: 10px 0; }
+        .scenario-card { background: var(--bg-input); border-radius: 8px; padding: 14px; border-left: 3px solid var(--border); transition: border-color 0.2s; }
+        .scenario-card:hover { border-left-color: var(--primary); }
+        .scenario-card h4 { font-size: 0.9rem; color: var(--text-primary); margin-bottom: 6px; }
+        .scenario-card p { font-size: 0.83rem; color: var(--text-secondary); margin: 0; }
+        .scenario-card .badge { margin-top: 6px; }
+
+        footer { text-align: center; padding: 25px 0; color: var(--text-muted); font-size: 0.82rem; border-top: 1px solid var(--border-light); margin-top: 30px; }
+        footer a { color: var(--primary-light); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 1.5rem; }
+            .tab-btn { min-width: 100px; font-size: 0.82rem; padding: 10px 12px; }
+            .card { padding: 18px; }
+        }
+
+        code { background: var(--bg-input); padding: 2px 6px; border-radius: 4px; font-family: 'Cascadia Code', monospace; font-size: 0.88em; color: var(--primary-light); }
+    </style>
+</head>
+<body>
+<div class="container">
+
+<header>
+    <div class="header-badge">CORS 核心机制</div>
+    <h1>多个 Access-Control-Allow-Origin<br>为什么不会报错？</h1>
+    <p class="subtitle">规范允许 ≠ 浏览器支持，深入理解 CORS 的规范与实现差异</p>
+</header>
+
+<nav class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('overview')"><span class="tab-btn">📖</span> 概述</button>
+    <button class="tab-btn" onclick="switchTab('spec')"><span class="tab-btn">📜</span> 规范 vs 实现</button>
+    <button class="tab-btn" onclick="switchTab('dynamic')"><span class="tab-btn">⚙️</span> 动态 Origin</button>
+    <button class="tab-btn" onclick="switchTab('errors')"><span class="tab-btn">🚨</span> 常见错误</button>
+</nav>
+
+<!-- ========== TAB 1: Overview ========== -->
+<div id="tab-overview" class="tab-content active">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon blue">⚡</div>
+            <h2>核心结论</h2>
+        </div>
+        <div class="alert alert-danger">
+            <span class="alert-icon">🚫</span>
+            <div><strong>CORS 规范允许</strong>服务器返回多个 <code>Access-Control-Allow-Origin</code> 值，但<strong>没有任何浏览器支持此行为</strong>。如果服务器尝试这样做，浏览器会直接报错。</div>
+        </div>
+        <div class="alert alert-warning">
+            <span class="alert-icon">⚠️</span>
+            <div>报错信息：<code>Multiple CORS header Access-Control-Allow-Origin not allowed</code></div>
+        </div>
+        <p>记住这个原则：<strong>CORS 是浏览器的安全策略，规范只是纸面约定，浏览器实现才是真相。</strong></p>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon green">🔍</div>
+            <h2>问题本质图解</h2>
+        </div>
+        <div class="flowchart">
+            <svg width="680" height="300" viewBox="0 0 680 300">
+                <!-- Title -->
+                <text x="340" y="18" text-anchor="middle" fill="#64748b" font-size="11" font-weight="600">服务器返回多个 ACAO 头部时，浏览器的处理流程</text>
+
+                <!-- Server -->
+                <rect x="10" y="45" width="140" height="75" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+                <text x="80" y="72" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">服务器</text>
+                <text x="80" y="90" text-anchor="middle" fill="#94a3b8" font-size="10">返回响应 +</text>
+                <text x="80" y="104" text-anchor="middle" fill="#94a3b8" font-size="10">多个 ACAO 头部</text>
+                <text x="80" y="118" text-anchor="middle" fill="#6366f1" font-size="10">"a.com", "b.com"</text>
+
+                <!-- Arrow -->
+                <line x1="150" y1="82" x2="190" y2="82" stroke="#475569" stroke-width="2" marker-end="url(#arr)"/>
+                <defs><marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker></defs>
+
+                <!-- Browser box -->
+                <rect x="195" y="35" width="180" height="130" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                <text x="285" y="58" text-anchor="middle" fill="#e6edf3" font-size="13" font-weight="600">浏览器 CORS 检查</text>
+
+                <!-- Check inside browser -->
+                <rect x="208" y="68" width="154" height="85" rx="5" fill="#0d1117" stroke="#f59e0b" stroke-width="1.5"/>
+                <text x="285" y="90" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="600">ACAO 头部数量</text>
+                <text x="285" y="108" text-anchor="middle" fill="#94a3b8" font-size="10">＝ 1 → 检查值是否匹配</text>
+                <text x="285" y="123" text-anchor="middle" fill="#94a3b8" font-size="10">＝ 0 → 缺少必需头部</text>
+                <text x="285" y="138" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="600">＞ 1 → 报错拒绝</text>
+
+                <!-- Arrow to Error -->
+                <line x1="375" y1="82" x2="420" y2="82" stroke="#ef4444" stroke-width="2" marker-end="url(#arrRed)"/>
+                <defs><marker id="arrRed" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker></defs>
+
+                <!-- Error -->
+                <rect x="425" y="42" width="210" height="80" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                <text x="530" y="70" text-anchor="middle" fill="#ef4444" font-size="13" font-weight="700">❌ CORS Error</text>
+                <text x="530" y="88" text-anchor="middle" fill="#f87171" font-size="10">Multiple CORS header</text>
+                <text x="530" y="102" text-anchor="middle" fill="#f87171" font-size="10">Access-Control-Allow-Origin</text>
+                <text x="530" y="116" text-anchor="middle" fill="#f87171" font-size="10">not allowed</text>
+
+                <!-- Legend -->
+                <rect x="10" y="195" width="12" height="12" rx="2" fill="#6366f1"/>
+                <text x="28" y="205" fill="#64748b" font-size="10">服务器响应</text>
+                <rect x="120" y="195" width="12" height="12" rx="2" fill="#f59e0b"/>
+                <text x="138" y="205" fill="#64748b" font-size="10">浏览器检查</text>
+                <rect x="220" y="195" width="12" height="12" rx="2" fill="#ef4444"/>
+                <text x="238" y="205" fill="#64748b" font-size="10">报错拒绝</text>
+
+                <!-- Key insight box -->
+                <rect x="10" y="225" width="660" height="55" rx="8" fill="rgba(99,102,241,0.08)" stroke="rgba(99,102,241,0.3)" stroke-width="1.5"/>
+                <text x="340" y="248" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="600">💡 关键洞察</text>
+                <text x="340" y="268" text-anchor="middle" fill="#94a3b8" font-size="10">即使服务器返回了多个值，浏览器也只关心「有几个」——多值 = 直接拒绝，不管值本身是否正确</text>
+            </svg>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon purple">📊</div>
+            <h2>快速对照表</h2>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ACAO 值</th>
+                    <th>需要凭证?</th>
+                    <th>支持情况</th>
+                    <th>适用场景</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td><code>*</code></td><td>❌ 不能</td><td><span class="badge badge-green">✅ 全部支持</span></td><td>公开跨域资源（CDN、公共 API）</td></tr>
+                <tr><td><code>https://example.com</code></td><td>✅ 可以</td><td><span class="badge badge-green">✅ 全部支持</span></td><td>单域名、受信任来源</td></tr>
+                <tr><td><code>null</code></td><td>⚠️ 危险</td><td><span class="badge badge-yellow">⚠️ 支持但不推荐</span></td><td>本地 file://、特殊场景</td></tr>
+                <tr><td><code>a.com, b.com</code></td><td>—</td><td><span class="badge badge-red">❌ 全部报错</span></td><td>无（规范未定义）</td></tr>
+                <tr><td>多个 ACAO 头部</td><td>—</td><td><span class="badge badge-red">❌ 全部报错</span></td><td>无（浏览器直接拒绝）</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ========== TAB 2: Spec vs Implementation ========== -->
+<div id="tab-spec" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon blue">📜</div>
+            <h2>CORS 规范说了什么？</h2>
+        </div>
+        <p>根据 Fetch 标准（WHATWG）和 W3C CORS 规范，`Access-Control-Allow-Origin` 的语法定义为：</p>
+        <div class="code-block">
+            <div class="code-header"><span class="code-lang">ABNF</span></div>
+            <div class="code-content">
+<span class="c"># Access-Control-Allow-Origin 语法（Fetch 标准）</span>
+Access-Control-Allow-Origin = <span class="v">origin-or-null</span> / <span class="s">"*"</span>
+
+<span class="c"># 规范允许的值：</span>
+<span class="c"># 1. 单个 origin：  https://example.com</span>
+<span class="c"># 2. null：        null</span>
+<span class="c"># 3. 通配符：      *</span>
+
+<span class="c"># ⚠️ 规范从未定义「多个 origin」的表示语法</span>
+            </div>
+        </div>
+        <div class="alert alert-info">
+            <span class="alert-icon">ℹ️</span>
+            <div>规范允许：单 origin 值、`null`、或通配符 <code>*</code>。<strong>规范没有定义多值的表示语法</strong>，但也没有明确禁止「多个头部」的情况。</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon red">🌐</div>
+            <h2>浏览器实际做了什么？</h2>
+        </div>
+        <p>尽管规范「模棱两可」，但所有浏览器厂商都选择了同一条路：<strong>只支持单值</strong>。</p>
+        <table class="data-table">
+            <thead>
+                <tr><th>浏览器</th><th>支持多 ACAO 头部？</th><th>多值（a.com, b.com）？</th><th>错误信息</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Chrome / Edge</td><td><span class="badge badge-red">❌ 不支持</span></td><td><span class="badge badge-red">❌ 不支持</span></td><td>Multiple CORS header not allowed</td></tr>
+                <tr><td>Firefox</td><td><span class="badge badge-red">❌ 不支持</span></td><td><span class="badge badge-red">❌ 不支持</span></td><td>has more than one value...</td></tr>
+                <tr><td>Safari</td><td><span class="badge badge-red">❌ 不支持</span></td><td><span class="badge badge-red">❌ 不支持</span></td><td>Multiple headers not allowed</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon yellow">🤔</div>
+            <h2>为什么浏览器不能支持多值？</h2>
+        </div>
+        <div class="comparison-grid">
+            <div class="compare-box">
+                <h4>❌ CORS 需要明确性</h4>
+                <p>浏览器的安全策略需要二元答案：<code>"这个响应允不允许当前 origin?"</code></p>
+                <p style="margin-top:6px">如果允许多值，浏览器无法给出确定答案。</p>
+            </div>
+            <div class="compare-box">
+                <h4>❌ 凭证（Credentials）冲突</h4>
+                <p>带凭证请求时，ACAO 必须精确匹配请求 origin，或使用 <code>*</code>（但 <code>*</code> 不能与凭证同用）</p>
+                <p style="margin-top:6px">多值无法满足这一要求。</p>
+            </div>
+            <div class="compare-box">
+                <h4>❌ 语法歧义</h4>
+                <p>「多个 origin」可以有多种表示方法：逗号分隔？空格分隔？重复头部？</p>
+                <p style="margin-top:6px">规范没有定义，浏览器无法统一实现。</p>
+            </div>
+            <div class="compare-box">
+                <h4>❌ 安全最小化原则</h4>
+                <p>安全策略应遵循最小权限原则：</p>
+                <p style="margin-top:6px">只允许明确指定的来源，而非模糊的「某些来源」。多值会扩大攻击面。</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon green">🔀</div>
+            <h2>浏览器 CORS 检查完整流程图</h2>
+        </div>
+        <div class="flowchart">
+            <svg width="650" height="430" viewBox="0 0 650 430">
+                <!-- Start -->
+                <ellipse cx="325" cy="22" rx="80" ry="22" fill="#6366f1"/>
+                <text x="325" y="27" text-anchor="middle" fill="white" font-size="12" font-weight="600">浏览器收到跨域响应</text>
+
+                <!-- Step 1: Has ACAO? -->
+                <line x1="325" y1="44" x2="325" y2="65" stroke="#475569" stroke-width="2" marker-end="url(#a2)"/>
+                <rect x="155" y="68" width="340" height="55" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                <text x="325" y="90" text-anchor="middle" fill="#fbbf24" font-size="12" font-weight="600">① Access-Control-Allow-Origin 头部存在？</text>
+                <text x="325" y="107" text-anchor="middle" fill="#94a3b8" font-size="10">检查响应是否包含该头部</text>
+
+                <!-- No branch -->
+                <line x1="155" y1="95" x2="50" y2="95" stroke="#ef4444" stroke-width="2" marker-end="url(#aR)"/>
+                <rect x="10" y="75" width="70" height="40" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                <text x="45" y="100" text-anchor="middle" fill="#ef4444" font-size="11" font-weight="700">拒绝</text>
+
+                <!-- Yes arrow to Q2 -->
+                <line x1="495" y1="95" x2="580" y2="95" stroke="#10b981" stroke-width="2" marker-end="url(#aG)"/>
+
+                <!-- Step 2: How many values -->
+                <rect x="420" y="68" width="220" height="55" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                <text x="530" y="90" text-anchor="middle" fill="#34d399" font-size="12" font-weight="600">② 头部数量？</text>
+                <text x="530" y="107" text-anchor="middle" fill="#94a3b8" font-size="10">0 / 1 / 多个</text>
+
+                <!-- Back down -->
+                <line x1="530" y1="123" x2="530" y2="145" stroke="#475569" stroke-width="2" marker-end="url(#a2)"/>
+
+                <!-- Step 3: Decision -->
+                <rect x="405" y="148" width="250" height="90" rx="8" fill="#1e293b" stroke="#475569" stroke-width="2"/>
+                <text x="530" y="170" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">③ 检查 Access-Control-Allow-Origin 值</text>
+                <text x="530" y="188" text-anchor="middle" fill="#94a3b8" font-size="10">数量 = 0 → 拒绝（缺少必需头部）</text>
+                <text x="530" y="202" text-anchor="middle" fill="#94a3b8" font-size="10">数量 = 1 → 检查值</text>
+                <text x="530" y="216" text-anchor="middle" fill="#f87171" font-size="10">数量 > 1 → 报错（Multiple not allowed）</text>
+
+                <!-- Value check arrow -->
+                <line x1="530" y1="238" x2="530" y2="260" stroke="#475569" stroke-width="2" marker-end="url(#a2)"/>
+
+                <!-- Step 4: Value match -->
+                <rect x="390" y="263" width="280" height="90" rx="8" fill="#1e293b" stroke="#475569" stroke
+-width="2"/>
+                <text x="530" y="285" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">鈶?鍊兼槸鍚︾嚎鍖?</text>
+                <text x="530" y="303" text-anchor="middle" fill="#94a3b8" font-size="10">ACAO = * 銆嶱ACAO = 璇锋眰 Origin</text>
+                <text x="530" y="318" text-anchor="middle" fill="#94a3b8" font-size="10">甯﹀～璇佸悧锛?/text>
+
+                <!-- Match/No-Match arrows -->
+                <line x1="390" y1="305" x2="220" y2="305" stroke="#10b981" stroke-width="2" marker-end="url(#aG)"/>
+                <line x1="670" y1="305" x2="600" y2="305" stroke="#ef4444" stroke-width="2" marker-end="url(#aR)"/>
+
+                <!-- Match: Allow -->
+                <rect x="120" y="280" width="180" height="50" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                <text x="210" y="303" text-anchor="middle" fill="#34d399" font-size="13" font-weight="700">鍏佸紑 + 鍝嶅簲</text>
+                <text x="210" y="320" text-anchor="middle" fill="#10b981" font-size="10">JS 鑾峰彇鍝嶅簲鏁版嵁</text>
+
+                <!-- No Match: Block -->
+                <rect x="600" y="280" width="40" height="50" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                <text x="620" y="310" text-anchor="middle" fill="#ef4444" font-size="10" font-weight="700">鎷掔粷</text>
+
+                <!-- Defs -->
+                <defs>
+                    <marker id="a2" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker>
+                    <marker id="aR" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ef4444"/></marker>
+                    <marker id="aG" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#10b981"/></marker>
+                </defs>
+
+                <!-- Step labels -->
+                <text x="12" y="68" fill="#6366f1" font-size="9" font-weight="600">Step 1</text>
+                <text x="600" y="68" fill="#6366f1" font-size="9" font-weight="600">Step 2</text>
+                <text x="555" y="148" fill="#6366f1" font-size="9" font-weight="600">Step 3</text>
+                <text x="545" y="263" fill="#6366f1" font-size="9" font-weight="600">Step 4</text>
+            </svg>
+        </div>
+    </div>
+</div>
+
+<!-- ========== TAB 3: Dynamic Origin ========== -->
+<div id="tab-dynamic" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon green">⚙️</div>
+            <h2>正确做法：动态回显 Origin</h2>
+        </div>
+        <p>服务器不应该硬编码多个 origin，而是：<strong>检查请求的 Origin 是否在白名单中，如果是，原样返回该 Origin</strong>。</p>
+        <div class="flowchart">
+            <svg width="650" height="200" viewBox="0 0 650 200">
+                <!-- Step 1 -->
+                <rect x="10" y="50" width="160" height="90" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+                <text x="90" y="80" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">1. 收到请求</text>
+                <text x="90" y="100" text-anchor="middle" fill="#94a3b8" font-size="10">Origin: https://a.com</text>
+                <text x="90" y="118" text-anchor="middle" fill="#94a3b8" font-size="10">GET /api/data</text>
+
+                <line x1="170" y1="95" x2="210" y2="95" stroke="#475569" stroke-width="2" marker-end="url(#a3)"/>
+                <defs><marker id="a3" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#475569"/></marker></defs>
+
+                <!-- Step 2 -->
+                <rect x="215" y="50" width="160" height="90" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                <text x="295" y="80" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">2. 检查白名单</text>
+                <text x="295" y="100" text-anchor="middle" fill="#94a3b8" font-size="10">["a.com","b.com","c.com"]</text>
+                <text x="295" y="118" text-anchor="middle" fill="#fbbf24" font-size="10">https://a.com 鍦ㄥ簭鍒楀垽?</text>
+
+                <line x1="375" y1="95" x2="415" y2="95" stroke="#475569" stroke-width="2" marker-end="url(#a3)"/>
+
+                <!-- Step 3 -->
+                <rect x="420" y="50" width="160" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                <text x="500" y="80" text-anchor="middle" fill="#e6edf3" font-size="12" font-weight="600">3. 回显 Origin</text>
+                <text x="500" y="100" text-anchor="middle" fill="#34d399" font-size="10">ACAO: https://a.com</text>
+                <text x="500" y="118" text-anchor="middle" fill="#34d399" font-size="10">ACA-Credentials: true</text>
+
+                <line x1="580" y1="95" x2="620" y2="95" stroke="#475569" stroke-width="2" marker-end="url(#a3)"/>
+
+                <!-- Step 4 -->
+                <rect x="485" y="50" width="150" height="90" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="2"/>
+                <text x="560" y="80" text-anchor="middle" fill="#34d399" font-size="12" font-weight="700">✅ 成功</text>
+                <text x="560" y="100" text-anchor="middle" fill="#94a3b8" font-size="10">娴忚鍣ㄥ厑璁?/text>
+                <text x="560" y="118" text-anchor="middle" fill="#94a3b8" font-size="10">JS 鑾峰彇鏁版嵁</text>
+            </svg>
+        </div>
+
+        <div class="alert alert-success">
+            <span class="alert-icon">✅</span>
+            <div>动态回显的核心：<strong>响应中的 ACAO 值精确匹配请求的 Origin</strong>，而非硬编码列表。浏览器看到「你是谁，我就信任谁」，而非「我信任的是这些人」。</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon blue">⌨️</div>
+            <h2>代码示例</h2>
+        </div>
+
+        <h3>Node.js / Express</h3>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">JavaScript</span>
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            </div>
+            <div class="code-content"><span class="k">const</span> allowedOrigins = [
+  <span class="s">"https://a.com"</span>,
+  <span class="k">"https://b.com"</span>,
+  <span class="s">"https://c.com"</span>
+];
+
+app.<span class="fn">use</span>((req, res, next) => {
+  <span class="k">const</span> origin = req.headers.origin;
+  
+  <span class="k">if</span> (allowedOrigins.<span class="fn">includes</span>(origin)) {
+    res.<span class="fn">setHeader</span>(<span class="s">"Access-Control-Allow-Origin"</span>, origin);
+    res.<span class="fn">setHeader</span>(<span class="s">"Access-Control-Allow-Credentials"</span>, <span class="s">"true"</span>);
+    res.<span class="fn">setHeader</span>(<span class="s">"Access-Control-Allow-Methods"</span>, <span class="s">"GET, POST, PUT, DELETE"</span>);
+    res.<span class="fn">setHeader</span>(<span class="s">"Access-Control-Allow-Headers"</span>, <span class="s">"Content-Type, Authorization"</span>);
+  }
+  
+  next();
+});</div>
+        </div>
+
+        <h3>Nginx（使用 map）</h3>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Nginx</span>
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            </div>
+            <div class="code-content"><span class="c"># http 块中定义</span>
+<span class="k">map</span> $http_origin $cors_origin {
+    <span class="s">"~^https://(a|b|c)\.com$"</span>  $http_origin;
+    <span class="k">default</span> <span class="s">""</span>;
+}
+
+server {
+    location /api/ {
+        <span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin</span> $cors_origin;
+        <span class="fn">add_header</span> <span class="s">Access-Control-Allow-Credentials</span> <span class="s">"true"</span>;
+        <span class="fn">add_header</span> <span class="s">Access-Control-Allow-Methods</span> <span class="s">"GET, POST, PUT, DELETE"</span>;
+        <span class="fn">add_header</span> <span class="s">Access-Control-Allow-Headers</span> <span class="s">"Content-Type, Authorization"</span>;
+    }
+}</div>
+        </div>
+
+        <h3>Python / Flask</h3>
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-lang">Python</span>
+                <button class="copy-btn" onclick="copyCode(this)">复制</button>
+            </div>
+            <div class="code-content">ALLOWED_ORIGINS = [
+    <span class="s">"https://a.com"</span>,
+    <span class="s">"https://b.com"</span>,
+    <span class="s">"https://c.com"</span>
+]
+
+<span class="k">@app.after_request</span>
+<span class="k">def</span> <span class="fn">add_cors_headers</span>(response):
+    origin = request.headers.<span class="fn">get</span>(<span class="s">"Origin"</span>)
+    
+    <span class="k">if</span> origin <span class="k">in</span> ALLOWED_ORIGINS:
+        response.headers[<span class="s">"Access-Control-Allow-Origin"</span>] = origin
+        response.headers[<span class="s">"Access-Control-Allow-Credentials"</span>] = <span class="s">"true"</span>
+        response.headers[<span class="s">"Access-Control-Allow-Methods"</span>] = <span class="s">"GET, POST, PUT, DELETE"</span>
+        response.headers[<span class="s">"Access-Control-Allow-Headers"</span>] = <span class="s">"Content-Type, Authorization"</span>
+    
+    <span class="k">return</span> response</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon purple">🎮</div>
+            <h2>交互演示：模拟动态 Origin 检查</h2>
+        </div>
+        <p>点击不同的请求来源，观察服务器的响应行为：</p>
+        <div class="interactive-panel">
+            <label>选择发起请求的来源：</label>
+            <div class="origin-selector">
+                <span class="origin-chip" onclick="selectOrigin(this, 'https://a.com')">https://a.com</span>
+                <span class="origin-chip" onclick="selectOrigin(this, 'https://b.com')">https://b.com</span>
+                <span class="origin-chip" onclick="selectOrigin(this, 'https://evil.com')">https://evil.com</span>
+                <span class="origin-chip" onclick="selectOrigin(this, 'null')">null (本地文件)</span>
+            </div>
+            <label>服务器白名单：["https://a.com", "https://b.com", "https://c.com"]</label>
+            <button class="run-btn" onclick="runSimulation()">▶ 运行模拟</button>
+            <div id="test-result" class="test-result"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ========== TAB 4: Common Errors ========== -->
+<div id="tab-errors" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon red">🚨</div>
+            <h2>常见错误配置</h2>
+        </div>
+        <div class="scenario-list">
+            <div class="scenario-card">
+                <h4>❌ Nginx 配置逗号分隔多个 origin</h4>
+                <p>尝试用逗号分隔多个域名，以为这样可以允许多个来源。</p>
+                <span class="badge badge-red">浏览器报错</span>
+                <div class="code-block" style="margin-top:10px">
+                    <div class="code-header"><span class="code-lang">Nginx</span></div>
+                    <div class="code-content"><span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin</span> <span class="s">"https://a.com,https://b.com"</span>;</div>
+                </div>
+            </div>
+            <div class="scenario-card">
+                <h4>❌ 重复设置多个 ACAO 头部</h4>
+                <p>以为设置多个 add_header 行可以「叠加」效果，实际只有最后一个生效。</p>
+                <span class="badge badge-red">浏览器报错</span>
+                <div class="code-block" style="margin-top:10px">
+                    <div class="code-header"><span class="code-lang">Nginx</span></div>
+                    <div class="code-content"><span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin</span> <span class="s">"https://a.com"</span>;
+<span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin</span> <span class="s">"https://b.com"</span>;</div>
+                </div>
+            </div>
+            <div class="scenario-card">
+                <h4>❌ 同时返回 * 和具体 origin</h4>
+                <p>想同时支持公开访问和特定域名，但带凭证请求时这会导致浏览器拒绝。</p>
+                <span class="badge badge-red">浏览器拒绝</span>
+                <div class="code-block" style="margin-top:10px">
+                    <div class="code-header"><span class="code-lang">Nginx</span></div>
+                    <div class="code-content"><span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin</span> <span class="s">"*"</span>;
+<span class="fn">add_header</span> <span class="s">Access-Control-Allow-Origin"</span> <span class="s">"https://a.com"</span>;</div>
+                </div>
+            </div>
+            <div class="scenario-card">
+                <h4>❌ Express.js 中用 append 添加多个头部</h4>
+                <p>Node.js 的 res.append() 会在已有头部存在时创建多个头部，导致浏览器报错。</p>
+                <span class="badge badge-red">浏览器报错</span>
+                <div class="code-block" style="margin-top:10px">
+                    <div class="code-header"><span class="code-lang">JavaScript</span></div>
+                    <div class="code-content">res.<span class="fn">append</span>(<span class="s">"Access-Control-Allow-Origin"</span>, <span class="s">"https://a.com"</span>);
+res.<span class="fn">append</span>(<span class="s">"Access-Control-Allow-Origin"</span>, <span class="s">"https://b.com"</span>);
+<span class="c">// 实际产生多个头部 鈫?浏览器报错</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon yellow">⚠️</div>
+            <h2>其他需要注意的场景</h2>
+        </div>
+        <div class="scenario-list">
+            <div class="scenario-card">
+                <h4>⚠️ CDN 多域名配置</h4>
+                <p>CDN 配置面板允许添加多个 origin，但 CDN 对外只返回一个 ACAO。如果 CDN 内部实现产生了多个头部，源站也会收到错误。</p>
+                <span class="badge badge-yellow">配置风险</span>
+            </div>
+            <div class="scenario-card">
+                <h4>⚠️ 允许 null origin</h4>
+                <p>如果服务器返回 ACAO: null，会允许来自 file:// 协议、iframe 等的请求，可能导致安全风险。</p>
+                <span class="badge badge-yellow">安全风险</span>
+            </div>
+            <div class="scenario-card">
+                <h4>⚠️ CORS 与重定向</h4>
+                <p>跨域重定向后，Origin 可能变为 null 或目标域。需要在重定向目标也正确配置 CORS 头部。</p>
+                <span class="badge badge-yellow">容易遗漏</span>
+            </div>
+            <div class="scenario-card">
+                <h4>⚠️ Vary: Origin 头部</h4>
+                <p>使用动态回显时，响应头应包含 Vary: Origin，让缓存正确区分不同来源的响应。</p>
+                <span class="badge badge-blue">性能相关</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-icon green">📚</div>
+            <h2>参考资料</h2>
+        </div>
+        <table class="data-table">
+            <thead>
+                <tr><th>来源</th><th>链接</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>MDN - CORS Errors</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS/Errors/CORSMultipleAllowOriginNotAllowed" target="_blank" style="color:#818cf8">查看</a></td></tr>
+                <tr><td>PortSwigger - CORS</td><td><a href="https://portswigger.net/web-security/cors/access-control-allow-origin" target="_blank" style="color:#818cf8">查看</a></td></tr>
+                <tr><td>WHATWG Fetch Standard</td><td><a href="https://fetch.spec.whatwg.org/" target="_blank" style="color:#818cf8">查看</a></td></tr>
+                <tr><td>MDN - HTTP CORS</td><td><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank" style="color:#818cf8">查看</a></td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<footer>
+    <p>基于 <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CORS/Errors/CORSMultipleAllowOriginNotAllowed" target="_blank">MDN</a> 和 <a href="https://portswigger.net/web-security/cors/access-control-allow-origin" target="_blank">PortSwigger</a> 资料整理 · <a href="https://github.com/zenHeart/learn-network" target="_blank">zenHeart/learn-network</a></p>
+</footer>
+
+</div>
+
+<script>
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+    document.getElementById('tab-' + tabId).classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(tabId)) btn.classList.add('active');
+    });
+}
+
+let selectedOrigin = null;
+function selectOrigin(el, origin) {
+    document.querySelectorAll('.origin-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedOrigin = origin;
+}
+
+function runSimulation() {
+    if (!selectedOrigin) {
+        alert('请先选择一个请求来源');
+        return;
+    }
+    const allowedOrigins = ['https://a.com', 'https://b.com', 'https://c.com'];
+    const result = document.getElementById('test-result');
+    const isAllowed = allowedOrigins.includes(selectedOrigin);
+
+    result.className = 'test-result show ' + (isAllowed ? 'success' : 'error');
+
+    if (isAllowed) {
+        result.innerHTML = '<strong>✅ 服务器允许该来源</strong><pre>' +
+            'HTTP/1.1 200 OK\n' +
+            'Access-Control-Allow-Origin: ' + selectedOrigin + '\n' +
+            'Access-Control-Allow-Credentials: true\n' +
+            'Content-Type: application/json\n\n' +
+            '{"data": "敏感数据 - 浏览器允许 JS 访问"}' +
+            '</pre>';
+    } else if (selectedOrigin === 'null') {
+        result.innerHTML = '<strong>⚠️ 警告：Origin 为 null</strong><pre>' +
+            'HTTP/1.1 200 OK\n' +
+            '(无 Access-Control-Allow-Origin 头部)\n\n' +
+            '浏览器拒绝 JS 访问响应（可能的安全风险）' +
+            '</pre>';
+    } else {
+        result.innerHTML = '<strong>❌ 服务器未允许该来源</strong><pre>' +
+            'HTTP/1.1 200 OK\n' +
+            '(无 Access-Control-Allow-Origin 头部)\n\n' +
+            '浏览器拒绝 JS 访问响应\n' +
+            'Error: ' + selectedOrigin + ' has been blocked by CORS policy' +
+            '</pre>';
+    }
+}
+
+function copyCode(btn) {
+    const code = btn.closest('.code-block').querySelector('.code-content').innerText;
+    navigator.clipboard.writeText(code).then(() => {
+        btn.textContent = '已复制!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = '复制';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSL/TLS 证书问题交互演示</title>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131f;
+      --border: #1e1e2e;
+      --accent: #00d4aa;
+      --accent2: #7c3aed;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #f59e0b;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      min-height: 100vh;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 2rem; }
+    .tabs {
+      display: flex;
+      gap: 0.25rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      background: var(--surface);
+      padding: 0.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .tab {
+      padding: 0.5rem 1rem;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .tab:hover { color: var(--text); background: var(--border); }
+    .tab.active { background: var(--accent); color: #000; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent);
+      margin-bottom: 1rem;
+    }
+    .chain-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+      margin: 1.5rem 0;
+    }
+    .chain-node {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius);
+      border: 2px solid;
+      width: 100%;
+      max-width: 520px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .chain-node.root { border-color: var(--accent2); background: rgba(124,58,237,0.1); }
+    .chain-node.intermediate { border-color: var(--yellow); background: rgba(245,158,11,0.1); }
+    .chain-node.server { border-color: var(--accent); background: rgba(0,212,170,0.1); }
+    .chain-node.error { border-color: var(--red); background: rgba(239,68,68,0.1); }
+    .chain-node.valid { border-color: var(--green); background: rgba(34,197,94,0.1); }
+    .chain-node-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      position: absolute;
+      top: -0.5rem;
+      left: 1rem;
+      background: var(--bg);
+      padding: 0 0.5rem;
+    }
+    .chain-node-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .chain-node-info { flex: 1; }
+    .chain-node-name { font-weight: 600; font-size: 0.9rem; }
+    .chain-node-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.15rem; }
+    .chain-arrow { font-size: 1.2rem; color: var(--text-muted); padding: 0.25rem 0; }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .status-badge.ok { background: rgba(34,197,94,0.2); color: var(--green); }
+    .status-badge.error { background: rgba(239,68,68,0.2); color: var(--red); }
+    .status-badge.warn { background: rgba(245,158,11,0.2); color: var(--yellow); }
+    .selector-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .selector-btn {
+      padding: 0.4rem 0.85rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .selector-btn:hover { border-color: var(--accent); }
+    .selector-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1rem; }
+    th {
+      text-align: left;
+      color: var(--accent);
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    td code { color: var(--yellow); }
+    .cmd-block {
+      background: #000;
+      border-radius: 8px;
+      padding: 1rem;
+      margin: 0.75rem 0;
+      overflow-x: auto;
+    }
+    .cmd-title { color: var(--text); font-size: 0.85rem; margin-bottom: 0.5rem; font-weight: 600; }
+    .cmd-prompt { color: var(--accent); }
+    .cmd-cmd { color: var(--text); font-size: 0.82rem; margin-bottom: 0.25rem; word-break: break-all; }
+    .cmd-out { color: var(--green); font-size: 0.78rem; white-space: pre-wrap; word-break: break-all; }
+    .browser-sim {
+      background: rgba(239,68,68,0.06);
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .browser-sim-header {
+      background: #1a1a2e;
+      padding: 0.5rem 0.75rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .browser-sim-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .browser-sim-body { padding: 2rem; text-align: center; }
+    .browser-sim-body .icon { font-size: 3rem; margin-bottom: 1rem; }
+    .browser-sim-body h3 { color: var(--text); font-size: 1rem; margin-bottom: 0.5rem; }
+    .browser-sim-body p { color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.75rem; }
+    .browser-sim-error {
+      background: rgba(239,68,68,0.12);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      display: inline-block;
+      color: var(--red);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .tree { font-size: 0.85rem; color: var(--text-muted); line-height: 2.2; }
+    .tree strong { color: var(--text); }
+    .tree a { color: var(--accent); }
+    .footer {
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    @keyframes pulse-error {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(239,68,68,0); }
+    }
+    .pulse-error { animation: pulse-error 1.5s infinite; }
+  </style>
+</head>
+<body>
+
+<h1>SSL/TLS 证书问题交互演示</h1>
+<p class="subtitle">learn-network / examples / ssl / certificate-demo.html</p>
+
+<div class="tabs">
+  <button class="tab active" data-tab="chain">证书链结构</button>
+  <button class="tab" data-tab="browser">浏览器提示</button>
+  <button class="tab" data-tab="openssl">OpenSSL 排查</button>
+  <button class="tab" data-tab="compat">兼容性</button>
+  <button class="tab" data-tab="troubleshoot">排查流程</button>
+</div>
+
+<!-- Tab: Chain -->
+<div id="tab-chain" class="tab-content active">
+  <div class="card">
+    <div class="card-title">选择证书问题类型</div>
+    <div class="selector-group" id="chain-selector">
+      <button class="selector-btn active" data-type="valid">完整有效链</button>
+      <button class="selector-btn" data-type="expired">证书过期</button>
+      <button class="selector-btn" data-type="incomplete">链不完整</button>
+      <button class="selector-btn" data-type="mismatch">域名不匹配</button>
+      <button class="selector-btn" data-type="selfsigned">自签名证书</button>
+      <button class="selector-btn" data-type="root-expired">根证书过期</button>
+    </div>
+  </div>
+  <div id="chain-display"></div>
+  <div class="card">
+    <div class="card-title">说明</div>
+    <p style="color: var(--text-muted); font-size: 0.85rem;" id="explanation-text">选择不同的场景，查看对应的证书链状态和浏览器行为。</p>
+  </div>
+</div>
+
+<!-- Tab: Browser -->
+<div id="tab-browser" class="tab-content">
+  <div class="card">
+    <div class="card-title">浏览器错误提示对照表</div>
+    <table>
+      <thead>
+        <tr><th>问题类型</th><th>Chrome / Edge</th><th>Firefox</th><th>Safari</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>证书本身过期</td><td><code>ERR_CERT_EXPIRED</code></td><td><code>MOZILLA_PKIX_ERROR_CERT_EXPIRED</code></td><td>"证书已过期"</td></tr>
+        <tr><td>证书链不完整</td><td><code>ERR_CERT_AUTHORITY_INVALID</code></td><td><code>SEC_ERROR_UNKNOWN_ISSUER</code></td><td>"无法验证网站身份"</td></tr>
+        <tr><td>域名不匹配</td><td><code>ERR_CERT_COMMON_NAME_INVALID</code></td><td><code>SSL_ERROR_BAD_CERT_DOMAIN</code></td><td>"Safari 无法验证网站身份"</td></tr>
+        <tr><td>自签名证书</td><td><code>ERR_CERT_AUTHORITY_INVALID</code></td><td><code>SEC_ERROR_UNTRUSTED_ISSUER</code></td><td>"此证书不受信任"</td></tr>
+        <tr><td>根证书过期</td><td><code>CERT_HAS_EXPIRED</code></td><td><code>MOZILLA_PKIX_ERROR_PATH_LEN_EXCEEDED</code></td><td>"证书链无效"</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">模拟浏览器错误界面（点击上方「证书链结构」中的场景）</div>
+    <div id="browser-sim-panel">
+      <p style="color: var(--text-muted); font-size: 0.85rem;">在上方选择有问题的场景，查看对应的模拟错误界面。</p>
+    </div>
+  </div>
+</div>
+
+<!-- Tab: OpenSSL -->
+<div id="tab-openssl" class="tab-content">
+  <div class="selector-group" id="cmd-selector">
+    <button class="selector-btn active" data-cmd="info">查看证书信息</button>
+    <button class="selector-btn" data-cmd="chain">检查证书链</button>
+    <button class="selector-btn" data-cmd="verify">验证证书</button>
+    <button class="selector-btn" data-cmd="match">匹配私钥</button>
+  </div>
+  <div id="cmd-display"></div>
+</div>
+
+<!-- Tab: Compatibility -->
+<div id="tab-compat" class="tab-content">
+  <div class="card">
+    <div class="card-title">Let's Encrypt 根 CA 兼容性</div>
+    <table>
+      <thead><tr><th>设备 / 平台</th><th>ISRG Root X1</th><th>ISRG Root X2</th><th>备注</th></tr></thead>
+      <tbody>
+        <tr><td>Android 7.1+</td><td><span class="status-badge ok">支持</span></td><td><span class="status-badge error">不支持</span></td><td>7.0 以下需 DST Root CA X3</td></tr>
+        <tr><td>Firefox (全版本)</td><td><span class="status-badge ok">支持</span></td><td><span class="status-badge ok">支持</span></td><td>内置自己的根 CA 列表</td></tr>
+        <tr><td>Chrome / Win / Mac</td><td><span class="status-badge ok">支持</span></td><td><span class="status-badge ok">支持</span></td><td>依赖系统根 CA</td></tr>
+        <tr><td>Java 11+</td><td><span class="status-badge ok">支持</span></td><td><span class="status-badge warn">部分</span></td><td>旧 JDK 版本可能有问题</td></tr>
+        <tr><td>OpenSSL 1.1.1+</td><td><span class="status-badge ok">支持</span></td><td><span class="status-badge ok">支持</span></td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title">签名算法与密钥长度</div>
+    <table>
+      <thead><tr><th>类型</th><th>算法 / 长度</th><th>兼容性</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>签名算法</td><td>SHA-1 with RSA</td><td><span class="status-badge error">已废弃</span></td><td>2020 年起所有浏览器拒绝</td></tr>
+        <tr><td>签名算法</td><td>SHA-256 with RSA</td><td><span class="status-badge ok">通用</span></td><td>最低要求</td></tr>
+        <tr><td>椭圆曲线</td><td>ECDSA P-256</td><td><span class="status-badge ok">推荐</span></td><td>更小更快，渐成主流</td></tr>
+        <tr><td>椭圆曲线</td><td>ECDSA P-384</td><td><span class="status-badge ok">高安全</span></td><td>金融等高安全场景</td></tr>
+        <tr><td>RSA 密钥</td><td>2048-bit</td><td><span class="status-badge ok">最低要求</span></td><td>—</td></tr>
+        <tr><td>RSA 密钥</td><td>4096-bit</td><td><span class="status-badge warn">注意</span></td><td>老旧设备可能不支持</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tab: Troubleshooting -->
+<div id="tab-troubleshoot" class="tab-content">
+  <div class="card">
+    <div class="card-title">排查决策树</div>
+    <div class="tree">
+      <div>1. 浏览器报证书错误？</div>
+      <div>&nbsp;&nbsp;|- 是 → DevTools → <strong>Security 面板</strong> 查看证书详情和路径</div>
+      <div>&nbsp;&nbsp;|- "证书已过期" → <strong style="color:var(--yellow)">检查有效期</strong> → 续期证书</div>
+      <div>&nbsp;&nbsp;|- "无法验证身份" → <strong style="color:var(--yellow)">检查证书链</strong> → 补全中间证书</div>
+      <div>&nbsp;&nbsp;|- "域名不匹配" → <strong style="color:var(--yellow)">检查 SAN/CN</strong> → 重新申请</div>
+      <div>&nbsp;&nbsp;|- "不受信任" → <strong style="color:var(--yellow)">检查根 CA</strong> → 自签名? 导入根证书</div>
+      <div>&nbsp;&nbsp;|- 控制台混合内容警告 → <strong style="color:var(--yellow)">检查资源 URL</strong> → 改用 HTTPS</div>
+      <div>&nbsp;&nbsp;|- 仍无法确定 → <strong>openssl s_client -connect site:443 -showcerts</strong></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;→ 使用 <a href="https://www.ssllabs.com/ssltest/" target="_blank">SSL Labs</a> 做全面检测</div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">快速修复命令</div>
+    <div class="cmd-block">
+      <div class="cmd-title">检查证书有效期</div>
+      <div class="cmd-cmd"><span class="cmd-prompt">$</span> openssl x509 -in server.crt -noout -dates</div>
+      <div class="cmd-out">notBefore=Jun  1 00:00:00 2024 GMT
+notAfter=Jun  1 00:00:00 2025 GMT</div>
+    </div>
+    <div class="cmd-block">
+      <div class="cmd-title">检查证书支持的域名</div>
+      <div class="cmd-cmd"><span class="cmd-prompt">$</span> openssl x509 -in server.crt -noout -ext subjectAltName</div>
+      <div class="cmd-out">X509v3 Subject Alternative Name:
+    DNS:example.com, DNS:www.example.com</div>
+    </div>
+    <div class="cmd-block">
+      <div class="cmd-title">连接服务器检查证书链</div>
+      <div class="cmd-cmd"><span class="cmd-prompt">$</span> openssl s_client -connect example.com:443 -showcerts</div>
+      <div class="cmd-out">Verify return code: 0 (ok)</div>
+    </div>
+    <div class="cmd-block">
+      <div class="cmd-title">验证完整证书链</div>
+      <div class="cmd-cmd"><span class="cmd-prompt">$</span> openssl verify -CAfile root.crt -untrusted int.crt server.crt</div>
+      <div class="cmd-out">server.crt: OK</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">learn-network / examples / ssl / certificate-demo.html</div>
+
+<script>
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // Certificate chain data
+  const chainData = {
+    valid: {
+      nodes: [
+        { type: 'root', icon: '🏛️', name: 'DigiCert Global Root G2', detail: '有效期: 2023-01-01 ~ 2043-01-01 · 受信任根CA', status: 'valid' },
+        { type: 'intermediate', icon: '📜', name: 'DigiCert SHA2 Extended Validation Server CA', detail: '有效期: 2023-08-01 ~ 2031-08-01 · 中间CA', status: 'valid' },
+        { type: 'server', icon: '🖥️', name: 'example.com', detail: '有效期: 2024-06-01 ~ 2025-06-01 · CN=example.com, SAN=example.com,www.example.com', status: 'valid' },
+      ],
+      explanation: '完整证书链：浏览器从服务器证书逐级验证到受信任根CA，连接安全。',
+      browserMsg: null
+    },
+    expired: {
+      nodes: [
+        { type: 'root', icon: '🏛️', name: 'DigiCert Global Root G2', detail: '有效期: 2023-01-01 ~ 2043-01-01 · 受信任根CA', status: 'valid' },
+        { type: 'intermediate', icon: '📜', name: 'DigiCert SHA2 Extended Validation Server CA', detail: '有效期: 2023-08-01 ~ 2031-08-01 · 中间CA', status: 'valid' },
+        { type: 'server', icon: '🖥️', name: 'example.com', detail: '⚠ 有效期: 2024-06-01 ~ 2025-01-15 · 已过期！', status: 'error' },
+      ],
+      explanation: '终端证书已过期。浏览器显示 ERR_CERT_EXPIRED，需要及时续期证书。',
+      browserMsg: { err: 'ERR_CERT_EXPIRED', detail: '此连接不是私密连接 — 攻击者可能会试图从 example.com 窃取信息' }
+    },
+    incomplete: {
+      nodes: [
+        { type: 'root', icon: '🏛️', name: 'DigiCert Global Root G2', detail: '有效期: 2023-01-01 ~ 2043-01-01 · 受信任根CA', status: 'valid' },
+        { type: 'intermediate', icon: '❓', name: '中间证书（未提供）', detail: '服务器未发送中间证书，浏览器无法验证到根CA', status: 'error' },
+        { type: 'server', icon: '🖥️', name: 'example.com', detail: '有效期: 2024-06-01 ~ 2025-06-01 · 但无法验证信任链', status: 'error' },
+      ],
+      explanation: '证书链不完整：服务器未发送中间证书，常见原因是Nginx配置了server.crt而非fullchain.pem。',
+      browserMsg: { err: 'ERR_CERT_AUTHORITY_INVALID', detail: '无法验证网站身份 — 证书颁发者无效' }
+    },
+    mismatch: {
+      nodes: [
+        { type: 'root', icon: '🏛️', name: 'DigiCert Global Root G2', detail: '有效期: 2023-01-01 ~ 2043-01-01 · 受信任根CA', status: 'valid' },
+        { type: 'intermediate', icon: '📜', name: 'DigiCert SHA2 Extended Validation Server CA', detail: '有效期: 2023-08-01 ~ 2031-08-01 · 中间CA', status: 'valid' },
+        { type: 'server', icon: '🖥️', name: 'example.com', detail: 'CN=example.com · 但访问的是 api.example.com（不匹配）', status: 'error' },
+      ],
+      explanation: '域名不匹配：证书的CN/SAN不包含当前访问的域名api.example.com。需要在申请证书时添加所有域名。',
+      browserMsg: { err: 'ERR_CERT_COMMON_NAME_INVALID', detail: '服务器证书的域名与访问的域名不匹配' }
+    },
+    selfsigned: {
+      nodes: [
+        { type: 'server', icon: '🔒', name: 'Self-Signed Certificate', detail: '自己签自己 · 根CA不在浏览器信任列表中', status: 'error' },
+      ],
+      explanation: '自签名证书：证书由自己签发，没有经过受信任CA的认证。开发/测试环境常见。',
+      browserMsg: { err: 'ERR_CERT_AUTHORITY_INVALID', detail: '证书颁发者无效/不受信任 — 自签名或私有CA签发' }
+    },
+    'root-expired': {
+      nodes: [
+        { type: 'root', icon: '🏛️', name: 'Thawte Primary Root CA', detail: '有效期: 2006-01-01 ~ 2021-01-01 · 已过期！', status: 'error' },
+        { type: 'intermediate', icon: '📜', name: 'Thawte SSL CA', detail: '有效期: 2020-01-01 ~ 2030-01-01 · 但根已过期', status: 'error' },
+        { type: 'server', icon: '🖥️', name: 'example.com', detail: '有效期: 2024-06-01 ~ 2025-06-01 · 但根CA已过期', status: 'error' },
+      ],
+      explanation: '根证书过期：即使服务器和中间证书都在有效期内，只要根CA过期，整条链就失效。老旧设备常见此问题。',
+      browserMsg: { err: 'CERT_HAS_EXPIRED', detail: '证书链中的根CA证书已过期' }
+    }
+  };
+
+  function renderChain(type) {
+    const container = document.getElementById('chain-display');
+    const data = chainData[type];
+    let html = '<div class="chain-container">';
+    data.nodes.forEach((node, i) => {
+      if (i > 0) html += '<div class="chain-arrow">⬇ 签名验证</div>';
+      const label = node.type === 'root' ? '根CA' : node.type === 'intermediate' ? '中间CA' : '服务器';
+      html += `
+        <div class="chain-node ${node.type} ${node.status === 'error' ? 'pulse-error' : ''}">
+          <span class="chain-node-label">${label}</span>
+          <span class="chain-node-icon">${node.icon}</span>
+          <div class="chain-node-info">
+            <div class="chain-node-name">${node.name}</div>
+            <div class="chain-node-detail">${node.detail}</div>
+          </div>
+          <span class="status-badge ${node.status === 'valid' ? 'ok' : 'error'}">${node.status === 'valid' ? '✓ 有效' : '✗ 无效'}</span>
+        </div>`;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+    document.getElementById('explanation-text').textContent = data.explanation;
+    renderBrowserSim(data.browserMsg);
+  }
+
+  function renderBrowserSim(msg) {
+    const container = document.getElementById('browser-sim-panel');
+    if (!msg) {
+      container.innerHTML = `<div style="text-align:center;padding:2rem;color:var(--green);">
+        <div style="font-size:3rem;margin-bottom:1rem;">🔒</div>
+        <div style="font-size:1rem;font-weight:600;">连接安全</div>
+        <div style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">证书链完整且在有效期内</div>
+      </div>`;
+      return;
+    }
+    container.innerHTML = `<div class="browser-sim">
+      <div class="browser-sim-header">
+        <span class="browser-sim-dot" style="background:#ef4444;"></span>
+        <span class="browser-sim-dot" style="background:#f59e0b;"></span>
+        <span class="browser-sim-dot" style="background:#22c55e;"></span>
+        <span style="color:var(--text-muted);font-size:0.7rem;margin-left:0.5rem;">chrome://net-internals/#ssl</span>
+      </div>
+      <div class="browser-sim-body">
+        <div class="icon">🔒</div>
+        <h3>您的连接不是私密连接</h3>
+        <p>攻击者可能会试图从 <strong>example.com</strong> 窃取您的信息。</p>
+        <div class="browser-sim-error">${msg.err}</div>
+        <p style="margin-top:0.75rem;font-size:0.75rem;color:var(--text-muted);">${msg.detail}</p>
+      </div>
+    </div>`;
+  }
+
+  // Init
+  renderChain('valid');
+  document.querySelectorAll('#chain-selector .selector-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#chain-selector .selector-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderChain(btn.dataset.type);
+    });
+  });
+
+  // OpenSSL commands data
+  const cmdData = {
+    info: {
+      title: '查看证书信息',
+      items: [
+        { label: '查看证书有效期', cmd: 'openssl x509 -in server.crt -noout -dates', out: 'notBefore=Jun  1 00:00:00 2024 GMT\nnotAfter=Jun  1 00:00:00 2025 GMT' },
+        { label: '查看证书支持的域名（SAN）', cmd: 'openssl x509 -in server.crt -noout -ext subjectAltName', out: 'X509v3 Subject Alternative Name:\n    DNS:example.com, DNS:www.example.com' },
+        { label: '查看证书指纹（用于对比）', cmd: 'openssl x509 -in server.crt -noout -fingerprint -sha256', out: 'SHA256 Fingerprint=43:5A:B2:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:2D' },
+        { label: '查看证书完整信息', cmd: 'openssl x509 -in server.crt -noout -text | head -20', out: 'Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number:\n            04:3f:c2:ae:12:3d:4e:5f:6a:7b:8c:9d:0e:1f:2a:3b\n        Signature Algorithm: sha256WithRSAEncryption\n        Issuer: C=US, O=DigiCert Inc, CN=DigiCert SHA2 Extended Validation Server CA' },
+      ]
+    },
+    chain: {
+      title: '检查证书链',
+      items: [
+        { label: '连接服务器查看完整证书链', cmd: 'openssl s_client -connect example.com:443 -showcerts', out: 'Certificate chain\n 0 s:example.com\n   i:/C=US/O=DigiCert Inc/CN=DigiCert SHA2 Extended Validation Server CA\n 1 s:/C=US/O=DigiCert Inc/CN=DigiCert SHA2 Extended Validation Server CA\n   i:/C=US/O=DigiCert Inc/CN=DigiCert Global Root G2' },
+        { label: '查看验证结果代码', cmd: 'openssl s_client -connect example.com:443 </dev/null 2>&1 | grep "Verify return code"', out: 'Verify return code: 0 (ok)' },
+        { label: '检查证书链完整性（部分链）', cmd: 'openssl s_client -connect example.com:443 -partial_chain -showcerts', out: 'Verify return code: 20 (unable to get local issuer certificate)' },
+      ]
+    },
+    verify: {
+      title: '验证证书',
+      items: [
+        { label: '使用 CA 验证服务器证书', cmd: 'openssl verify -CAfile ca.crt server.crt', out: 'server.crt: OK' },
+        { label: '验证完整证书链', cmd: 'openssl verify -CAfile root.crt -untrusted int.crt server.crt', out: 'server.crt: OK' },
+        { label: '常见验证返回码说明', cmd: '# 0  = 验证成功\n# 19 = 证书链不完整（根CA自签名）\n# 20 = 找不到中间证书\n# 21 = 无法验证到受信任根CA', out: null },
+      ]
+    },
+    match: {
+      title: '匹配私钥',
+      items: [
+        { label: '提取证书公钥指纹', cmd: 'openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubout -outform der | openssl md5', out: '(stdin)= 5d291e2ed3a6bafe3a0268e301a1b6cf' },
+        { label: '提取私钥公钥指纹', cmd: 'openssl pkey -in privkey.pem -pubout -outform der | openssl md5', out: '(stdin)= 5d291e2ed3a6bafe3a0268e301a1b6cf' },
+        { label: '对比两个指纹', cmd: '# 指纹相同则私钥与证书匹配', out: '如果两个指纹相同，说明私钥和证书是一对。' },
+      ]
+    }
+  };
+
+  function renderCmd(type) {
+    const container = document.getElementById('cmd-display');
+    const data = cmdData[type];
+    let html = '<div class="card"><div class="card-title">' + data.title + '</div>';
+    data.items.forEach(item => {
+      html += '<div class="cmd-block"><div class="cmd-title">' + item.label + '</div>';
+      html += '<div class="cmd-cmd"><span class="cmd-prompt">$</span> ' + item.cmd.replace(/</g, '&lt;') + '</div>';
+      if (item.out) html += '<div class="cmd-out">' + item.out + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // Init OpenSSL tab
+  renderCmd('info');
+  document.querySelectorAll('#cmd-selector .selector-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#cmd-selector .selector-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderCmd(btn.dataset.cmd);
+    });
+  });
+</script>
+</body>
+</html>

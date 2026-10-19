@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WebSocket 连接流程交互演示</title>
+<style>
+:root{--bg:#0f0f1a;--surface:#1a1a2e;--surface2:#16213e;--accent:#00d9ff;--accent2:#7b2ff7;--success:#00c853;--error:#ff1744;--warn:#ffab00;--text:#e0e0e0;--muted:#888;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:"SF Mono","Fira Code","Consolas",monospace;background:var(--bg);color:var(--text);min-height:100vh;padding:24px;line-height:1.6;max-width:900px;margin:0 auto;}
+h1{font-size:1.4rem;color:var(--accent);margin-bottom:8px;}
+h2{font-size:1rem;color:var(--accent2);margin:24px 0 10px;border-bottom:1px solid var(--surface2);padding-bottom:4px;}
+p{font-size:0.82rem;color:var(--muted);margin-bottom:8px;}
+.status-bar{display:flex;gap:10px;margin:12px 0;font-size:0.72rem;flex-wrap:wrap;}
+.status-item{padding:4px 10px;border-radius:4px;background:var(--surface);border:1px solid var(--surface2);transition:all 0.3s;}
+.status-item.active{border-color:var(--success);color:var(--success);box-shadow:0 0 8px rgba(0,200,83,0.3);}
+.flow-diagram{background:var(--surface);border:1px solid var(--surface2);border-radius:8px;padding:16px;margin:12px 0;}
+.flow-step{display:flex;align-items:center;gap:12px;padding:8px 0;opacity:0.35;transition:all 0.5s;}
+.flow-step.done{opacity:1;}
+.flow-step.active{opacity:1;}
+.step-num{width:24px;height:24px;border-radius:50%;background:var(--surface2);border:1px solid var(--muted);display:flex;align-items:center;justify-content:center;font-size:0.68rem;flex-shrink:0;transition:all 0.3s;}
+.flow-step.done .step-num{background:var(--success);border-color:var(--success);color:#000;}
+.flow-step.active .step-num{background:var(--accent);border-color:var(--accent);color:#000;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(0,217,255,0.4);}50%{box-shadow:0 0 0 8px rgba(0,217,255,0);}}
+.step-label{flex:1;font-size:0.78rem;}
+.step-detail{font-size:0.68rem;color:var(--muted);margin-top:2px;}
+.flow-arrow{color:var(--muted);font-size:0.68rem;padding-left:36px;height:14px;}
+.handshake-box{background:var(--surface);border:1px solid var(--surface2);border-radius:8px;padding:14px;margin:10px 0;font-size:0.72rem;}
+.handshake-line{padding:2px 0;}
+.h-line{color:var(--accent);}
+.h-key{color:var(--accent2);}
+.h-val{color:var(--success);}
+.h-code{color:var(--warn);}
+.frame-visual{background:var(--surface);border:1px solid var(--surface2);border-radius:8px;padding:14px;margin:10px 0;font-size:0.72rem;overflow-x:auto;}
+.frame-byte{display:inline-block;width:30px;height:28px;line-height:28px;text-align:center;border-radius:4px;margin:2px;font-size:0.62rem;}
+.frame-byte.fin{background:var(--accent);color:#000;}
+.frame-byte.rsv{background:var(--warn);color:#000;}
+.frame-byte.opcode{background:var(--accent2);color:#fff;}
+.frame-byte.mask{background:var(--success);color:#000;}
+.frame-byte.len{background:var(--error);color:#fff;}
+.frame-byte.mask-key{background:#e91e63;color:#fff;}
+.frame-byte.payload{background:var(--surface2);border:1px solid var(--muted);}
+.frame-legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:0.68rem;}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.legend-dot{width:12px;height:12px;border-radius:3px;}
+.log-area{background:#000;border:1px solid var(--surface2);border-radius:8px;padding:12px;margin:12px 0;font-size:0.7rem;max-height:280px;overflow-y:auto;font-family:"SF Mono",monospace;}
+.log-entry{padding:3px 0;border-bottom:1px solid #111;}
+.log-time{color:var(--muted);}
+.log-info{color:var(--accent);}
+.log-success{color:var(--success);}
+.log-error{color:var(--error);}
+.log-warn{color:var(--warn);}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+button{padding:8px 16px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);font-family:inherit;font-size:0.72rem;cursor:pointer;transition:all 0.2s;}
+button:hover:not(:disabled){background:var(--accent);color:#000;}
+button:disabled{opacity:0.3;cursor:not-allowed;}
+button.primary{border-color:var(--accent2);color:var(--accent2);}
+button.primary:hover:not(:disabled){background:var(--accent2);color:#fff;}
+button.danger{border-color:var(--error);color:var(--error);}
+button.danger:hover:not(:disabled){background:var(--error);color:#fff;}
+.heartbeat-visual{display:flex;align-items:center;gap:10px;padding:14px;background:var(--surface);border-radius:8px;margin:12px 0;}
+.heartbeat-line{flex:1;height:2px;background:var(--surface2);position:relative;}
+.heartbeat-dot{width:10px;height:10px;border-radius:50%;background:var(--accent);position:absolute;top:-4px;left:0;transition:left 0.4s ease,background 0.2s;}
+.heartbeat-dot.ping{background:var(--warn);}
+.heartbeat-dot.pong{background:var(--success);}
+.hb-label{font-size:0.68rem;color:var(--muted);width:50px;text-align:center;}
+table{width:100%;border-collapse:collapse;font-size:0.72rem;margin:8px 0;}
+th,td{padding:6px 8px;border:1px solid var(--surface2);text-align:left;}
+th{background:var(--surface2);color:var(--accent2);}
+tr:hover{background:var(--surface2);}
+.code{color:var(--warn);font-weight:bold;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:24px;max-width:580px;width:90%;max-height:80vh;overflow-y:auto;font-size:0.76rem;}
+.modal h3{color:var(--accent);margin-bottom:12px;}
+.modal pre{background:#000;padding:12px;border-radius:6px;overflow-x:auto;font-size:0.68rem;margin:8px 0;}
+</style>
+</head>
+<body>
+<h1>WebSocket 连接流程交互演示</h1>
+<p>本页面演示 WebSocket 完整生命周期：握手机制、数据帧格式、心跳保活和重连策略。使用本地服务器 <code>ws://localhost:8080</code>，请先运行 <code>node examples/websocket/handshake/server.js</code> 启动测试服务器。</p>
+
+<h2>1. 连接状态</h2>
+<div class="status-bar">
+  <div class="status-item" id="st0">CONNECTING(0)</div>
+  <div class="status-item" id="st1">OPEN(1)</div>
+  <div class="status-item" id="st2">CLOSING(2)</div>
+  <div class="status-item" id="st3">CLOSED(3)</div>
+</div>
+<div class="controls">
+  <button onclick="connectWS()" id="btn-connect">建立连接</button>
+  <button onclick="sendTestMsg()" id="btn-send" disabled>发送消息</button>
+  <button onclick="sendHeartbeat()" id="btn-hb" disabled>发送心跳</button>
+  <button onclick="closeWS()" id="btn-close" disabled class="danger">关闭连接</button>
+  <button onclick="simulateDisconnect()" id="btn-disconnect" class="primary">模拟断连</button>
+</div>
+
+<h2>2. 连接流程</h2>
+<div class="flow-diagram">
+  <div class="flow-step" id="step-tcp"><div class="step-num">1</div><div><div class="step-label">TCP 三次握手</div><div class="step-detail">SYN → SYN-ACK → ACK，建立可靠连接</div></div></div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-step" id="step-upgrade"><div class="step-num">2</div><div><div class="step-label">HTTP Upgrade 请求</div><div class="step-detail">Connection: Upgrade, Upgrade: websocket, Sec-WebSocket-Key</div></div></div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-step" id="step-handshake"><div class="step-num">3</div><div><div class="step-label">Sec-WebSocket-Key 握手验证</div><div class="step-detail">Key + GUID → SHA1 → Base64 = Sec-WebSocket-Accept</div></div></div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-step" id="step-101"><div class="step-num">4</div><div><div class="step-label">101 Switching Protocols</div><div class="step-detail">协议切换完成，TCP 连接升级为 WebSocket</div></div></div>
+  <div class="flow-arrow">↓</div>
+  <div class="flow-step" id="step-open"><div class="step-num">5</div><div><div class="step-label">onopen 事件触发</div><div class="step-detail">连接已打开，可进行全双工双向通信</div></div></div>
+</div>
+
+<h2>3. 握手请求 / 响应</h2>
+<div class="handshake-box">
+  <div class="handshake-line h-line">GET / HTTP/1.1</div>
+  <div class="handshake-line h-key">Host: localhost:8080</div>
+  <div class="handshake-line h-key">Connection: <span class="h-val">Upgrade</span></div>
+  <div class="handshake-line h-key">Upgrade: <span class="h-val">websocket</span></div>
+  <div class="handshake-line h-key">Sec-WebSocket-Key: <span class="h-val" id="ws-key">（连接时自动生成）</span></div>
+  <div class="handshake-line h-key">Sec-WebSocket-Version: <span class="h-val">13</span></div>
+  <br/>
+  <div class="handshake-line h-code">&#9660; HTTP/1.1 101 Switching Protocols</div>
+  <div class="handshake-line h-key">Upgrade: <span class="h-val">websocket</span></div>
+  <div class="handshake-line h-key">Connection: <span class="h-val">Upgrade</span></div>
+  <div class="handshake-line h-key">Sec-WebSocket-Accept: <span class="h-val" id="ws-accept">（服务器计算返回）</span></div>
+</div>
+
+<h2>4. 数据帧格式</h2>
+<div class="frame-visual">
+  <div id="frame-title" style="margin-bottom:12px;color:var(--accent2)">点击下方按钮查看不同类型帧的字节结构</div>
+  <div id="frame-bytes" style="display:flex;flex-wrap:wrap;gap:2px"></div>
+  <div class="frame-legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>FIN + RSV</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--accent2)"></div>Opcode</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>MASK</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--error)"></div>Payload Length</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#e91e63"></div>Masking Key</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--surface2);border:1px solid var(--muted)"></div>Payload Data</div>
+  </div>
+</div>
+<div class="controls">
+  <button onclick="showFrame('text')">文本帧 (0x1)</button>
+  <button onclick="showFrame('close')">关闭帧 (0x8)</button>
+  <button onclick="showFrame('ping')">Ping 帧 (0x9)</button>
+  <button onclick="showFrame('binary')">二进制帧 (0x2)</button>
+</div>
+
+<h2>5. 心跳保活机制</h2>
+<div class="heartbeat-visual">
+  <div style="font-size:0.68rem;color:var(--muted)">客户端</div>
+  <div class="heartbeat-line"><div class="heartbeat-dot" id="hb-dot-c"></div></div>
+  <div class="hb-label" id="hb-label">idle</div>
+  <div class="heartbeat-line"><div class="heartbeat-dot" id="hb-dot-s"></div></div>
+  <div style="font-size:0.68rem;color:var(--muted)">服务器</div>
+</div>
+<div class="controls">
+  <button onclick="simulateHeartbeat()" class="primary">模拟一次心跳</button>
+  <button onclick="startAutoHeartbeat()" id="btn-auto-hb">启动自动心跳</button>
+</div>
+
+<h2>6. 常用关闭码</h2>
+<table>
+  <thead><tr><th>代码</th><th>名称</th><th>说明</th></tr></thead>
+  <tbody>
+    <tr><td class="code">1000</td><td>CLOSE_NORMAL</td><td>正常关闭，双方协商一致</td></tr>
+    <tr><td class="code">1001</td><td>CLOSE_GOING_AWAY</td><td>终端离开（如页面关闭）</td></tr>
+    <tr><td class="code">1002</td><td>CLOSE_PROTOCOL_ERROR</td><td>协议错误</td></tr>
+    <tr><td class="code">1006</td><td>CLOSE_ABNORMAL</td><td>异常关闭（网络中断、非正常断连）</td></tr>
+    <tr><td class="code">1009</td><td>CLOSE_TOO_LARGE</td><td>消息过大</td></tr>
+    <tr><td class="code">1011</td><td>CLOSE_UNEXPECTED_CONDITION</td><td>服务器内部错误</td></tr>
+  </tbody>
+</table>
+
+<h2>7. 重连策略（指数退避 + 抖动）</h2>
+<div id="reconnect-info" style="font-size:0.75rem;padding:12px;background:var(--surface);border-radius:8px;margin:12px 0;line-height:2">
+  <div>当前重连次数：<span id="reconnect-count" style="color:var(--accent)">0</span></div>
+  <div>下次重连延迟：<span id="reconnect-delay" style="color:var(--warn)">-</span></div>
+  <div style="margin-top:8px;color:var(--muted)">公式：delay = min(1000 × 2^n, 30000) × [0.5, 1.0] 随机因子</div>
+</div>
+<div class="controls">
+  <button onclick="showBackoffTable()" class="primary">查看退避表</button>
+</div>
+
+<h2>8. 连接日志</h2>
+<div class="log-area" id="log-area"></div>
+<div class="controls">
+  <button onclick="clearLog()" class="danger">清空日志</button>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">详情</h3>
+    <div id="modal-content"></div>
+    <div style="margin-top:16px"><button onclick="closeModal()">关闭</button></div>
+  </div>
+</div>
+
+<script>
+const WS_URL = "ws://localhost:8080";
+const BASE_DELAY = 1000;
+const MAX_DELAY = 30000;
+const STEPS = ["tcp","upgrade","handshake","101","open"];
+
+let ws = null;
+let reconnectAttempts = 0;
+let hbTimer = null;
+let autoHbRunning = false;
+let animatingHb = false;
+
+function log(msg, type="info") {
+  const area = document.getElementById("log-area");
+  const t = new Date().toLocaleTimeString();
+  const el = document.createElement("div");
+  el.className = "log-entry";
+  el.innerHTML = `<span class="log-time">[${t}]</span> <span class="log-${type}">${msg}</span>`;
+  area.appendChild(el);
+  area.scrollTop = area.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById("log-area").innerHTML = "";
+  log("日志已清空", "warn");
+}
+
+function updateStatus(state) {
+  [0,1,2,3].forEach(i => document.getElementById("st"+i).classList.remove("active"));
+  if (state >= 0) document.getElementById("st"+state).classList.add("active");
+}
+
+function updateButtons(connected) {
+  document.getElementById("btn-connect").disabled = connected;
+  document.getElementById("btn-send").disabled = !connected;
+  document.getElementById("btn-hb").disabled = !connected;
+  document.getElementById("btn-close").disabled = !connected;
+}
+
+function advanceAllSteps() {
+  STEPS.forEach((s, i) => {
+    const el = document.getElementById("step-" + s);
+    el.classList.add("active");
+    setTimeout(() => el.classList.add("done"), i * 300);
+  });
+}
+
+function resetSteps() {
+  STEPS.forEach(s => document.getElementById("step-"+s).classList.remove("active","done"));
+}
+
+// ========== WebSocket ==========
+function connectWS() {
+  if (ws && ws.readyState < 2) { log("连接已存在", "warn"); return; }
+  log("正在连接 " + WS_URL + "...", "info");
+  updateStatus(0);
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    log("&#10003; 连接已建立 (OPEN)", "success");
+    updateStatus(1);
+    advanceAllSteps();
+    const key = genKey();
+    document.getElementById("ws-key").textContent = key + " (浏览器自动生成)";
+    document.getElementById("ws-accept").textContent = "s3pPLMBiTxaQ9kYGzzhZRbK+xOo= (服务器返回)";
+    updateButtons(true);
+    reconnectAttempts = 0;
+    updateReconnectInfo();
+    startAutoHeartbeat();
+  };
+
+  ws.onmessage = (event) => {
+    try {
+      const d = JSON.parse(event.data);
+      if (d.type === "ping") {
+        log("&#128229; 收到 Ping: ts=" + d.timestamp, "warn");
+        ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
+        log("&#128230; 已发送 Pong", "success");
+      } else if (d.type === "heartbeat" || d.type === "heartbeat_ack") {
+        log("&#10084;&#65039; 收到 " + d.type + ": ts=" + d.timestamp, "info");
+      } else {
+        log("&#128229; 收到: " + event.data, "info");
+      }
+    } catch {
+      log("&#128229; 收到文本: " + event.data, "info");
+    }
+  };
+
+  ws.onerror = (e) => log("&#10060; 错误: " + (e.type || "unknown"), "error");
+
+  ws.onclose = (e) => {
+    log("&#128222; 关闭: code=" + e.code + " reason=\"" + (e.reason||"") + "\" wasClean=" + e.wasClean, "error");
+    updateStatus(3);
+    updateButtons(false);
+    stopAutoHeartbeat();
+    resetSteps();
+    if (!e.wasClean && e.code !== 1000) scheduleReconnect();
+  };
+}
+
+function sendTestMsg() {
+  if (!ws || ws.readyState !== 1) { log("连接未就绪", "error"); return; }
+  const msg = "Hello " + Date.now();
+  ws.send(msg);
+  log("&#128230; 已发送: \"" + msg + "\"", "success");
+}
+
+function sendHeartbeat() {
+  if (!ws || ws.readyState !== 1) { log("连接未就绪", "error"); return; }
+  ws.send(JSON.stringify({ type: "heartbeat", timestamp: Date.now() }));
+  log("&#10084;&#65039; 已发送心跳", "info");
+}
+
+function closeWS() {
+  if (!ws) return;
+  log("正在关闭连接...", "warn");
+  ws.close(1000, "用户主动关闭");
+}
+
+function simulateDisconnect() {
+  if (!ws) { log("无连接可断开", "warn"); return; }
+  log("&#128308; 模拟断连（强制 close 1006）", "error");
+  ws.onclose = null;
+  ws.close(1006, "simulated disconnect");
+}
+
+// ========== 心跳 ==========
+function startAutoHeartbeat() {
+  if (autoHbRunning) return;
+  autoHbRunning = true;
+  document.getElementById("btn-auto-hb").textContent = "心跳运行中 (30s/次)...";
+  document.getElementById("btn-auto-hb").disabled = true;
+  hbTimer = setInterval(() => {
+    if (ws && ws.readyState === 1) {
+      ws.send(JSON.stringify({ type: "heartbeat", timestamp: Date.now() }));
+      log("&#10084;&#65039; [自动心跳] 已发送", "info");
+    }
+  }, 30000);
+}
+
+function stopAutoHeartbeat() {
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+  autoHbRunning = false;
+  const btn = document.getElementById("btn-auto-hb");
+  btn.textContent = "启动自动心跳";
+  btn.disabled = false;
+}
+
+function simulateHeartbeat() {
+  if (animatingHb) return;
+  animatingHb = true;
+  const dotC = document.getElementById("hb-dot-c");
+  const dotS = document.getElementById("hb-dot-s");
+  const label = document.getElementById("hb-label");
+
+  dotC.style.left = "0%";
+  dotS.style.left = "0%";
+  dotC.className = "heartbeat-dot";
+  dotS.className = "heartbeat-dot";
+
+  setTimeout(() => {
+    label.textContent = "ping &#8594;";
+    dotC.classList.add("ping");
+    dotC.style.left = "100%";
+    log("&#128230; Ping &#8594; (发送中)", "warn");
+  }, 80);
+
+  setTimeout(() => {
+    dotC.classList.remove("ping");
+    dotC.style.left = "0%";
+    dotS.classList.add("pong");
+    dotS.style.left = "100%";
+    label.textContent = "&#8592; pong";
+    log("&#128231; &#8592; Pong (收到响应)", "success");
+  }, 480);
+
+  setTimeout(() => {
+    dotS.classList.remove("pong");
+    dotS.style.left = "0%";
+    label.textContent = "idle";
+    animatingHb = false;
+  }, 880);
+}
+
+// ========== 重连 ==========
+function scheduleReconnect() {
+  reconnectAttempts++;
+  const backoff = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_DELAY);
+  const jitter = backoff * (0.5 + Math.random() * 0.5);
+  const delay = Math.round(jitter);
+  updateReconnectInfo();
+  log("&#128260; 重连 #" + reconnectAttempts + "，" + delay + "ms 后执行（退避+抖动）", "warn");
+  setTimeout(connectWS, delay);
+}
+
+function updateReconnectInfo() {
+  document.getElementById("reconnect-count").textContent = reconnectAttempts;
+  if (reconnectAttempts > 0) {
+    const b = Math.min(BASE_DELAY * Math.pow(2, reconnectAttempts - 1), MAX_DELAY);
+    document.getElementById("reconnect-delay").textContent = "&#8776; " + Math.round(b*0.75) + "&#8211;" + b + "ms";
+  }
+}
+
+// ========== 帧格式 ==========
+const FRAMES = {
+  text: {
+    title: "文本帧 Opcode=0x1（发送 \"Hi\"）",
+    bytes: [
+      {v:"1",c:"fin",t:"FIN=1"},{v:"0",c:"rsv",t:"RSV1"},{v:"0",c:"rsv",t:"RSV2"},{v:"0",c:"rsv",t:"RSV3"},
+      {v:"1",c:"opcode",t:"Opcode=1\n(Text)"},
+      {v:"1",c:"mask",t:"MASK=1\n(已掩码)"},
+      {v:"2",c:"len",t:"Length=2"},
+      {v:"0x37",c:"mask-key",t:"Key[0]"},{v:"0x2A",c:"mask-key",t:"Key[1]"},
+      {v:"0x61",c:"mask-key",t:"Key[2]"},{v:"0x14",c:"mask-key",t:"Key[3]"},
+      {v:"H^",c:"payload",t:"'H' ^ 0x37"},{v:"i!",c:"payload",t:"'i' ^ 0x2A"},
+    ]
+  },
+  close: {
+    title: "关闭帧 Opcode=0x8",
+    bytes: [
+      {v:"1",c:"fin",t:"FIN=1"},{v:"0",c:"rsv",t:"RSV"},
+      {v:"8",c:"opcode",t:"Opcode=8\n(Close)"},
+      {v:"0",c:"mask",t:"MASK=0"},
+      {v:"4",c:"len",t:"Length=4"},
+      {v:"0x03",c:"payload",t:"Code[0]\n0x03E8=1000"},{v:"0xE8",c:"payload",t:"Code[1]"},
+      {v:"OK",c:"payload",t:"Reason"},
+    ]
+  },
+  ping: {
+    title: "Ping 帧 Opcode=0x9",
+    bytes: [
+      {v:"1",c:"fin",t:"FIN=1"},{v:"0",c:"rsv",t:"RSV"},
+      {v:"9",c:"opcode",t:"Opcode=9\n(Ping)"},
+      {v:"0",c:"mask",t:"MASK=0"},
+      {v:"0",c:"len",t:"Length=0"},
+    ]
+  },
+  binary: {
+    title: "二进制帧 Opcode=0x2",
+    bytes: [
+      {v:"1",c:"fin",t:"FIN=1"},{v:"0",c:"rsv",t:"RSV"},
+      {v:"2",c:"opcode",t:"Opcode=2\n(Binary)"},
+      {v:"1",c:"mask",t:"MASK=1"},
+      {v:"5",c:"len",t:"Length=5"},
+      {v:"0x12",c:"mask-key",t:"Key[0]"},{v:"0x34",c:"mask-key",t:"Key[1]"},
+      {v:"0x56",c:"mask-key",t:"Key[2]"},{v:"0x78",c:"mask-key",t:"Key[3]"},
+      {v:"00",c:"payload",t:"Data[0]"},{v:"01",c:"payload",t:"Data[1]"},
+      {v:"02",c:"payload",t:"Data[2]"},{v:"03",c:"payload",t:"Data[3]"},
+      {v:"04",c:"payload",t:"Data[4]"},
+    ]
+  },
+};
+
+function showFrame(type) {
+  const f = FRAMES[type];
+  document.getElementById("frame-title").textContent = f.title;
+  document.getElementById("frame-bytes").innerHTML = f.bytes.map(b =>
+    `<div class="frame-byte ${b.c}" title="${b.t}">${b.v}</div>`
+  ).join("");
+  log("&#128202; 展示了 " + f.title, "info");
+}
+
+// ========== 弹窗 ==========
+function showBackoffTable() {
+  const rows = [];
+  for (let n = 1; n <= 8; n++) {
+    const base = Math.min(BASE_DELAY * Math.pow(2, n-1), MAX_DELAY);
+    const minD = Math.round(base * 0.5);
+    const maxD = base;
+    rows.push(`<tr><td class="code">${n}</td><td>${base >= MAX_DELAY ? "30s (上限)" : (base/1000)+"s"}</td><td>${minD}&#8211;${maxD}ms</td></tr>`);
+  }
+  document.getElementById("modal-title").textContent = "重连退避策略";
+  document.getElementById("modal-content").innerHTML = `
+    <p style="color:var(--muted);margin-bottom:12px">指数退避（Exponential Backoff）防止频繁重连造成服务端雪崩。随机抖动（Jitter）防止多客户端同时重连。</p>
+    <table><thead><tr><th>重试次数</th><th>基础延迟</th><th>实际范围（含抖动）</th></tr></thead><tbody>${rows.join("")}</tbody></table>
+    <pre style="margin-top:12px">// 抖动公式
+delay = baseDelay * (0.5 + Math.random() * 0.5)
+// 示例：base=1000 &#8594; [500ms, 1500ms]</pre>
+  `;
+  document.getElementById("modal").classList.add("show");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("show");
+}
+
+document.getElementById("modal").addEventListener("click", (e) => {
+  if (e.target === document.getElementById("modal")) closeModal();
+});
+
+// ========== 工具 ==========
+function genKey() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  let k = "";
+  for (let i = 0; i < 16; i++) k += chars[Math.floor(Math.random() * chars.length)];
+  return btoa(k);
+}
+
+// 初始化
+log("&#128259; WebSocket 连接流程演示已就绪", "info");
+</script>
+</body>
+</html>

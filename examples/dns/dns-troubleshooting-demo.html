@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DNS 排查演示 - 交互式学习工具</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #475569;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { text-align: center; padding: 30px 0; border-bottom: 1px solid var(--border); margin-bottom: 25px; }
+        h1 { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--success)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+        .subtitle { color: var(--text-secondary); }
+        .tab-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 25px; }
+        .tab-btn { padding: 10px 20px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); cursor: pointer; font-size: 0.95rem; transition: all 0.3s; }
+        .tab-btn:hover { background: var(--bg-input); border-color: var(--primary); }
+        .tab-btn.active { background: var(--primary); border-color: var(--primary); }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+        .card h2 { font-size: 1.3rem; margin-bottom: 15px; color: var(--primary); }
+        .card h3 { font-size: 1.1rem; margin: 20px 0 12px; color: var(--text-primary); }
+        .card p { color: var(--text-secondary); margin-bottom: 15px; }
+        .code-block { background: #0d1117; border-radius: 8px; margin: 15px 0; overflow: hidden; }
+        .code-header { background: var(--bg-input); padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .code-lang { color: var(--text-secondary); font-size: 0.85rem; }
+        .copy-btn { background: var(--primary); border: none; padding: 4px 10px; border-radius: 4px; color: white; cursor: pointer; font-size: 0.8rem; }
+        .copy-btn:hover { background: var(--primary-dark); }
+        .code-content { padding: 14px; overflow-x: auto; font-family: Consolas, monospace; font-size: 13px; line-height: 1.5; }
+        .code-content code { display: block; white-space: pre; }
+        .comment { color: #6a737d; }
+        .command { color: #7ee787; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-input); font-weight: 600; color: var(--primary); }
+        tr:hover { background: rgba(59, 130, 246, 0.1); }
+        .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 0.8rem; }
+        .badge-primary { background: var(--primary); color: white; }
+        .badge-success { background: var(--success); color: white; }
+        .badge-warning { background: var(--warning); color: black; }
+        .badge-danger { background: var(--danger); color: white; }
+        .input-group { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
+        .input-field { flex: 1; min-width: 180px; padding: 10px 14px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.95rem; }
+        .input-field:focus { outline: none; border-color: var(--primary); }
+        .btn { padding: 10px 20px; background: var(--primary); border: none; border-radius: 8px; color: white; cursor: pointer; font-size: 0.95rem; }
+        .btn:hover { background: var(--primary-dark); }
+        .output-area { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: Consolas, monospace; font-size: 13px; min-height: 80px; margin-top: 15px; white-space: pre-wrap; }
+        .cache-item { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--bg-input); border-radius: 8px; }
+        .cache-num { width: 36px; height: 36px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .cache-info { flex: 1; }
+        .cache-name { font-weight: 600; }
+        .cache-desc { font-size: 0.85rem; color: var(--text-secondary); }
+        .cache-ttl { padding: 3px 8px; background: var(--bg-dark); border-radius: 4px; font-size: 0.8rem; color: var(--warning); }
+        .tip { background: rgba(34, 197, 94, 0.1); border-left: 4px solid var(--success); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 15px 0; }
+        .tip-warning { background: rgba(245, 158, 11, 0.1); border-left-color: var(--warning); }
+        .tip-title { font-weight: 600; margin-bottom: 4px; }
+        .diagram { background: #0d1117; border-radius: 8px; padding: 16px; margin: 15px 0; font-family: Consolas, monospace; font-size: 13px; overflow-x: auto; }
+        .diagram pre { margin: 0; white-space: pre; }
+        .steps { counter-reset: step; }
+        .step { position: relative; padding-left: 50px; margin-bottom: 15px; }
+        .step::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 35px; height: 35px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem; }
+        .step-content { background: var(--bg-input); border-radius: 8px; padding: 14px; }
+        .step-title { font-weight: 600; margin-bottom: 6px; }
+        .flow-svg { background: #0d1117; border-radius: 8px; padding: 16px; margin: 15px 0; text-align: center; }
+        .flow-svg svg { max-width: 100%; height: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>DNS 排查演示</h1>
+            <p class="subtitle">交互式学习 DNS 缓存、传播延迟与故障排查</p>
+        </header>
+
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="caching">DNS 缓存层级</button>
+            <button class="tab-btn" data-tab="propagation">DNS 传播延迟</button>
+            <button class="tab-btn" data-tab="tools">排查工具</button>
+            <button class="tab-btn" data-tab="routing">路由表与DNS</button>
+        </nav>
+
+        <!-- Tab 1: DNS 缓存层级 -->
+        <div class="tab-content active" id="caching">
+            <div class="card">
+                <h2>DNS 多层缓存机制</h2>
+                <p>当您访问一个域名时，DNS 解析结果会在多个层级被缓存。了解这些缓存层对于理解为什么 DNS 变更不能立即生效至关重要。</p>
+
+                <div class="flow-svg">
+                    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arr" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                                <polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/>
+                            </marker>
+                        </defs>
+                        <rect x="20" y="20" width="140" height="60" rx="6" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+                        <text x="90" y="48" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="bold">浏览器缓存</text>
+                        <text x="90" y="65" text-anchor="middle" fill="#94a3b8" font-size="11">TTL: 5min-24h</text>
+
+                        <rect x="20" y="100" width="140" height="60" rx="6" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+                        <text x="90" y="128" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="bold">操作系统缓存</text>
+                        <text x="90" y="145" text-anchor="middle" fill="#94a3b8" font-size="11">TTL: 30s-10min</text>
+
+                        <rect x="20" y="180" width="140" height="60" rx="6" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+                        <text x="90" y="208" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="bold">本地 DNS</text>
+                        <text x="90" y="225" text-anchor="middle" fill="#94a3b8" font-size="11">TTL: 1-24h</text>
+
+                        <rect x="20" y="260" width="140" height="60" rx="6" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+                        <text x="90" y="288" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="bold">权威 DNS</text>
+                        <text x="90" y="305" text-anchor="middle" fill="#94a3b8" font-size="11">原始数据</text>
+
+                        <line x1="160" y1="50" x2="185" y2="50" stroke="#3b82f6" stroke-width="2" marker-end="url(#arr)"/>
+                        <line x1="160" y1="130" x2="185" y2="130" stroke="#22c55e" stroke-width="2" marker-end="url(#arr)"/>
+                        <line x1="160" y1="210" x2="185" y2="210" stroke="#f59e0b" stroke-width="2" marker-end="url(#arr)"/>
+                        <line x1="160" y1="290" x2="185" y2="290" stroke="#ef4444" stroke-width="2" marker-end="url(#arr)"/>
+
+                        <rect x="210" y="20" width="470" height="300" rx="6" fill="#0d1117" stroke="#475569"/>
+                        <text x="445" y="45" text-anchor="middle" fill="#94a3b8" font-size="13">DNS 查询流程</text>
+
+                        <circle cx="250" cy="75" r="16" fill="#3b82f6"/>
+                        <text x="250" y="80" text-anchor="middle" fill="white" font-size="12">1</text>
+                        <text x="280" y="70" fill="#f1f5f9" font-size="12">浏览器查询缓存</text>
+                        <text x="280" y="86" fill="#94a3b8" font-size="10">hit: 返回 IP / miss: 继续</text>
+
+                        <circle cx="250" cy="130" r="16" fill="#22c55e"/>
+                        <text x="250" y="135" text-anchor="middle" fill="white" font-size="12">2</text>
+                        <text x="280" y="125" fill="#f1f5f9" font-size="12">OS DNS 缓存</text>
+                        <text x="280" y="141" fill="#94a3b8" font-size="10">hosts / ipconfig /displaydns</text>
+
+                        <circle cx="250" cy="185" r="16" fill="#f59e0b"/>
+                        <text x="250" y="190" text-anchor="middle" fill="white" font-size="12">3</text>
+                        <text x="280" y="180" fill="#f1f5f9" font-size="12">本地 DNS 服务器</text>
+                        <text x="280" y="196" fill="#94a3b8" font-size="10">ISP Recursive DNS</text>
+
+                        <circle cx="250" cy="240" r="16" fill="#ef4444"/>
+                        <text x="250" y="245" text-anchor="middle" fill="white" font-size="12">4</text>
+                        <text x="280" y="235" fill="#f1f5f9" font-size="12">权威 DNS 服务器</text>
+                        <text x="280" y="251" fill="#94a3b8" font-size="10">返回最终答案</text>
+
+                        <circle cx="250" cy="295" r="16" fill="#8b5cf6"/>
+                        <text x="250" y="300" text-anchor="middle" fill="white" font-size="12">5</text>
+                        <text x="280" y="290" fill="#f1f5f9" font-size="12">结果逐层返回</text>
+                        <text x="280" y="306" fill="#94a3b8" font-size="10">每层都可能缓存</text>
+
+                        <rect x="380" y="65" width="100" height="22" rx="3" fill="#3b82f6" opacity="0.3"/>
+                        <text x="430" y="81" text-anchor="middle" fill="#3b82f6" font-size="10">~0ms</text>
+
+                        <rect x="380" y="120" width="100" height="22" rx="3" fill="#22c55e" opacity="0.3"/>
+                        <text x="430" y="136" text-anchor="middle" fill="#22c55e" font-size="10">~5ms</text>
+
+                        <rect x="380" y="175" width="100" height="22" rx="3" fill="#f59e0b" opacity="0.3"/>
+                        <text x="430" y="191" text-anchor="middle" fill="#f59e0b" font-size="10">~50ms</text>
+
+                        <rect x="380" y="230" width="100" height="22" rx="3" fill="#ef4444" opacity="0.3"/>
+                        <text x="430" y="246" text-anchor="middle" fill="#ef4444" font-size="10">~100ms</text>
+                    </svg>
+                </div>
+
+                <h3>缓存层级详解</h3>
+
+                <div class="cache-item">
+                    <div class="cache-num">1</div>
+                    <div class="cache-info">
+                        <div class="cache-name">浏览器缓存</div>
+                        <div class="cache-desc">Chrome: chrome://net-internals/#dns</div>
+                    </div>
+                    <span class="cache-ttl">TTL: 5min-24h</span>
+                </div>
+
+                <div class="cache-item">
+                    <div class="cache-num">2</div>
+                    <div class="cache-info">
+                        <div class="cache-name">操作系统 DNS 缓存</div>
+                        <div class="cache-desc">Windows: ipconfig /displaydns | Linux: systemd-resolved</div>
+                    </div>
+                    <span class="cache-ttl">TTL: 30s-10min</span>
+                </div>
+
+                <div class="cache-item">
+                    <div class="cache-num">3</div>
+                    <div class="cache-info">
+                        <div class="cache-name">本地 DNS 服务器 (ISP/自建)</div>
+                        <div class="cache-desc">递归解析器，如 114.114.114.114, 8.8.8.8</div>
+                    </div>
+                    <span class="cache-ttl">TTL: 1-24h</span>
+                </div>
+
+                <div class="cache-item">
+                    <div class="cache-num">4</div>
+                    <div class="cache-info">
+                        <div class="cache-name">权威 DNS 服务器</div>
+                        <div class="cache-desc">域名注册商/NS提供商，如阿里云、CloudFlare</div>
+                    </div>
+                    <span class="cache-ttl">TTL: 可设置</span>
+                </div>
+
+                <div class="tip">
+                    <div class="tip-title">关键理解</div>
+                    <p>DNS 变更后，旧记录会在各层缓存中保留直到 TTL 过期。这就是为什么修改 DNS 记录后，可能需要 5 分钟到 48 小时才能完全生效。</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>清除 DNS 缓存命令</h2>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">Windows PowerShell</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <code><span class="comment"># 查看 DNS 缓存</span>
+<span class="command">ipconfig</span> /displaydns
+
+<span class="comment"># 清除 DNS 缓存</span>
+<span class="command">ipconfig</span> /flushdns
+
+<span class="comment"># 查看所有网络适配器信息</span>
+<span class="command">ipconfig</span> /all</code>
+                    </div>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">Linux</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <code><span class="comment"># 清除 systemd-resolved 缓存</span>
+<span class="command">sudo</span> systemd-resolve --flush-caches
+
+<span class="comment"># 重启 nscd</span>
+<span class="command">sudo</span> systemctl restart nscd
+
+<span class="comment"># 查看 hosts 文件</span>
+<span class="command">cat</span> /etc/hosts</code>
+                    </div>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header">
+                        <span class="code-lang">macOS</span>
+                        <button class="copy-btn" onclick="copyCode(this)">复制</button>
+                    </div>
+                    <div class="code-content">
+                        <code><span class="comment"># 清除 DNS 缓存</span>
+<span class="command">sudo</span> dscacheutil -flushcache
+<span class="command">sudo</span> killall -HUP mDNSResponder</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: DNS 传播延迟 -->
+        <div class="tab-content" id="propagation">
+            <div class="card">
+                <h2>DNS 传播延迟详解</h2>
+                <p>DNS 传播是指 DNS 记录从权威服务器扩散到全球递归DNS服务器的过程。这个过程受到多种因素影响。</p>
+
+                <h3>影响传播时间的因素</h3>
+                <table>
+                    <thead>
+                        <tr><th>因素</th><th>说明</th><th>影响程度</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><span class="badge badge-primary">TTL 值</span></td><td>DNS 记录缓存时间，值越高传播越慢</td><td><span class="badge badge-danger">高</span></td></tr>
+                        <tr><td><span class="badge badge-success">DNS 服务商</span></td><td>不同厂商同步速度差异大</td><td><span class="badge badge-warning">中</span></td></tr>
+                        <tr><td><span class="badge badge-warning">地理位置</span></td><td>距离权威服务器越远更新越慢</td><td><span class="badge badge-warning">中</span></td></tr>
+                    </tbody>
+                </table>
+
+                <div class="diagram">
+                    <pre>
+DNS 变更后时间线:
+T=0        权威 DNS 服务器已更新
+T+5min     ISP DNS 缓存开始陆续过期
+T+15min    操作系统 DNS 缓存过期
+T+5min~24h 部分用户浏览器缓存过期
+T+24~48h   绝大多数用户都能看到新记录
+
+总结: DNS 变更可能需要 <span style="color:#f59e0b">5分钟</span> 到 <span style="color:#ef4444">48小时</span> 才能完全生效
+                    </pre>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>DNS 传播时间参考</h2>
+                <table>
+                    <thead>
+                        <tr><th>场景</th><th>最短</th><th>最长</th><th>典型值</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>同一 DNS 服务商内</td><td><span class="badge badge-success">即时</span></td><td><span class="badge badge-warning">5分钟</span></td><td>1-2 分钟</td></tr>
+                        <tr><td>跨 DNS 服务商</td><td><span class="badge badge-success">即时</span></td><td><span class="badge badge-danger">48小时</span></td><td>2-4 小时</td></tr>
+                        <tr><td>DNSSEC 生效</td><td><span class="badge badge-success">即时</span></td><td><span class="badge badge-danger">72小时</span></td><td>24 小时</td></tr>
+                        <tr><td>CDN 配置变更</td><td><span class="badge badge-success">即时</span></td><td><span class="badge badge-danger">48小时</span></td><td>4-8 小时</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>DNS 修改最佳实践</h2>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-content">
+                            <div class="step-title">第一步：提前降低 TTL 值</div>
+                            <p>在计划修改 DNS 前 48 小时，将 TTL 降低到 300 秒（5分钟），这样变更可以更快传播。</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-content">
+                            <div class="step-title">第二步：执行 DNS 修改</div>
+                            <p>在低峰期执行修改，减少影响范围。</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-content">
+                            <div class="step-title">第三步：验证修改</div>
+                            <p>使用多个 DNS 服务器验证解析结果。</p>
+                            <div class="code-block" style="margin-top:10px;">
+                                <div class="code-header"><span class="code-lang">验证命令</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+                                <div class="code-content"><code><span class="command">nslookup</span> example.com 8.8.8.8
+<span class="command">nslookup</span> example.com 1.1.1.1</code></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-content">
+                            <div class="step-title">第四步：恢复 TTL 值</div>
+                            <p>确认修改生效后，将 TTL 恢复到正常值（3600 秒或更长）以减少解析延迟。</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tip tip-warning">
+                    <div class="tip-title">重要提示</div>
+                    <p>如果 DNS 修改涉及 IP 变更，请确保旧服务器在变更期间保持运行，建议保留至少 24 小时后再下线。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: 排查工具 -->
+        <div class="tab-content" id="tools">
+            <div class="card">
+                <h2>常用 DNS 排查工具</h2>
+
+                <h3>nslookup (Windows)</h3>
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang">PowerShell / CMD</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+                    <div class="code-content">
+                        <code><span class="comment"># 基本查询</span>
+<span class="command">nslookup</span> www.example.com
+
+<span class="comment"># 指定 DNS 服务器查询</span>
+<span class="command">nslookup</span> www.example.com 8.8.8.8
+
+<span class="comment"># 查询 MX 记录</span>
+<span class="command">nslookup</span> -type=mx example.com
+
+<span class="comment"># 查询 NS 记录</span>
+<span class="command">nslookup</span> -type=ns example.com</code>
+                    </div>
+                </div>
+
+                <h3>dig (Linux/macOS)</h3>
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang">Terminal</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+                    <div class="code-content">
+                        <code><span class="comment"># 基本查询</span>
+<span class="command">dig</span> www.example.com
+
+<span class="comment"># 指定 DNS 服务器</span>
+<span class="command">dig</span> @8.8.8.8 www.example.com
+
+<span class="comment"># 简短输出</span>
+<span class="command">dig</span> +short www.example.com
+
+<span class="comment"># 追踪 DNS 解析路径</span>
+<span class="command">dig</span> +trace www.example.com
+
+<span class="comment"># 查询 MX 记录</span>
+<span class="command">dig</span> mx example.com</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>交互式 DNS 查询演示</h2>
+                <p>输入域名进行查询演示（模拟）：</p>
+
+                <div class="input-group">
+                    <input type="text" class="input-field" id="domainInput" placeholder="输入域名" value="www.example.com">
+                    <button class="btn" onclick="simulateDnsQuery()">查询</button>
+                </div>
+
+                <div class="output-area" id="dnsOutput">DNS 查询结果将显示在这里...</div>
+            </div>
+
+            <div class="card">
+                <h2>在线 DNS 查询工具</h2>
+                <table>
+                    <thead>
+                        <tr><th>工具</th><th>网址</th><th>特点</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>DNSdumpster</td><td>dnsdumpster.com</td><td>域名枚举</td></tr>
+                        <tr><td>MXToolbox</td><td>mxtoolbox.com</td><td>DNS/邮件检查</td></tr>
+                        <tr><td>ViewDNS</td><td>viewdns.info</td><td>多维度 DNS 查询</td></tr>
+                        <tr><td>WhatIsMyDNS</td><td>whatismyip.com</td><td>全球 DNS 传播检查</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab 4: 路由表与 DNS -->
+        <div class="tab-content" id="routing">
+            <div class="card">
+                <h2>路由表与 DNS 的关系</h2>
+                <p>DNS 和路由表虽然都涉及网络地址，但工作在不同的层级，有不同的作用。理解它们的区别和协作关系对于网络故障排查非常重要。</p>
+
+                <div class="diagram">
+                    <pre>
+┌────────────────────────────────────────────────────────────────┐
+│                    DNS vs 路由表 核心区别                       │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│   DNS (域名系统)              路由表 (路由表)                    │
+│   ─────────────────          ──────────────────               │
+│   工作层级: 应用层(第7层)     工作层级: 网络层(第3层)            │
+│   处理内容: 域名 → IP         处理内容: IP → 路径               │
+│   查找方式: 按名称查找         查找方式: 按目的网络查找           │
+│   缓存机制: TTL               缓存机制: 无(实时)                │
+│   变更影响: 解析结果           变更影响: 转发路径                 │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+                    </pre>
+                </div>
+
+                <h3>DNS 与路由表的协作流程</h3>
+                <div class="diagram">
+                    <pre>
+用户请求: 访问 www.example.com
+
+1. DNS 解析 (应用层)
+   └─ www.example.com → 93.184.216.34
+
+2. 路由决策 (网络层)
+   └─ 目的 IP: 93.184.216.34
+   └─ 查询路由表找到下一跳: 192.168.0.1
+   └─ 数据包转发到下一跳
+
+3. 数据包到达目标
+   └─ 经过多跳路由后到达 93.184.216.34
+                    </pre>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>常见路由表命令</h2>
+
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang">Windows</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+                    <div class="code-content">
+                        <code><span class="comment"># 查看路由表</span>
+<span class="command">route</span> print
+
+<span class="comment"># 查看 IPv4 路由表</span>
+<span class="command">netstat</span> -r
+
+<span class="comment"># 添加静态路由</span>
+<span class="command">route</span> add 10.0.0.0 mask 255.0.0.0 192.168.0.1
+
+<span class="comment"># 删除静态路由</span>
+<span class="command">route</span> delete 10.0.0.0
+
+<span class="comment"># 添加持久路由</span>
+<span class="command">route</span> -p add 10.0.0.0 mask 255.0.0.0 192.168.0.1</code>
+                    </div>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-header"><span class="code-lang">Linux</span><button class="copy-btn" onclick="copyCode(this)">复制</button></div>
+                    <div class="code-content">
+                        <code><span class="comment"># 查看路由表</span>
+<span class="command">ip</span> route show
+<span class="command">route</span> -n
+
+<span class="comment"># 添加静态路由</span>
+<span class="command">sudo</span> ip route add 10.0.0.0/8 via 192.168.0.1
+
+<span class="comment"># 删除静态路由</span>
+<span class="command">sudo</span> ip route del 10.0.0.0/8
+
+<span class="comment"># 查看路由缓存</span>
+<span class="command">ip</span> route show cache</code>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>路由表示例</h2>
+                <table>
+                    <thead>
+                        <tr><th>目的网络</th><th>子网掩码</th><th>下一跳/接口</th><th>说明</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>192.168.1.0</td><td>255.255.255.0</td><td>192.168.1.1 (LAN)</td><td>本地网络</td></tr>
+                        <tr><td>10.0.0.0</td><td>255.0.0.0</td><td>10.0.0.1 (VPN)</td><td>VPN 网络</td></tr>
+                        <tr><td>0.0.0.0</td><td>0.0.0.0</td><td>192.168.0.1 (WAN)</td><td>默认路由</td></tr>
+                        <tr><td>93.184.216.0</td><td>255.255.255.0</td><td>192.168.0.1</td><td>example.com 所在网络</td></tr>
+                    </tbody>
+                </table>
+
+                <div class="tip">
+                    <div class="tip-title">关键理解</div>
+                    <p>DNS 告诉您"目的地在哪"，路由表告诉您"怎么去目的地"。两者协同工作：DNS 提供目标 IP，路由表决定转发路径。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+                btn.classList.add("active");
+                document.getElementById(btn.dataset.tab).classList.add("active");
+            });
+        });
+
+        function copyCode(btn) {
+            const code = btn.closest(".code-block").querySelector("code").textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = "�Ѹ���";
+                btn.classList.add("copied");
+                setTimeout(() => {
+                    btn.textContent = "����";
+                    btn.classList.remove("copied");
+                }, 2000);
+            });
+        }
+
+        function simulateDnsQuery() {
+            const domain = document.getElementById("domainInput").value || "www.example.com";
+            const output = document.getElementById("dnsOutput");
+            const sampleIPs = {
+                "www.example.com": "93.184.216.34",
+                "example.com": "93.184.216.34",
+                "google.com": "142.250.191.78",
+                "github.com": "140.82.121.4"
+            };
+            const ip = sampleIPs[domain] || "203.0.113." + Math.floor(Math.random() * 255);
+            output.innerHTML = "��ѯ����: " + domain + "\n\n������: 8.8.8.8\n��Ȩ��Ӧ��:\n\n����: " + domain + "\nAddress: " + ip + "\n\n��ѯʱ��: " + (Math.random() * 50 + 10).toFixed(0) + " ms";
+            output.className = "output-area";
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axios Adapter 交互式演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; color: #e4e4e7; padding: 24px; min-height: 100vh; }
+    h1 { font-size: 1.5rem; margin-bottom: 8px; color: #fff; }
+    .subtitle { color: #71717a; margin-bottom: 24px; font-size: 0.9rem; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+    .tab { padding: 8px 16px; background: #1e1e2e; border: none; color: #71717a; cursor: pointer; border-radius: 6px 6px 0 0; font-size: 0.875rem; transition: all 0.2s; }
+    .tab:hover { color: #a1a1aa; }
+    .tab.active { background: #18181b; color: #fff; }
+    .panel { background: #18181b; border-radius: 0 8px 8px 8px; padding: 20px; }
+    .panel-section { margin-bottom: 20px; }
+    .panel-section h3 { font-size: 0.875rem; color: #a1a1aa; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .code-block { background: #0f0f23; border-radius: 6px; padding: 16px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.8rem; overflow-x: auto; white-space: pre; line-height: 1.6; }
+    .code-block .keyword { color: #c678dd; }
+    .code-block .string { color: #98c379; }
+    .code-block .comment { color: #5c6370; font-style: italic; }
+    .code-block .function { color: #61afef; }
+    .code-block .number { color: #d19a66; }
+    .code-block .param { color: #e06c75; }
+    .btn { padding: 10px 20px; background: #4f46e5; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
+    .btn:hover { background: #4338ca; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .output { background: #0f0f23; border-radius: 6px; padding: 16px; margin-top: 16px; min-height: 80px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto; }
+    .output .success { color: #98c379; }
+    .output .error { color: #e06c75; }
+    .output .info { color: #61afef; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+    .arrow-diagram { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 24px; background: #0f0f23; border-radius: 8px; margin: 16px 0; flex-wrap: wrap; }
+    .arrow-step { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .arrow-box { background: #27272a; padding: 12px 20px; border-radius: 8px; text-align: center; min-width: 120px; }
+    .arrow-box.primary { background: #4f46e5; }
+    .arrow-box.secondary { background: #27272a; border: 1px solid #3f3f46; }
+    .arrow-arrow { color: #52525b; font-size: 1.5rem; }
+    .comparison-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    .comparison-table th, .comparison-table td { padding: 12px; text-align: left; border-bottom: 1px solid #27272a; font-size: 0.875rem; }
+    .comparison-table th { color: #71717a; font-weight: 500; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+    .comparison-table td:first-child { color: #a1a1aa; }
+    .tag { display: inline-block; padding: 2px 8px; background: #27272a; border-radius: 4px; font-size: 0.75rem; color: #a1a1aa; margin-right: 4px; }
+    .tag.xhr { background: #1e3a5f; color: #60a5fa; }
+    .tag.http { background: #1e3a2f; color: #34d399; }
+    .tag.mock { background: #3b1e5f; color: #a78bfa; }
+    .flow-step { background: #1e1e2e; border-radius: 6px; padding: 16px; margin-bottom: 12px; border-left: 3px solid #4f46e5; }
+    .flow-step h4 { font-size: 0.875rem; margin-bottom: 8px; color: #fff; }
+    .flow-step p { font-size: 0.8rem; color: #71717a; line-height: 1.5; }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 0.75rem; color: #71717a; margin-bottom: 4px; }
+    .input-group input, .input-group select { width: 100%; padding: 8px 12px; background: #0f0f23; border: 1px solid #27272a; border-radius: 6px; color: #e4e4e7; font-size: 0.875rem; }
+    .input-group input:focus, .input-group select:focus { outline: none; border-color: #4f46e5; }
+  </style>
+</head>
+<body>
+  <h1>Axios Adapter 适配器模式</h1>
+  <p class="subtitle">理解 Axios 如何通过适配器接口实现跨环境 HTTP 请求</p>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="pattern">适配器接口</button>
+    <button class="tab" data-tab="flow">请求流程</button>
+    <button class="tab" data-tab="custom">自定义适配器</button>
+    <button class="tab" data-tab="compare">方案对比</button>
+  </div>
+
+  <div class="panel">
+    <!-- 适配器接口 -->
+    <div id="panel-pattern" class="tab-content">
+      <div class="panel-section">
+        <h3>Adapter 接口定义</h3>
+        <div class="code-block"><span class="comment">// Axios 适配器接口 — 接收 config，返回 Promise</span>
+<span class="keyword">function</span> <span class="function">adapter</span>(<span class="param">config</span>) {
+  <span class="comment">// config 已完成合并、转换器、拦截器预处理</span>
+  <span class="comment">// 返回 Promise，resolve 时触发 response 转换器</span>
+  <span class="keyword">return</span> <span class="keyword">new</span> Promise(<span class="keyword">function</span>(<span class="param">resolve, reject</span>) {
+    <span class="comment">// 执行实际请求...</span>
+    <span class="keyword">const</span> response = {
+      data:       <span class="string">responseData</span>,
+      status:     <span class="param">request</span>.status,
+      statusText: <span class="param">request</span>.statusText,
+      headers:    <span class="param">responseHeaders</span>,
+      config:     <span class="param">config</span>,
+      request:    <span class="param">request</span>
+    };
+    <span class="comment">// settle 决定 resolve 或 reject</span>
+    settle(resolve, reject, response);
+  });
+}</div>
+      </div>
+
+      <div class="panel-section">
+        <h3>内置适配器映射</h3>
+        <div class="arrow-diagram">
+          <div class="arrow-step">
+            <div class="arrow-box primary">Axios(config)</div>
+            <span style="font-size:0.75rem;color:#71717a">发起请求</span>
+          </div>
+          <span class="arrow-arrow">→</span>
+          <div class="arrow-step">
+            <div class="arrow-box secondary">dispatchRequest</div>
+            <span style="font-size:0.75rem;color:#71717a">调度适配器</span>
+          </div>
+          <span class="arrow-arrow">→</span>
+          <div class="arrow-step">
+            <div class="arrow-box secondary">getAdapter()</div>
+            <span style="font-size:0.75rem;color:#71717a">选择适配器</span>
+          </div>
+          <span class="arrow-arrow">→</span>
+          <div class="arrow-step">
+            <div class="arrow-box secondary">adapter(config)</div>
+            <span style="font-size:0.75rem;color:#71717a">执行请求</span>
+          </div>
+        </div>
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr><th>适配器</th><th>环境</th><th>实现</th><th>关键特性</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="tag xhr">xhr</span></td>
+                <td>浏览器</td>
+                <td>XMLHttpRequest</td>
+                <td>上传/下载进度、请求取消、Cookie</td>
+              </tr>
+              <tr>
+                <td><span class="tag http">http</span></td>
+                <td>Node.js</td>
+                <td>http/https 模块</td>
+                <td>重定向、代理、HTTP/2、流式响应</td>
+              </tr>
+              <tr>
+                <td><span class="tag mock">mock</span></td>
+                <td>测试/开发</td>
+                <td>自定义</td>
+                <td>无网络延迟、可模拟错误</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 请求流程 -->
+    <div id="panel-flow" class="tab-content" style="display:none;">
+      <div class="panel-section">
+        <h3>XHR Adapter 请求流程（浏览器环境）</h3>
+        <div class="flow-step">
+          <h4>1. dispatchRequest(config)</h4>
+          <p>Axios 核心模块，合并默认配置与应用配置，运行请求转换器。</p>
+        </div>
+        <div class="flow-step">
+          <h4>2. getAdapter() 选择适配器</h4>
+          <p>根据环境判断：浏览器 → xhrAdapter，Node → httpAdapter。可通过 config.adapter 手动指定。</p>
+        </div>
+        <div class="flow-step">
+          <h4>3. xhrAdapter(config) 创建 Promise</h4>
+          <p>返回 Promise，异步执行 XMLHttpRequest。</p>
+        </div>
+        <div class="flow-step">
+          <h4>4. XMLHttpRequest.open()</h4>
+          <p>request.open(method, url, async) 建立连接。</p>
+        </div>
+        <div class="flow-step">
+          <h4>5. 设置请求头与选项</h4>
+          <p>setRequestHeader 设置自定义头，withCredentials 处理跨域 Cookie，responseType 指定响应格式。</p>
+        </div>
+        <div class="flow-step">
+          <h4>6. 注册事件处理器</h4>
+          <p>onloadend / onreadystatechange：响应完成；onabort：取消；onerror：网络错误；ontimeout：超时。</p>
+        </div>
+        <div class="flow-step">
+          <h4>7. request.send(data)</h4>
+          <p>发送请求，data 为请求体（FormData / JSON / 二进制）。</p>
+        </div>
+        <div class="flow-step">
+          <h4>8. settle(resolve, reject, response)</h4>
+          <p>根据 HTTP 状态码决定 Promise resolve 或 reject。2xx → resolve，其他 → reject。</p>
+        </div>
+        <div class="flow-step">
+          <h4>9. Response Interceptors</h4>
+          <p>响应拦截器处理 data 转换、错误标准化等。</p>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>HTTP Adapter 请求流程（Node 环境）</h3>
+        <div class="flow-step">
+          <h4>1. buildFullPath() 构建完整路径</h4>
+          <p>合并 baseURL + url，处理绝对/相对路径。</p>
+        </div>
+        <div class="flow-step">
+          <h4>2. 数据流处理</h4>
+          <p>Buffer / ArrayBuffer / string → Buffer；FormData → stream；File/Blob → stream。</p>
+        </div>
+        <div class="flow-step">
+          <h4>3. http/https.request(options)</h4>
+          <p>创建 Node.js http(s) 请求，支持代理、重定向、超时。</p>
+        </div>
+        <div class="flow-step">
+          <h4>4. 进度与取消</h4>
+          <p>通过 EventEmitter 实现 abort 信号，可配合 AbortController 使用。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 自定义适配器 -->
+    <div id="panel-custom" class="tab-content" style="display:none;">
+      <div class="grid-2">
+        <div class="panel-section">
+          <h3>自定义 Mock 适配器</h3>
+          <div class="code-block"><span class="comment">// mock-adapter.js — 模拟请求适配器</span>
+<span class="keyword">function</span> <span class="function">mockAdapter</span>(<span class="param">config</span>) {
+  <span class="keyword">return</span> <span class="keyword">new</span> Promise((<span class="param">resolve, reject</span>) => {
+    <span class="comment">// 模拟延迟</span>
+    setTimeout(() => {
+      <span class="keyword">const</span> response = {
+        data: { <span class="string">message</span>: <span class="string">'Mock 响应'</span>, config },
+        status: <span class="number">200</span>,
+        statusText: <span class="string">'OK'</span>,
+        headers: { <span class="string">'content-type'</span>: <span class="string">'application/json'</span> },
+        config,
+        request: <span class="keyword">null</span>
+      };
+      <span class="comment">// 模拟错误（config.forceError = true）</span>
+      <span class="keyword">if</span> (config.forceError) {
+        <span class="keyword">return</span> reject(<span class="keyword">new</span> Error(<span class="string">'Mock Error'</span>));
+      }
+      resolve(response);
+    }, config.delay || <span class="number">500</span>);
+  });
+}
+
+<span class="comment">// 使用方式</span>
+<span class="keyword">const</span> axios = <span class="function">require</span>(<span class="string">'axios'</span>);
+axios.defaults.adapter = mockAdapter;</div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>实际使用场景</h3>
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr><th>场景</th><th>适配器实现</th><th>用途</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>单元测试</td><td><span class="tag mock">Mock</span></td><td>无网络依赖，秒级完成</td></tr>
+              <tr><td>接口 Mock</td><td><span class="tag mock">Mock</span></td><td>前后端并行开发</td></tr>
+              <tr><td>跨端复用</td><td><span class="tag xhr">xhr</span></td><td>小程序/Uni-app 适配</td></tr>
+              <tr><td>调试代理</td><td><span class="tag xhr">xhr</span></td><td> Whistle / Charles 拦截</td></tr>
+              <tr><td>Service Worker</td><td><span class="tag http">http</span></td><td>离线缓存/网络优先</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>实战：自定义适配器实现请求重试</h3>
+        <div class="code-block"><span class="keyword">function</span> <span class="function">retryAdapter</span>(<span class="param">config</span>) {
+  <span class="keyword">const</span> maxRetries = config.retryCount || <span class="number">3</span>;
+  <span class="keyword">const</span> retryDelay = config.retryDelay || <span class="number">1000</span>;
+  <span class="keyword">const</span> originalAdapter = <span class="function">require</span>(<span class="string">'axios/lib/adapters/xhr'</span>);
+
+  <span class="keyword">function</span> <span class="function">attempt</span>(<span class="param">retryCount</span>) {
+    <span class="keyword">return</span> originalAdapter(config)
+      .catch(<span class="param">err</span> => {
+        <span class="keyword">if</span> (retryCount < maxRetries && isRetryableError(err)) {
+          <span class="keyword">return</span> <span class="keyword">new</span> Promise(<span class="function">resolve</span> => 
+            setTimeout(() => <span class="function">resolve</span>(<span class="function">attempt</span>(retryCount + <span class="number">1</span>)), retryDelay
+          ));
+        }
+        <span class="keyword">throw</span> err;
+      });
+  }
+
+  <span class="keyword">return</span> <span class="function">attempt</span>(<span class="number">0</span>);
+}
+
+<span class="comment">// 使用</span>
+axios.defaults.adapter = retryAdapter;</div>
+      </div>
+    </div>
+
+    <!-- 方案对比 -->
+    <div id="panel-compare" class="tab-content" style="display:none;">
+      <div class="panel-section">
+        <h3>Adapter vs Interceptor vs Transform</h3>
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr><th>机制</th><th>作用层级</th><th>执行时机</th><th>适用场景</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Adapter</td>
+                <td>底层网络</td>
+                <td>最终请求发送</td>
+                <td>跨平台适配、Mock、调试拦截</td>
+              </tr>
+              <tr>
+                <td>Interceptor</td>
+                <td>请求/响应</td>
+                <td>请求前/响应后</td>
+                <td>统一 header、错误处理、日志</td>
+              </tr>
+              <tr>
+                <td>Transform</td>
+                <td>数据转换</td>
+                <td>请求序列化/响应反序列化</td>
+                <td>JSON 解析、格式转换</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>XHR vs Fetch vs http 模块</h3>
+        <div class="comparison-table">
+          <table>
+            <thead>
+              <tr><th>特性</th><th>XHR</th><th>Fetch</th><th>http 模块</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>进度追踪</td><td><span class="success">✓ onprogress</span></td><td><span class="error">✗</span></td><td><span class="success">✓ stream</span></td></tr>
+              <tr><td>请求取消</td><td><span class="success">✓ abort</span></td><td><span class="success">✓ AbortController</span></td><td><span class="success">✓ destroy</span></td></tr>
+              <tr><td>超时控制</td><td><span class="success">✓ timeout</span></td><td><span class="error">需手写</span></td><td><span class="success">✓ setTimeout</span></td></tr>
+              <tr><td>跨域 Cookie</td><td><span class="success">✓ withCredentials</span></td><td><span class="success">✓ credentials</span></td><td><span class="error">N/A</span></td></tr>
+              <tr><td>代理支持</td><                <td><span class="error">需配置</span></td><td><span class="error">需手写</span></td><td><span class="success">✓ Agent</span></td></tr>
+              <tr><td>HTTP/2</td><td><span class="error">✗</span></td><td><span class="success">✓</span></td><td><span class="success">✓ http2</span></td></tr>
+              <tr><td>流式响应</td><td><span class="error">✗</span></td><td><span class="success">✓ ReadableStream</span></td><td><span class="success">✓ stream</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3>为什么需要适配器？</h3>
+        <div class="arrow-diagram" style="flex-direction:column;gap:8px;">
+          <div class="flow-step" style="margin:0;border-left-color:#4f46e5;">
+            <h4>同一套 API，多端运行</h4>
+            <p>Axios 代码可以在浏览器 (XMLHttpRequest)、Node.js (http 模块)、微信小程序、React Native 等环境运行，底层自动切换适配器。</p>
+          </div>
+          <div class="flow-step" style="margin:0;border-left-color:#4f46e5;">
+            <h4>可测试性</h4>
+            <p>通过 Mock 适配器，测试套件无需启动真实服务器，可模拟任意响应（成功/错误/超时）。</p>
+          </div>
+          <div class="flow-step" style="margin:0;border-left-color:#4f46e5;">
+            <h4>功能扩展</h4>
+            <p>请求重试、自动降级、调试拦截等横切关注点可通过自定义适配器统一注入。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(p => p.style.display = 'none');
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab).style.display = 'block';
+      });
+    });
+  </script>
+</body>
+</html>

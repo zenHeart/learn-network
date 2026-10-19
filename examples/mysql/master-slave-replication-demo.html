@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>主从同步延时：原理与解决方案</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+    h1 { font-size: 1.8rem; color: #fff; margin-bottom: 1.5rem; }
+    h2 { font-size: 1.2rem; color: #00d4ff; margin: 1.5rem 0 0.8rem; }
+    h3 { font-size: 1rem; color: #ffd700; margin: 1rem 0 0.5rem; }
+
+    .tabs { display: flex; gap: 4px; margin-bottom: 1rem; flex-wrap: wrap; }
+    .tab-btn { background: #1a1a1a; border: 1px solid #333; color: #888; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-size: 0.85rem; transition: all 0.2s; }
+    .tab-btn:hover { border-color: #00d4ff; color: #00d4ff; }
+    .tab-btn.active { background: #00d4ff; color: #0a0a0a; font-weight: bold; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 1rem 0; }
+    .mini-card { background: #111; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; }
+    .mini-card h4 { font-size: 0.85rem; color: #00d4ff; margin-bottom: 6px; }
+    .mini-card p { font-size: 0.8rem; color: #aaa; line-height: 1.5; }
+
+    .highlight { color: #00d4ff; font-weight: bold; }
+    .warning { color: #ff6b6b; }
+    .success { color: #4ade80; }
+
+    /* Pipeline animation */
+    .pipeline { display: flex; align-items: center; gap: 8px; padding: 1rem; overflow-x: auto; }
+    .pipe-step { background: #111; border: 2px solid #333; border-radius: 8px; padding: 10px 14px; text-align: center; min-width: 90px; font-size: 0.75rem; transition: all 0.3s; }
+    .pipe-step.active { border-color: #00d4ff; background: #001a1a; }
+    .pipe-step.delay { border-color: #ff6b6b; background: #1a0000; }
+    .pipe-step .step-name { color: #fff; font-weight: bold; margin-bottom: 4px; }
+    .pipe-step .step-time { color: #888; font-size: 0.7rem; }
+    .pipe-arrow { color: #444; font-size: 1.2rem; }
+
+    /* Sim delay */
+    .delay-control { display: flex; align-items: center; gap: 12px; margin: 1rem 0; padding: 12px; background: #111; border-radius: 6px; }
+    .delay-control label { font-size: 0.85rem; color: #888; }
+    .delay-control input[type="range"] { flex: 1; accent-color: #00d4ff; }
+
+    /* Code blocks */
+    pre { background: #0d0d0d; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; overflow-x: auto; font-size: 0.8rem; line-height: 1.6; margin: 0.8rem 0; }
+    code { font-family: 'Fira Code', 'Cascadia Code', monospace; }
+    .comment { color: #666; }
+    .keyword { color: #ff79c6; }
+    .string { color: #f1fa8c; }
+    .function { color: #50fa7b; }
+
+    /* Comparison table */
+    table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.85rem; }
+    th { background: #111; color: #00d4ff; padding: 8px 12px; text-align: left; border: 1px solid #2a2a2a; }
+    td { padding: 8px 12px; border: 1px solid #2a2a2a; color: #ccc; }
+    tr:hover td { background: #1a1a1a; }
+
+    /* Status indicators */
+    .status-ok { color: #4ade80; }
+    .status-warn { color: #ffd700; }
+    .status-error { color: #ff6b6b; }
+
+    /* Progress bar */
+    .progress-bar { height: 6px; background: #333; border-radius: 3px; overflow: hidden; margin: 8px 0; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #4ade80); border-radius: 3px; transition: width 0.3s; }
+
+    /* Alert box */
+    .alert { background: #1a1a00; border-left: 3px solid #ffd700; padding: 10px 14px; margin: 8px 0; border-radius: 0 4px 4px 0; font-size: 0.85rem; }
+    .alert.error { background: #1a0000; border-color: #ff6b6b; }
+    .alert.success { background: #001a00; border-color: #4ade80; }
+
+    .mt-1 { margin-top: 1rem; }
+    .mb-1 { margin-bottom: 1rem; }
+    .text-sm { font-size: 0.85rem; }
+    .text-xs { font-size: 0.75rem; }
+    .color-gray { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>📊 主从同步延时：原理与解决方案</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview')">原理</button>
+    <button class="tab-btn" onclick="switchTab('simulation')">模拟</button>
+    <button class="tab-btn" onclick="switchTab('solutions')">方案</button>
+    <button class="tab-btn" onclick="switchTab('monitoring')">监控</button>
+    <button class="tab-btn" onclick="switchTab('quiz')">测试</button>
+  </div>
+
+  <!-- 原理 -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="card">
+      <h2>主从同步流程</h2>
+      <div class="pipeline">
+        <div class="pipe-step" id="step-master">
+          <div class="step-name">主库写入</div>
+          <div class="step-time">Binlog</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" id="step-binlog">
+          <div class="step-name">网络传输</div>
+          <div class="step-time">IO</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" id="step-relay">
+          <div class="step-name">Relay Log</div>
+          <div class="step-time">写入</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" id="step-sql">
+          <div class="step-name">SQL 重放</div>
+          <div class="step-time">单线程</div>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" id="step-done">
+          <div class="step-name">从库可读</div>
+          <div class="step-time">完成</div>
+        </div>
+      </div>
+      <div class="alert">
+        💡 <strong>核心问题</strong>：从库 SQL 线程是<strong>单线程</strong>重放，如果主库写入快，从库可能跟不上。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>延时原因对比表</h2>
+      <table>
+        <thead>
+          <tr><th>原因</th><th>影响环节</th><th>严重程度</th><th>解决方案</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>网络延迟</td>
+            <td>Binlog 传输</td>
+            <td><span class="status-warn">⚠ 中</span></td>
+            <td>同机房部署</td>
+          </tr>
+          <tr>
+            <td>单线程重放</td>
+            <td>SQL 重放</td>
+            <td><span class="status-error">🔴 高</span></td>
+            <td>并行复制</td>
+          </tr>
+          <tr>
+            <td>大事务</td>
+            <td>SQL 重放</td>
+            <td><span class="status-error">🔴 高</span></td>
+            <td>拆分事务</td>
+          </tr>
+          <tr>
+            <td>从库硬件差</td>
+            <td>Relay + SQL</td>
+            <td><span class="status-warn">⚠ 中</span></td>
+            <td>升级硬件</td>
+          </tr>
+          <tr>
+            <td>跨库事务</td>
+            <td>全部</td>
+            <td><span class="status-warn">⚠ 中</span></td>
+            <td>优化架构</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 模拟 -->
+  <div id="tab-simulation" class="tab-content">
+    <div class="card">
+      <h2>主从同步模拟器</h2>
+      <div class="delay-control">
+        <label>主库写入速度：</label>
+        <input type="range" id="writeSpeed" min="1" max="10" value="5" oninput="updateSimulation()">
+        <span id="writeSpeedVal">5</span>
+      </div>
+      <div class="delay-control">
+        <label>从库重放速度：</label>
+        <input type="range" id="replaySpeed" min="1" max="10" value="5" oninput="updateSimulation()">
+        <span id="replaySpeedVal">5</span>
+      </div>
+      <div class="delay-control">
+        <label>网络延时 (ms)：</label>
+        <input type="range" id="netDelay" min="0" max="100" value="10" oninput="updateSimulation()">
+        <span id="netDelayVal">10</span>
+      </div>
+      <div class="delay-control">
+        <label>事务大小（行数）：</label>
+        <input type="range" id="txSize" min="100" max="10000" step="100" value="1000" oninput="updateSimulation()">
+        <span id="txSizeVal">1000</span>
+      </div>
+
+      <div class="progress-bar mt-1">
+        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+      </div>
+      <div id="simStatus" class="text-sm color-gray mt-1">点击"开始模拟"按钮</div>
+
+      <button onclick="startSimulation()" style="background:#00d4ff;color:#0a0a0a;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:12px">
+        ▶ 开始模拟
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>实时状态</h2>
+      <div class="card-grid">
+        <div class="mini-card">
+          <h4>主库状态</h4>
+          <p>写入速度：<span id="statMasterWrite" class="highlight">0</span> 行/s</p>
+          <p>Binlog 积压：<span id="statMasterQueue" class="highlight">0</span> 行</p>
+        </div>
+        <div class="mini-card">
+          <h4>从库状态</h4>
+          <p>重放速度：<span id="statSlaveReplay" class="highlight">0</span> 行/s</p>
+          <p>当前延时：<span id="statDelay" class="warning">0</span> 秒</p>
+        </div>
+        <div class="mini-card">
+          <h4>网络状态</h4>
+          <p>传输延时：<span id="statNetDelay" class="highlight">0</span> ms</p>
+          <p>通道状态：<span id="statNetStatus" class="status-ok">正常</span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>优化效果对比</h2>
+      <div class="card-grid">
+        <div class="mini-card">
+          <h4>未优化</h4>
+          <p>从库重放：单线程</p>
+          <p>预期延时：<span class="status-error" id="beforeDelay">高</span></p>
+        </div>
+        <div class="mini-card">
+          <h4>并行复制</h4>
+          <p>SQL 线程：8 个</p>
+          <p>预期延时：<span class="status-ok" id="afterParallel">低</span></p>
+        </div>
+        <div class="mini-card">
+          <h4>大事务拆分</h4>
+          <p>分批执行</p>
+          <p>预期延时：<span class="status-ok" id="afterSplit">低</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 解决方案 -->
+  <div id="tab-solutions" class="tab-content">
+    <div class="card">
+      <h2>并行复制配置</h2>
+      <pre><code><span class="comment">-- MySQL 5.7+ 从库并行重放</span>
+<span class="keyword">SET</span> GLOBAL slave_parallel_workers = <span class="string">8</span>;  
+
+<span class="comment">-- 按逻辑时钟并行（推荐）</span>
+<span class="keyword">SET</span> GLOBAL slave_parallel_type = <span class="string">'LOGICAL_CLOCK'</span>;
+
+<span class="comment">-- MySQL 8.0+ WRITESET 并行</span>
+<span class="keyword">SET</span> GLOBAL slave_parallel_type = <span class="string">'WRITESET'</span>;
+<span class="keyword">SET</span> GLOBAL transaction_write_set_extraction = <span class="string">'XXHASH64'</span>;</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>大事务拆分</h2>
+      <pre><code><span class="comment">-- ❌ 错误：一次性更新百万行</span>
+<span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">1</span> 
+  <span class="keyword">WHERE</span> created_at <span class="string">'2024-01-01'</span>;
+
+<span class="comment">-- ✅ 正确：分批小事务</span>
+<span class="keyword">DELIMITER</span> $$ 
+<span class="keyword">CREATE PROCEDURE</span> batch_update()
+<span class="keyword">BEGIN</span>
+  <span class="keyword">DECLARE</span> i INT <span class="keyword">DEFAULT</span> <span class="string">0</span>;
+  <span class="keyword">WHILE</span> i < <span class="string">1000000</span> <span class="keyword">DO</span>
+    <span class="keyword">UPDATE</span> orders <span class="keyword">SET</span> status = <span class="string">1</span> 
+      <span class="keyword">WHERE</span> id <span class="keyword">BETWEEN</span> i <span class="keyword">AND</span> i + <span class="string">1000</span>;
+    <span class="keyword">COMMIT</span>;
+    <span class="keyword">SET</span> i = i + <span class="string">1000</span>;
+  <span class="keyword">END WHILE</span>;
+<span class="keyword">END</span>$$
+<span class="keyword">DELIMITER</span> ;
+
+<span class="comment">-- 调用</span>
+<span class="keyword">CALL</span> batch_update();</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>半同步复制</h2>
+      <pre><code><span class="comment">-- 主库安装半同步插件</span>
+<span class="keyword">INSTALL PLUGIN</span> rpl_semi_sync_master 
+  SONAME <span class="string">'semisync_master.so'</span>;
+
+<span class="comment">-- 从库安装半同步插件</span>
+<span class="keyword">INSTALL PLUGIN</span> rpl_semi_sync_slave 
+  SONAME <span class="string">'semisync_slave.so'</span>;
+
+<span class="comment">-- 启用半同步</span>
+<span class="keyword">SET</span> GLOBAL rpl_semi_sync_master_enabled = <span class="string">1</span>;
+<span class="keyword">SET</span> GLOBAL rpl_semi_sync_slave_enabled = <span class="string">1</span>;</code></pre>
+    </div>
+
+    <div class="card">
+      <h2>监控告警 SQL</h2>
+      <pre><code><span class="comment">-- 查看从库状态</span>
+<span class="keyword">SHOW SLAVE STATUS</span>\G;
+
+<span class="comment">-- 关键字段说明：</span>
+<span class="comment">-- Seconds_Behind_Master: 从库落后主库的秒数</span>
+<span class="comment">-- Slave_IO_Running: IO 线程运行状态</span>
+<span class="comment">-- Slave_SQL_Running: SQL 线程运行状态</span>
+<span class="comment">-- Relay_Log_Space: Relay Log 占用的空间</span>
+
+<span class="comment">-- 定位正在执行的大事务</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> information_schema.PROCESSLIST
+<span class="keyword">WHERE</span> COMMAND = <span class="string">'Binlog Dump'</span> 
+   <span class="keyword">OR</span> INFO <span class="keyword">LIKE</span> <span class="string">'%UPDATE%large%'</span>;</code></pre>
+    </div>
+  </div>
+
+  <!-- 监控 -->
+  <div id="tab-monitoring" class="tab-content">
+    <div class="card">
+      <h2>关键监控指标</h2>
+      <table>
+        <thead>
+          <tr><th>指标</th><th>正常值</th><th>告警阈值</th><th>含义</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Seconds_Behind_Master</td>
+            <td class="status-ok">0 ~ 5s</td>
+            <td class="status-error">> 30s</td>
+            <td>从库落后主库的秒数</td>
+          </tr>
+          <tr>
+            <td>Slave_IO_Running</td>
+            <td class="status-ok">Yes</td>
+            <td class="status-error">No</td>
+            <td>IO 线程是否运行</td>
+          </tr>
+          <tr>
+            <td>Slave_SQL_Running</td>
+            <td class="status-ok">Yes</td>
+            <td class="status-error">No</td>
+            <td>SQL 线程是否运行</td>
+          </tr>
+          <tr>
+            <td>Relay_Log_Space</td>
+            <td class="status-ok">稳定</td>
+            <td class="status-warn">持续增长</td>
+            <td>Relay Log 磁盘使用</td>
+          </tr>
+          <tr>
+            <td>Slave_Open_Temp_Tables</td>
+            <td class="status-ok">0</td>
+            <td class="status-warn">> 0</td>
+            <td>临时表数量（影响复制）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>延时原因排查流程</h2>
+      <pre><code><span class="comment">-- Step 1: 检查从库状态</span>
+<span class="keyword">SHOW SLAVE STATUS</span>\G;
+
+<span class="comment">-- Step 2: 检查从库 CPU 和磁盘</span>
+<span class="keyword">SHOW PROCESSLIST</span>;
+
+<span class="comment">-- Step 3: 查看主库大事务</span>
+<span class="keyword">SHOW MASTER STATUS</span>;
+<span class="keyword">SHOW BINLOG EVENTS</span> <span class="keyword">IN</span> <span class="string">'binlog.000001'</span> <span class="keyword">LIMIT</span> <span class="string">10</span>;
+
+<span class="comment">-- Step 4: 检查网络</span>
+<span class="comment">-- ping -c 10 master_host</span>
+<span class="comment">-- traceroute master_host</span>
+
+<span class="comment">-- Step 5: 使用 pt-heartbeat 精确测量</span>
+<span class="comment">-- pt-heartbeat --update --master-server-id=1 \</span>
+<span class="comment">--   --database=performance_schema --interval=1</span></code></pre>
+    </div>
+
+    <div class="card">
+      <h2>MySQL 8.0 监控视图</h2>
+      <pre><code><span class="comment">-- 使用 performance_schema 监控复制</span>
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> performance_schema.replication_connection_status;
+<span class="keyword">SELECT</span> * <span class="keyword">FROM</span> performance_schema.replication_applier_status;
+
+<span class="comment">-- 查看并行复制状态</span>
+<span class="keyword">SHOW VARIABLES</span> <span class="keyword">LIKE</span> <span class="string">'slave_parallel%'</span>;
+<span class="keyword">SHOW VARIABLES</span> <span class="keyword">LIKE</span> <span class="string">'slave_workers'</span>;</code></pre>
+    </div>
+  </div>
+
+  <!-- 测试 -->
+  <div id="tab-quiz" class="tab-content">
+    <div class="card">
+      <h2>自测题目</h2>
+
+      <div class="mb-1">
+        <h3>Q1: 主从同步延时的最核心原因是什么？</h3>
+        <div class="text-sm color-gray">
+          <label><input type="radio" name="q1" value="a"> A. 网络延迟</label><br>
+          <label><input type="radio" name="q1" value="b"> B. 从库单线程重放</label><br>
+          <label><input type="radio" name="q1" value="c"> C. 主库写入太快</label><br>
+          <label><input type="radio" name="q1" value="d"> D. 从库磁盘太小</label>
+        </div>
+      </div>
+
+      <div class="mb-1">
+        <h3>Q2: 哪种方案可以最快解决单线程重放问题？</h3>
+        <div class="text-sm color-gray">
+          <label><input type="radio" name="q2" value="a"> A. 升级从库硬盘</label><br>
+          <label><input type="radio" name="q2" value="b"> B. 开启并行复制</label><br>
+          <label><input type="radio" name="q2" value="c"> C. 增加主从距离</label><br>
+          <label><input type="radio" name="q2" value="d"> D. 减少 Binlog 大小</label>
+        </div>
+      </div>
+
+      <div class="mb-1">
+        <h3>Q3: 大事务为什么会导致从库延时？</h3>
+        <div class="text-sm color-gray">
+          <label><input type="radio" name="q3" value="a"> A. 大事务锁表时间短</label><br>
+          <label><input type="radio" name="q3" value="b"> B. SQL 线程串行重放，大事务执行时间长</label><br>
+          <label><input type="radio" name="q3" value="c"> C. 大事务不影响从库</label><br>
+          <label><input type="radio" name="q3" value="d"> D. 大事务会被从库跳过</label>
+        </div>
+      </div>
+
+      <button onclick="checkAnswers()" style="background:#00d4ff;color:#0a0a0a;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:bold;margin-top:12px">
+        提交答案
+      </button>
+      <div id="quizResult" class="mt-1 text-sm"></div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tabId).classList.add('active');
+      event.target.classList.add('active');
+    }
+
+    // Simulation
+    let simInterval = null;
+    let simState = { masterQueue: 0, delay: 0, running: false };
+
+    function updateSimulation() {
+      document.getElementById('writeSpeedVal').textContent = document.getElementById('writeSpeed').value;
+      document.getElementById('replaySpeedVal').textContent = document.getElementById('replaySpeed').value;
+      document.getElementById('netDelayVal').textContent = document.getElementById('netDelay').value;
+      document.getElementById('txSizeVal').textContent = document.getElementById('txSize').value;
+
+      document.getElementById('statNetDelay').textContent = document.getElementById('netDelay').value;
+    }
+
+    function startSimulation() {
+      if (simInterval) clearInterval(simInterval);
+      simState = { masterQueue: 0, delay: 0, running: true };
+      const writeSpeed = parseInt(document.getElementById('writeSpeed').value);
+      const replaySpeed = parseInt(document.getElementById('replaySpeed').value);
+      const netDelay = parseInt(document.getElementById('netDelay').value);
+
+      // Highlight pipeline
+      document.getElementById('step-master').classList.add('active');
+
+      let progress = 0;
+      simInterval = setInterval(() => {
+        if (!simState.running) return;
+
+        const masterWrite = writeSpeed * 100;
+        const slaveReplay = replaySpeed * 50;
+        const txSize = parseInt(document.getElementById('txSize').value);
+
+        simState.masterQueue += masterWrite;
+        const canReplay = Math.min(simState.masterQueue, slaveReplay);
+        simState.masterQueue -= canReplay;
+        simState.delay = simState.masterQueue / slaveReplay;
+
+        progress = Math.min(100, progress + (replaySpeed / 10) * 2);
+        document.getElementById('progressBar').style.width = progress + '%';
+
+        // Update stats
+        document.getElementById('statMasterWrite').textContent = masterWrite.toFixed(0);
+        document.getElementById('statMasterQueue').textContent = Math.round(simState.masterQueue);
+        document.getElementById('statSlaveReplay').textContent = canReplay.toFixed(0);
+        document.getElementById('statDelay').textContent = simState.delay.toFixed(1);
+        document.getElementById('simStatus').textContent = simState.delay > 5
+          ? '⚠️ 从库跟不上！延时过大'
+          : simState.delay > 2
+            ? '⚡ 轻度延时'
+            : '✅ 同步正常';
+
+        // Update step highlights
+        if (simState.delay > 5) {
+          document.getElementById('step-sql').classList.add('delay');
+          document.getElementById('step-sql').classList.remove('active');
+        } else {
+          document.getElementById('step-sql').classList.remove('delay');
+          document.getElementById('step-sql').classList.add('active');
+        }
+
+        document.getElementById('statDelay').className = simState.delay > 5 ? 'status-error' : simState.delay > 2 ? 'status-warn' : 'status-ok';
+
+        if (progress >= 100) {
+          clearInterval(simInterval);
+          simState.running = false;
+          document.getElementById('simStatus').textContent = '✅ 模拟完成';
+        }
+      }, 200);
+    }
+
+    // Quiz
+    function checkAnswers() {
+      const answers = { q1: 'b', q2: 'b', q3: 'b' };
+      let score = 0;
+      let result = '';
+
+      for (const [q, a] of Object.entries(answers)) {
+        const selected = document.querySelector(`input[name="${q}"]:checked`);
+        if (selected && selected.value === a) {
+          score++;
+          result += `<p class="success">✅ ${q.toUpperCase()} 正确</p>`;
+        } else {
+          result += `<p class="status-error">❌ ${q.toUpperCase()} 错误，正确答案：${a}</p>`;
+        }
+      }
+
+      document.getElementById('quizResult').innerHTML = `<div class="alert success"><strong>得分：${score}/3</strong></div>${result}`;
+    }
+  </script>
+</body>
+</html>

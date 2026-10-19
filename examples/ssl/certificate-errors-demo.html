@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSL/TLS 证书错误交互演示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+        }
+
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            font-size: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            color: #333;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .section h2 {
+            color: #1a1a2e;
+            border-bottom: 2px solid #4361ee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .demo-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .demo-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .demo-card h3 {
+            color: #4361ee;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .demo-card p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        /* 证书链可视化 */
+        .cert-chain {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .cert-node {
+            width: 280px;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .cert-node:hover {
+            transform: scale(1.05);
+        }
+
+        .cert-root {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .cert-intermediate {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .cert-server {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #1a1a2e;
+        }
+
+        .cert-chain-line {
+            width: 4px;
+            height: 30px;
+            background: #4361ee;
+            position: relative;
+        }
+
+        .cert-chain-line::after {
+            content: '▼';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #4361ee;
+            font-size: 12px;
+        }
+
+        .cert-node h4 {
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+
+        .cert-node p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .cert-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 8px;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 错误场景选择器 */
+        .scenario-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .scenario-tab {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .scenario-tab:hover {
+            background: #d0d0d0;
+        }
+
+        .scenario-tab.active {
+            background: #4361ee;
+            color: white;
+        }
+
+        /* 浏览器错误模拟 */
+        .browser-error {
+            background: #fff3f3;
+            border: 2px solid #e53935;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .browser-error.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .error-icon {
+            font-size: 48px;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .error-title {
+            color: #c62828;
+            font-size: 1.3rem;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .error-description {
+            color: #666;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .error-code {
+            background: #ffebee;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #c62828;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* 交互式时间轴 */
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 100%;
+            background: #4361ee;
+            border-radius: 2px;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            display: flex;
+        }
+
+        .timeline-item:nth-child(odd) {
+            justify-content: flex-start;
+            padding-right: calc(50% + 20px);
+        }
+
+        .timeline-item:nth-child(even) {
+            justify-content: flex-end;
+            padding-left: calc(50% + 20px);
+        }
+
+        .timeline-content {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+        }
+
+        .timeline-dot {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 16px;
+            height: 16px;
+            background: #4361ee;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .timeline-date {
+            font-weight: bold;
+            color: #4361ee;
+            margin-bottom: 5px;
+        }
+
+        /* 复选框交互 */
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: #e8e8e8;
+        }
+
+        .checkbox-item input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-item.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .checkbox-item.success {
+            background: #e8f5e9;
+            border: 1px solid #4caf50;
+        }
+
+        .checkbox-item.error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+        }
+
+        /* 域名匹配可视化 */
+        .domain-visual {
+            font-family: monospace;
+            background: #1a1a2e;
+            color: #4facfe;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .domain-visual .label {
+            color: #888;
+            margin-right: 10px;
+        }
+
+        .domain-visual .match {
+            color: #4caf50;
+        }
+
+        .domain-visual .mismatch {
+            color: #f44336;
+            text-decoration: line-through;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #4361ee;
+            color: white;
+        }
+
+        .btn:hover {
+            background: #3651d4;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        /* OpenSSL 命令展示 */
+        .command-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            overflow-x: auto;
+        }
+
+        .command-block .prompt {
+            color: #4ec9b0;
+        }
+
+        .command-block .command {
+            color: #dcdcaa;
+        }
+
+        .command-block .output {
+            color: #9cdcfe;
+            margin-top: 10px;
+            white-space: pre-wrap;
+        }
+
+        /* 评分显示 */
+        .rating-display {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .rating-grade {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #4361ee;
+        }
+
+        .rating-grade.A { color: #4caf50; }
+        .rating-grade.B { color: #8bc34a; }
+        .rating-grade.C { color: #ff9800; }
+        .rating-grade.D { color: #f44336; }
+        .rating-grade.F { color: #b71c1c; }
+
+        .rating-details {
+            flex: 1;
+        }
+
+        .rating-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .timeline::before {
+                left: 20px;
+            }
+
+            .timeline-item {
+                padding-left: 50px !important;
+                padding-right: 0 !important;
+                justify-content: flex-start !important;
+            }
+
+            .timeline-dot {
+                left: 20px;
+            }
+
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 工具提示 */
+        .tooltip {
+            position: relative;
+            cursor: help;
+            border-bottom: 1px dashed #4361ee;
+        }
+
+        .tooltip::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .tooltip:hover::after {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔒 SSL/TLS 证书错误交互演示</h1>
+
+        <!-- Section 1: 证书过期 -->
+        <div class="section">
+            <h2>1. 证书过期问题</h2>
+
+            <div class="demo-card">
+                <h3>证书有效期示意</h3>
+                <p>选择一个场景，查看证书状态变化</p>
+
+                <div class="cert-chain">
+                    <div class="timeline" style="width: 100%; max-width: 400px;">
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">2024-01-01</div>
+                                <p>证书生效 (notBefore)</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot" style="background: #4caf50;"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date" id="current-date">2024-06-15</div>
+                                <p>当前日期</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item">
+                            <div class="timeline-dot" style="background: #f44336;"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">2025-01-01</div>
+                                <p>证书过期 (notAfter)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="scenario-tabs">
+                    <button class="scenario-tab active" onclick="setScenario('valid')">证书有效</button>
+                    <button class="scenario-tab" onclick="setScenario('expired')">证书已过期</button>
+                    <button class="scenario-tab" onclick="setScenario('notyet')">证书未生效</button>
+                </div>
+
+                <div class="browser-error" id="expiry-error">
+                    <div class="error-icon">⚠️</div>
+                    <div class="error-title" id="error-title">证书已过期</div>
+                    <div class="error-description" id="error-desc">
+                        此证书的有效期已过。请联系网站管理员或稍后再试。
+                    </div>
+                    <div style="text-align: center;">
+                        <span class="error-code" id="error-code">ERR_CERT_DATE_INVALID</span>
+                    </div>
+                </div>
+
+                <button class="btn" onclick="checkCertificate()">检查证书状态</button>
+            </div>
+        </div>
+
+        <!-- Section 2: 证书链 -->
+        <div class="section">
+            <h2>2. 证书链结构</h2>
+
+            <div class="demo-card">
+                <h3>🔗 完整的证书链</h3>
+                <p>点击各层级证书查看详情</p>
+
+                <div class="cert-chain" id="cert-chain-demo">
+                    <div class="cert-node cert-root" onclick="showCertDetail('root')">
+                        <h4>🌟 根证书 (Root CA)</h4>
+                        <p>信任锚点，浏览器内置</p>
+                        <span class="cert-badge">自签名</span>
+                    </div>
+
+                    <div class="cert-chain-line"></div>
+
+                    <div class="cert-node cert-intermediate" onclick="showCertDetail('intermediate')">
+                        <h4>🔒 中间证书 (Intermediate CA)</h4>
+                        <p>由根 CA 颁发</p>
+                        <span class="cert-badge">颁发者: Root CA</span>
+                    </div>
+
+                    <div class="cert-chain-line"></div>
+
+                    <div class="cert-node cert-server" onclick="showCertDetail('server')">
+                        <h4>🖥️ 服务器证书 (End Entity)</h4>
+                        <p>example.com</p>
+                        <span class="cert-badge">颁发者: Intermediate CA</span>
+                    </div>
+                </div>
+
+                <div id="cert-detail" style="display: none; margin-top: 20px;">
+                    <div class="command-block">
+                        <div class="prompt">$ </div>
+                        <div class="output" id="cert-detail-output"></div>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <label class="checkbox-item" id="chain-check-1">
+                        <input type="checkbox" id="check-root" checked disabled>
+                        <span>根证书受浏览器信任</span>
+                    </label>
+                    <label class="checkbox-item" id="chain-check-2">
+                        <input type="checkbox" id="check-intermediate" checked disabled>
+                        <span>中间证书签名有效</span>
+                    </label>
+                    <label class="checkbox-item" id="chain-check-3">
+                        <input type="checkbox" id="check-server" checked disabled>
+                        <span>服务器证书域名匹配</span>
+                    </label>
+                </div>
+
+                <button class="btn" onclick="simulateChainError()">模拟证书链错误</button>
+                <button class="btn btn-secondary" onclick="resetChain()">重置</button>
+            </div>
+        </div>
+
+        <!-- Section 3: 域名匹配 -->
+        <div class="section">
+            <h2>3. 域名不匹配</h2>
+
+            <div class="demo-card">
+                <h3>🌐 域名验证过程</h3>
+                <p>选择要访问的域名和证书类型，观察匹配结果</p>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">访问的域名：</label>
+                    <select id="访问域名" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                        <option value="www.example.com">www.example.com</option>
+                        <option value="example.com">example.com</option>
+                        <option value="api.example.com">api.example.com</option>
+                        <option value="sub.www.example.com">sub.www.example.com</option>
+                        <option value="notexample.com">notexample.com</option>
+                    </select>
+                </div>
+
+                <div style="margin: 20px 0;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: bold;">证书类型：</label>
+                    <select id="证书类型" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ddd;">
+                        <option value="single-www">单域名 (www.example.com)</option>
+                        <option value="wildcard">通配符 (*.example.com)</option>
+                        <option value="multi">多域名 (example.com, www.example.com, api.example.com)</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="checkDomainMatch()">检查域名匹配</button>
+
+                <div class="domain-visual" id="domain-result" style="display: none;">
+                    <div><span class="label">证书域名：</span><span id="cert-domains"></span></div>
+                    <div style="margin-top: 10px;"><span class="label">访问域名：</span><span id="访问的域名显示"></span></div>
+                    <div style="margin-top: 10px;"><span class="label">匹配结果：</span><span id="match-result"></span></div>
+                </div>
+
+                <div id="domain-error" class="browser-error" style="display: none;">
+                    <div class="error-icon">🔒</div>
+                    <div class="error-title">您的连接不是私密连接</div>
+                    <div class="error-description">
+                        警告：请求的主机名与证书不匹配。
+                    </div>
+                    <div style="text-align: center;">
+                        <span class="error-code">ERR_CERT_COMMON_NAME_INVALID</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: OpenSSL 命令 -->
+        <div class="section">
+            <h2>4. 使用 OpenSSL 排查证书问题</h2>
+
+            <div class="demo-card">
+                <h3>📋 常用 OpenSSL 命令</h3>
+                <p>点击命令查看输出结果</p>
+
+                <div class="command-block" style="cursor: pointer;" onclick="runCommand('info')">
+                    <span class="prompt">$ </span>
+                    <span class="command">openssl x509 -in certificate.pem -text -noout</span>
+                    <div class="output"># 查看证书详细信息</div>
+                </div>
+
+                <div class="command-block" style="cursor: pointer;" onclick="runCommand('dates')">
+                    <span class="prompt">$ </span>
+                    <span class="command">openssl x509 -in certificate.pem -noout -dates</span>
+                    <div class="output"># 查看证书有效期</div>
+                </div>
+
+                <div class="command-block" style="cursor: pointer;" onclick="runCommand('verify')">
+                    <span class="prompt">$ </span>
+                    <span class="command">openssl verify -CAfile ca-bundle.crt certificate.pem</span>
+                    <div class="output"># 验证证书链</div>
+                </div>
+
+                <div class="command-block" style="cursor: pointer;" onclick="runCommand('s_client')">
+                    <span class="prompt">$ </span>
+                    <span class="command">openssl s_client -connect example.com:443 -showcerts</span>
+                    <div class="output"># 获取完整证书链</div>
+                </div>
+
+                <div id="command-output" style="display: none; margin-top: 20px;">
+                    <div class="command-block">
+                        <div class="prompt">$ </div>
+                        <div class="output" id="command-result"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: SSL Labs 评分 -->
+        <div class="section">
+            <h2>5. SSL Labs 安全评级</h2>
+
+            <div class="demo-card">
+                <h3>📊 评级标准</h3>
+                <p>了解 SSL Labs 如何评估 SSL/TLS 配置的安全性</p>
+
+                <div class="rating-display">
+                    <div class="rating-grade A">A</div>
+                    <div class="rating-details">
+                        <div class="rating-item">
+                            <span>协议配置</span>
+                            <span>TLS 1.3 ✓</span>
+                        </div>
+                        <div class="rating-item">
+                            <span>密钥交换</span>
+                            <span>安全 ✓</span>
+                        </div>
+                        <div class="rating-item">
+                            <span>加密算法</span>
+                            <span>AES-256-GCM ✓</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <h4>评分等级说明</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <tr style="background: #e8f5e9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>A</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">卓越 - 完全符合最佳实践</td>
+                        </tr>
+                        <tr style="background: #f1f8e9;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>B</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">良好 - 有轻微配置问题</td>
+                        </tr>
+                        <tr style="background: #fff3e0;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>C</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">一般 - 存在中等风险问题</td>
+                        </tr>
+                        <tr style="background: #ffebee;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>D</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">较差 - 存在严重安全隐患</td>
+                        </tr>
+                        <tr style="background: #fce4ec;">
+                            <td style="padding: 10px; border: 1px solid #ddd;"><strong>F</strong></td>
+                            <td style="padding: 10px; border: 1px solid #ddd;">失败 - 配置极不安全或存在漏洞</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div style="margin-top: 20px;">
+                    <button class="btn" onclick="openSSL Labs()">访问 SSL Labs</button>
+                    <button class="btn btn-secondary" onclick="showRatingFactors()">查看评分因素</button>
+                </div>
+
+                <div id="rating-factors" style="display: none; margin-top: 20px;">
+                    <h4>影响评分的因素：</h4>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>协议版本（SSL 3.0、TLS 1.0/1.1 降低评分）</li>
+                        <li>证书密钥长度（小于 2048 位降低评分）</li>
+                        <li>密码套件强度（弱加密降低评分）</li>
+                        <li>证书链完整性（不完整降低评分）</li>
+                        <li>支持前向保密（不支持降低评分）</li>
+                        <li>已知漏洞（如 POODLE、Heartbleed 等）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 6: 证书验证流程 -->
+        <div class="section">
+            <h2>6. 证书验证流程图</h2>
+
+            <div class="demo-card">
+                <h3>🔍 完整的证书验证步骤</h3>
+                <p>点击「开始验证」观察整个验证过程</p>
+
+                <div id="verify-steps" style="margin: 20px 0;">
+                    <div class="timeline">
+                        <div class="timeline-item" id="step-1">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 1</div>
+                                <p>获取服务器证书</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item" id="step-2">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 2</div>
+                                <p>检查证书有效期（notBefore / notAfter）</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item" id="step-3">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 3</div>
+                                <p>验证证书签名（逐级向上）</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item" id="step-4">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 4</div>
+                                <p>检查域名匹配（CN / SAN）</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item" id="step-5">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 5</div>
+                                <p>检查证书吊销状态（CRL / OCSP）</p>
+                            </div>
+                        </div>
+                        <div class="timeline-item" id="step-6">
+                            <div class="timeline-dot"></div>
+                            <div class="timeline-content">
+                                <div class="timeline-date">步骤 6</div>
+                                <p>验证通过，建立安全连接</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" onclick="startVerification()">开始验证</button>
+                <button class="btn btn-secondary" onclick="resetVerification()">重置</button>
+
+                <div id="verification-result" style="display: none; margin-top: 20px; padding: 20px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
+                    <div style="font-size: 1.2rem; font-weight: bold; color: #4caf50;">证书验证成功</div>
+                    <div style="color: #666; margin-top: 10px;">安全连接已建立</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 状态管理
+        let currentScenario = 'valid';
+        let chainErrorMode = false;
+        let verificationRunning = false;
+
+        // 证书过期场景
+        function setScenario(scenario) {
+            currentScenario = scenario;
+            document.querySelectorAll('.scenario-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            document.getElementById('expiry-error').classList.remove('show');
+
+            // 更新当前日期显示
+            const now = new Date();
+            const options = { year: 'numeric', month: '2-digit', day: '2-digit' };
+            const currentDateStr = now.toLocaleDateString('zh-CN', options);
+            document.getElementById('current-date').textContent = currentDateStr;
+        }
+
+        function checkCertificate() {
+            const errorEl = document.getElementById('expiry-error');
+            errorEl.classList.add('show');
+
+            switch (currentScenario) {
+                case 'valid':
+                    document.getElementById('error-title').textContent = '证书有效';
+                    document.getElementById('error-desc').textContent = '证书在有效期内，可以建立安全连接。';
+                    document.getElementById('error-code').textContent = '无错误';
+                    break;
+                case 'expired':
+                    document.getElementById('error-title').textContent = '证书已过期';
+                    document.getElementById('error-desc').textContent = '此证书的有效期已过。请联系网站管理员或稍后再试。';
+                    document.getElementById('error-code').textContent = 'ERR_CERT_DATE_INVALID';
+                    break;
+                case 'notyet':
+                    document.getElementById('error-title').textContent = '证书尚未生效';
+                    document.getElementById('error-desc').textContent = '此证书的有效期尚未开始。请检查系统时间是否正确。';
+                    document.getElementById('error-code').textContent = 'ERR_CERT_DATE_INVALID';
+                    break;
+            }
+        }
+
+        // 证书链交互
+        function showCertDetail(type) {
+            const detailEl = document.getElementById('cert-detail');
+            const outputEl = document.getElementById('cert-detail-output');
+            detailEl.style.display = 'block';
+
+            const certDetails = {
+                root: `Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            4c:32:2a:1c:6f:4d:8e:6b:9a:5c:3d:7e:8f:1a:2b:3c
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = DigiCert Global Root CA
+        Validity
+            Not Before: 2018-10-15 00:00:00 GMT
+            Not After: 2038-10-15 00:00:00 GMT
+        Subject: CN = DigiCert Global Root CA`,
+                intermediate: `Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            0a:bc:de:12:34:56:78:90:ab:cd:ef:12:34:56:78
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = DigiCert Global Root CA
+        Validity
+            Not Before: 2023-01-01 00:00:00 GMT
+            Not After: 2024-12-31 23:59:59 GMT
+        Subject: CN = DigiCert Global Root G2 TLS
+        Subject Alternative Name:
+            DNS:www.example.com
+            DNS:example.com`,
+                server: `Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            12:34:56:78:90:ab:cd:ef:12:34:56:78:90:ab:cd
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = DigiCert Global Root G2 TLS
+        Validity
+            Not Before: 2024-01-01 00:00:00 GMT
+            Not After: 2025-01-01 00:00:00 GMT
+        Subject: CN = example.com
+        Subject Alternative Name:
+            DNS:example.com
+            DNS:www.example.com
+            DNS:api.example.com`
+            };
+
+            outputEl.textContent = certDetails[type];
+        }
+
+        function simulateChainError() {
+            chainErrorMode = true;
+            document.getElementById('check-intermediate').checked = false;
+            document.getElementById('chain-check-2').classList.add('error');
+            document.getElementById('chain-check-2').classList.remove('success');
+
+            // 显示错误
+            const errorEl = document.createElement('div');
+            errorEl.className = 'browser-error show';
+            errorEl.style.marginTop = '20px';
+            errorEl.innerHTML = `
+                <div class="error-icon">🔐</div>
+                <div class="error-title">证书链不完整</div>
+                <div class="error-description">
+                    无法验证证书颁发者的真实性。证书链不完整或被截断。
+                </div>
+                <div style="text-align: center;">
+                    <span class="error-code">ERR_CERT_AUTHORITY_INVALID</span>
+                </div>
+            `;
+            document.querySelector('#cert-chain-demo').appendChild(errorEl);
+        }
+
+        function resetChain() {
+            chainErrorMode = false;
+            document.getElementById('check-intermediate').checked = true;
+            document.getElementById('check-server').checked = true;
+            document.getElementById('chain-check-2').classList.add('success');
+            document.getElementById('chain-check-2').classList.remove('error');
+
+            const errorEl = document.querySelector('.browser-error');
+            if (errorEl) errorEl.remove();
+        }
+
+        // 域名匹配
+        function checkDomainMatch() {
+            const访问域名 = document.getElementById('访问域名').value;
+            const 证书类型 = document.getElementById('证书类型').value;
+            const resultEl = document.getElementById('domain-result');
+            const errorEl = document.getElementById('domain-error');
+
+            resultEl.style.display = 'block';
+
+            const certConfigs = {
+                'single-www': ['www.example.com'],
+                'wildcard': ['*.example.com'],
+                'multi': ['example.com', 'www.example.com', 'api.example.com']
+            };
+
+            const certDomains = certConfigs[证书类型];
+            document.getElementById('cert-domains').textContent = certDomains.join(', ');
+            document.getElementById('访问的域名显示').textContent = 访问域名;
+
+            let matched = false;
+            if (证书类型 === 'wildcard') {
+                // 通配符匹配逻辑
+                const baseDomain = 访问域名.replace(/^\*\./, '');
+                matched = 访问域名.endsWith(baseDomain) && 访问域名.split('.')[0] !== '';
+            } else if (证书类型 === 'multi') {
+                matched = certDomains.includes(访问域名);
+            } else {
+                matched = certDomains.includes(访问域名);
+            }
+
+            if (matched) {
+                document.getElementById('match-result').innerHTML = '<span class="match">✓ 匹配</span>';
+                document.getElementById('match-result').className = 'match';
+                errorEl.style.display = 'none';
+            } else {
+                document.getElementById('match-result').innerHTML = '<span class="mismatch">✗ 不匹配</span>';
+                document.getElementById('match-result').className = 'mismatch';
+                errorEl.classList.add('show');
+            }
+        }
+
+        // OpenSSL 命令
+        function runCommand(cmd) {
+            const outputEl = document.getElementById('command-output');
+            const resultEl = document.getElementById('command-result');
+            outputEl.style.display = 'block';
+
+            const outputs = {
+                info: `Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number: 03:AB:CD:EF:12:34:56:78:90:AB:CD:EF:12:34:56:78
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: C = US, O = Let's Encrypt, CN = R3
+        Validity
+            Not Before: Jan 15 00:00:00 2024 GMT
+            Not After: Apr 14 23:59:59 2024 GMT
+        Subject: CN = example.com
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+            RSA Public Key:
+                Modulus:
+                    00:e4:23:93:f9:5a:8f:3c:...
+                Exponent: 65537 (0x10001)`,
+                dates: `notBefore=Jan 15 00:00:00 2024 GMT
+notAfter=Apr 14 23:59:59 2024 GMT`,
+                verify: `certificate.pem: OK`,
+                s_client: `---
+Certificate chain
+ 0 s:CN = example.com
+   i:C = US, O = Let's Encrypt, CN = R3
+ 1 s:C = US, O = Let's Encrypt, CN = R3
+   i:C = US, O = Internet Security Research Group, CN = ISRG Root X1
+ 2 s:C = US, O = Internet Security Research Group, CN = ISRG Root X1
+   i:C = US, O = Identrust, CN = Identrust DST Root CA X3
+---
+Server certificate
+subject=CN = example.com
+issuer=C = US, O = Let's Encrypt, CN = R3
+---`
+            };
+
+            resultEl.textContent = outputs[cmd] || '';
+        }
+
+        // SSL Labs
+        function openSSL Labs() {
+            window.open('https://www.ssllabs.com/ssltest/', '_blank');
+        }
+
+        function showRatingFactors() {
+            const factorsEl = document.getElementById('rating-factors');
+            factorsEl.style.display = factorsEl.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 验证流程
+        function startVerification() {
+            if (verificationRunning) return;
+            verificationRunning = true;
+
+            const steps = [1, 2, 3, 4, 5, 6];
+            let currentStep = 0;
+
+            // 重置所有步骤
+            for (let i = 1; i <= 6; i++) {
+                const stepEl = document.getElementById(`step-${i}`);
+                stepEl.querySelector('.timeline-dot').style.background = '#4361ee';
+                stepEl.querySelector('.timeline-content').style.background = '#f8f9fa';
+            }
+
+            document.getElementById('verification-result').style.display = 'none';
+
+            const interval = setInterval(() => {
+                if (currentStep < steps.length) {
+                    const stepEl = document.getElementById(`step-${steps[currentStep]}`);
+                    stepEl.querySelector('.timeline-dot').style.background = '#4caf50';
+                    stepEl.querySelector('.timeline-content').style.background = '#e8f5e9';
+                    currentStep++;
+                } else {
+                    clearInterval(interval);
+                    document.getElementById('verification-result').style.display = 'block';
+                    verificationRunning = false;
+                }
+            }, 800);
+        }
+
+        function resetVerification() {
+            verificationRunning = false;
+            for (let i = 1; i <= 6; i++) {
+                const stepEl = document.getElementById(`step-${i}`);
+                stepEl.querySelector('.timeline-dot').style.background = '#4361ee';
+                stepEl.querySelector('.timeline-content').style.background = '#f8f9fa';
+            }
+            document.getElementById('verification-result').style.display = 'none';
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 设置初始状态
+            setScenario('valid');
+
+            // 初始化证书链检查状态
+            document.getElementById('chain-check-1').classList.add('success');
+            document.getElementById('chain-check-2').classList.add('success');
+            document.getElementById('chain-check-3').classList.add('success');
+        });
+    </script>
+</body>
+</html>

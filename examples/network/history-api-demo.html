@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>History API 交互演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #34d399, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .section {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section h2 {
+      font-size: 1.1rem;
+      color: #34d399;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 1em;
+      background: #34d399;
+      border-radius: 2px;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.2s, transform 0.1s;
+      margin: 0.25rem;
+    }
+
+    button:hover { background: #2563eb; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { background: #475569; cursor: not-allowed; transform: none; }
+
+    button.success { background: #22c55e; }
+    button.success:hover { background: #16a34a; }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    button.warning { background: #f59e0b; color: #1e293b; }
+    button.warning:hover { background: #d97706; }
+    button.purple { background: #8b5cf6; }
+    button.purple:hover { background: #7c3aed; }
+    button.cyan { background: #06b6d4; }
+    button.cyan:hover { background: #0891b2; }
+
+    .log-box {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-entry { margin-bottom: 0.4rem; }
+    .log-entry.info   { color: #60a5fa; }
+    .log-entry.ok     { color: #4ade80; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.warn  { color: #fbbf24; }
+    .log-entry.event { color: #c084fc; }
+    .log-entry.state { color: #fb923c; }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .info-card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .info-card .label {
+      font-size: 0.75rem;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+    }
+
+    .info-card .value {
+      font-family: monospace;
+      font-size: 0.95rem;
+      color: #34d399;
+      word-break: break-all;
+    }
+
+    .nav-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .simulated-page {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 1.5rem;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .simulated-page .page-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .simulated-page .page-content {
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .spa-container {
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .spa-nav {
+      background: #0f172a;
+      padding: 0.75rem 1rem;
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid #1e3a5f;
+    }
+
+    .spa-nav button {
+      margin: 0;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .spa-nav button.active {
+      background: #8b5cf6;
+    }
+
+    .spa-content {
+      padding: 1.5rem;
+      min-height: 200px;
+    }
+
+    .timeline {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 1rem 0;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .timeline-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-width: 80px;
+    }
+
+    .timeline-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #334155;
+      border: 3px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.6rem;
+      z-index: 1;
+    }
+
+    .timeline-dot.current {
+      background: #34d399;
+      box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.2);
+    }
+
+    .timeline-dot.active {
+      background: #60a5fa;
+    }
+
+    .timeline-line {
+      flex: 1;
+      height: 2px;
+      background: #334155;
+      min-width: 20px;
+    }
+
+    .timeline-label {
+      font-size: 0.7rem;
+      color: #64748b;
+      margin-top: 0.25rem;
+      text-align: center;
+    }
+
+    .popstate-indicator {
+      background: #8b5cf6;
+      color: white;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+      animation: flash 0.5s ease;
+    }
+
+    @keyframes flash {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+<h1>History API - 交互演示</h1>
+<p class="subtitle">
+  演示 pushState / replaceState / go / back / forward 及 popstate 事件。<br>
+  点击下方按钮体验不同操作，观察 URL、日志和历史栈的变化。
+</p>
+
+<!-- ========== 当前状态 ========== -->
+<div class="section">
+  <h2>当前状态</h2>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="label">window.location.pathname</div>
+      <div class="value" id="displayPathname">/</div>
+    </div>
+    <div class="info-card">
+      <div class="label">window.location.hash</div>
+      <div class="value" id="displayHash"></div>
+    </div>
+    <div class="info-card">
+      <div class="label">window.history.length</div>
+      <div class="value" id="displayLength">-</div>
+    </div>
+    <div class="info-card">
+      <div class="label">history.state</div>
+      <div class="value" id="displayState">null</div>
+    </div>
+  </div>
+
+  <div style="margin-top:0.75rem;">
+    <div id="popstateBanner" style="display:none; margin-bottom:0.75rem;">
+      <span class="popstate-indicator">⚡ popstate 事件刚刚触发！</span>
+    </div>
+    <div class="nav-buttons">
+      <button class="success" onclick="navigatePush()">pushState('/page-a')</button>
+      <button class="purple" onclick="navigatePushB()">pushState('/page-b')</button>
+      <button class="cyan" onclick="navigateReplace()">replaceState('/replaced')</button>
+      <button onclick="historyBack()">back()</button>
+      <button onclick="historyForward()">forward()</button>
+      <button class="warning" onclick="historyGo()">go(-1)</button>
+      <button class="danger" onclick="historyGo0()">go(0) 刷新</button>
+      <button onclick="clearLog()">🗑 清空日志</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 历史栈可视化 ========== -->
+<div class="section">
+  <h2>历史栈可视化 <span style="font-size:0.8rem; color:#64748b; font-weight:400">(指针位置)</span></h2>
+  <div class="timeline" id="timeline"></div>
+  <p style="font-size:0.78rem; color:#64748b; margin-top:0.5rem;">
+    ● 蓝色=已访问(活跃) &nbsp;|&nbsp; 🟢 绿色=当前位置 &nbsp;|&nbsp; ⚪ 灰色=未访问
+  </p>
+</div>
+
+<!-- ========== 模拟 SPA 路由 ========== -->
+<div class="section">
+  <h2>SPA 路由演示</h2>
+  <p style="font-size:0.85rem; color:#94a3b8; margin-bottom:1rem;">
+    模拟一个简单的 SPA，点击导航按钮切换"页面"内容，观察 URL 和 popstate 的触发时机。
+  </p>
+  <div class="spa-container">
+    <div class="spa-nav">
+      <button class="active" data-route="/">首页</button>
+      <button data-route="/about">关于我们</button>
+      <button data-route="/products">产品列表</button>
+      <button data-route="/contact">联系我们</button>
+    </div>
+    <div class="spa-content" id="spaContent">
+      <div class="simulated-page">
+        <div class="page-title" id="spaTitle">🏠 首页</div>
+        <div class="page-content" id="spaBody">
+          欢迎访问首页！这是通过 pushState 模拟的页面切换，不会有页面刷新。
+          点击导航按钮或浏览器后退/前进按钮，观察变化。
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 日志 ========== -->
+<div class="section">
+  <h2>事件日志 <span style="font-size:0.8rem; color:#64748b; font-weight:400">(popstate 仅在点击前进/后退时触发)</span></h2>
+  <div class="log-box" id="logBox">
+    准备就绪，点击上方按钮体验 History API...
+  </div>
+</div>
+
+<!-- ========== popstate 触发原理 ========== -->
+<div class="section">
+  <h2>pushState vs replaceState vs popstate 区别</h2>
+  <div class="info-grid">
+    <div class="info-card">
+      <div class="label">pushState()</div>
+      <div class="value" style="color:#3b82f6;">添加新历史记录<br>→ 后退可回到上一条<br>→ 不触发 popstate</div>
+    </div>
+    <div class="info-card">
+      <div class="label">replaceState()</div>
+      <div class="value" style="color:#8b5cf6;">替换当前记录<br>→ 后退跳过当前<br>→ 不触发 popstate</div>
+    </div>
+    <div class="info-card">
+      <div class="label">back() / forward() / go()</div>
+      <div class="value" style="color:#34d399;">浏览器前进/后退<br>→ 触发 popstate 事件<br>→ JS 可读取 event.state</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 状态管理
+// ============================================================
+let historyStack = [];  // 模拟历史栈 [{path, state, isCurrent}]
+
+function log(msg, type = 'info') {
+  const box = document.getElementById('logBox');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  const ts = new Date().toLocaleTimeString();
+  entry.textContent = `[${ts}] ${msg}`;
+  box.appendChild(entry);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logBox').innerHTML = '';
+  log('日志已清空');
+}
+
+function showPopstateBanner() {
+  const banner = document.getElementById('popstateBanner');
+  banner.style.display = 'block';
+  setTimeout(() => { banner.style.display = 'none'; }, 2000);
+}
+
+function updateDisplay() {
+  document.getElementById('displayPathname').textContent = window.location.pathname;
+  document.getElementById('displayHash').textContent = window.location.hash || '(无)';
+  document.getElementById('displayLength').textContent = window.history.length;
+  const state = window.history.state;
+  document.getElementById('displayState').textContent =
+    state ? JSON.stringify(state) : 'null';
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const container = document.getElementById('timeline');
+  container.innerHTML = '';
+  const len = Math.max(window.history.length, 1);
+
+  for (let i = 1; i <= len; i++) {
+    const isCurrent = (i === window.history.length);
+    const isActive = (i >= window.history.length - 3);
+
+    const item = document.createElement('div');
+    item.className = 'timeline-item';
+    item.innerHTML = `
+      <div class="timeline-dot ${isCurrent ? 'current' : (isActive ? 'active' : '')}">
+        ${isCurrent ? '★' : i}
+      </div>
+      <div class="timeline-label">#${i}</div>
+    `;
+    container.appendChild(item);
+
+    if (i < len) {
+      const line = document.createElement('div');
+      line.className = 'timeline-line';
+      container.appendChild(line);
+    }
+  }
+}
+
+// ============================================================
+// History API 操作
+// ============================================================
+
+// 初始化历史栈
+function initHistory() {
+  historyStack = [{ path: '/', state: null, isCurrent: true }];
+  log(`初始状态: path="${window.location.pathname}", state=null`, 'info');
+  log(`history.length = ${window.history.length}`, 'info');
+}
+
+function navigatePush() {
+  const path = '/page-a';
+  const state = { page: 'a', ts: Date.now(), from: 'push' };
+  history.pushState(state, '', path);
+  log(`pushState → path="${path}", state=${JSON.stringify(state)}`, 'ok');
+  log(`pushState 不触发 popstate！当前 URL 已变化但页面未刷新`, 'warn');
+  updateDisplay();
+  flashContent(`✅ pushState('/page-a') 添加了新历史记录`);
+}
+
+function navigatePushB() {
+  const path = '/page-b';
+  const state = { page: 'b', ts: Date.now(), from: 'push' };
+  history.pushState(state, '', path);
+  log(`pushState → path="${path}", state=${JSON.stringify(state)}`, 'ok');
+  log(`pushState 不触发 popstate！当前 URL 已变化但页面未刷新`, 'warn');
+  updateDisplay();
+  flashContent(`✅ pushState('/page-b') 添加了新历史记录`);
+}
+
+function navigateReplace() {
+  const path = '/replaced';
+  const state = { page: 'replaced', ts: Date.now(), from: 'replace' };
+  history.replaceState(state, '', path);
+  log(`replaceState → path="${path}", state=${JSON.stringify(state)}`, 'ok');
+  log(`replaceState 替换当前记录，后退按钮会跳过当前页`, 'warn');
+  updateDisplay();
+  flashContent(`🔄 replaceState('/replaced') 替换了当前记录`);
+}
+
+function historyBack() {
+  log(`调用 history.back()`);
+  history.back();
+}
+
+function historyForward() {
+  log(`调用 history.forward()`);
+  history.forward();
+}
+
+function historyGo() {
+  log(`调用 history.go(-1)`);
+  history.go(-1);
+}
+
+function historyGo0() {
+  log(`调用 history.go(0) → 刷新页面`, 'warn');
+  history.go(0);
+}
+
+// ============================================================
+// popstate 事件
+// ============================================================
+window.addEventListener('popstate', (event) => {
+  showPopstateBanner();
+  const stateStr = event.state ? JSON.stringify(event.state) : 'null';
+  log(`🔥 popstate 事件触发！`, 'event');
+  log(`   event.state = ${stateStr}`, 'state');
+  log(`   当前 URL = ${window.location.href}`, 'info');
+  log(`   ← 浏览器前进/后退，或调用了 back()/forward()/go()`, 'warn');
+  updateDisplay();
+
+  // SPA 中根据 URL 渲染内容
+  const path = window.location.pathname;
+  renderSPAPage(path, event.state);
+});
+
+// ============================================================
+// SPA 路由演示
+// ============================================================
+const SPA_PAGES = {
+  '/': { title: '🏠 首页', body: '欢迎访问首页！这是通过 pushState 模拟的页面切换，不会有页面刷新。点击导航按钮或浏览器后退/前进按钮，观察变化。' },
+  '/about': { title: '📖 关于我们', body: '我们是一家专注于前端技术分享的团队。History API 让单页应用实现优雅的路由管理，无需页面刷新即可切换视图。' },
+  '/products': { title: '📦 产品列表', body: '产品 A - ¥99\n产品 B - ¥199\n产品 C - ¥299\n每个产品详情页都可以通过 pushState 管理历史记录。' },
+  '/contact': { title: '📧 联系我们', body: '邮箱: hello@example.com\n电话: 400-123-4567\n地址: 前端市 JavaScript 区 Node.js 街 88 号' },
+};
+
+function renderSPAPage(path, state) {
+  const page = SPA_PAGES[path] || SPA_PAGES['/'];
+  document.getElementById('spaTitle').textContent = page.title;
+  document.getElementById('spaBody').textContent = page.body;
+  updateNavActive(path);
+}
+
+function updateNavActive(path) {
+  document.querySelectorAll('.spa-nav button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.route === path);
+  });
+}
+
+function flashContent(msg) {
+  const title = document.getElementById('spaTitle');
+  const orig = title.textContent;
+  title.textContent = msg;
+  title.style.color = '#4ade80';
+  setTimeout(() => {
+    title.textContent = orig;
+    title.style.color = '';
+  }, 1500);
+}
+
+// SPA 导航按钮点击
+document.querySelectorAll('.spa-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const path = btn.dataset.route;
+    history.pushState({ path, ts: Date.now() }, '', path);
+    renderSPAPage(path, history.state);
+    log(`SPA pushState → path="${path}"`, 'ok');
+    updateDisplay();
+  });
+});
+
+// ============================================================
+// 初始化
+// ============================================================
+initHistory();
+updateDisplay();
+
+// 监听导航（通过普通链接）
+document.addEventListener('click', (e) => {
+  if (e.target.matches('[data-link]')) {
+    e.preventDefault();
+    const path = e.target.getAttribute('href');
+    history.pushState({ path, ts: Date.now() }, '', path);
+    updateDisplay();
+  }
+});
+</script>
+</body>
+</html>

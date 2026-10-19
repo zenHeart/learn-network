@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CORS 详解演示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .section {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .section h2 {
+      font-size: 1.1rem;
+      color: #60a5fa;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .section h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 1em;
+      background: #60a5fa;
+      border-radius: 2px;
+    }
+
+    .demo-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    button:hover { background: #2563eb; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { background: #475569; cursor: not-allowed; transform: none; }
+
+    button.success { background: #22c55e; }
+    button.success:hover { background: #16a34a; }
+    button.danger { background: #ef4444; }
+    button.danger:hover { background: #dc2626; }
+    button.warning { background: #f59e0b; color: #1e293b; }
+    button.warning:hover { background: #d97706; }
+
+    .log-box {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.8rem;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-entry { margin-bottom: 0.4rem; }
+    .log-entry.info  { color: #60a5fa; }
+    .log-entry.ok    { color: #4ade80; }
+    .log-entry.error { color: #f87171; }
+    .log-entry.warn  { color: #fbbf24; }
+    .log-entry.req   { color: #c4b5fd; }
+    .log-entry.res   { color: #6ee7b7; }
+
+    .flow-diagram {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.78rem;
+      line-height: 1.8;
+      color: #94a3b8;
+    }
+
+    .flow-diagram .step { color: #60a5fa; }
+    .flow-diagram .header { color: #fbbf24; }
+    .flow-diagram .allow { color: #4ade80; }
+    .flow-diagram .block { color: #f87171; }
+
+    .tab-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .tab-group button {
+      border-radius: 6px;
+      font-size: 0.8rem;
+      padding: 0.4rem 0.9rem;
+    }
+
+    .tab-group button.active {
+      background: #6366f1;
+      box-shadow: 0 0 0 2px #6366f1;
+    }
+
+    .config-note {
+      background: #1e293b;
+      border-left: 3px solid #f59e0b;
+      padding: 0.75rem 1rem;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.82rem;
+      color: #fbbf24;
+      margin-bottom: 1rem;
+    }
+
+    .scenario-desc {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      .demo-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>CORS 跨域资源共享 - 交互演示</h1>
+<p class="subtitle">
+  本页面演示 CORS 核心机制：简单请求、预检请求、凭证携带及常见错误。<br>
+  打开浏览器 DevTools → Network 面板可查看完整的请求/响应头信息。
+</p>
+
+<!-- ========== 场景选择 ========== -->
+<div class="section">
+  <h2>选择演示场景</h2>
+  <div class="tab-group">
+    <button class="active" onclick="switchScenario('simple')">简单请求</button>
+    <button onclick="switchScenario('preflight')">预检请求</button>
+    <button onclick="switchScenario('credentials')">凭证请求</button>
+    <button onclick="switchScenario('error')">CORS 错误</button>
+  </div>
+  <div id="scenarioDesc" class="scenario-desc"></div>
+  <div class="flow-diagram" id="flowDiagram"></div>
+</div>
+
+<!-- ========== 操作区 ========== -->
+<div class="section">
+  <h2>发送请求</h2>
+  <div class="demo-row">
+    <div>
+      <p class="scenario-desc">点击按钮发送请求，观察控制台 Network 面板中的请求头与响应头：</p>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+        <button id="btnSend" onclick="sendRequest()">🚀 发送请求</button>
+        <button class="success" onclick="clearLog()">🗑 清空日志</button>
+      </div>
+    </div>
+    <div>
+      <p class="scenario-desc">模拟响应头设置（仅影响本页面模拟，实际请求以服务器为准）：</p>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.75rem;">
+        <button class="warning" onclick="toggleACAO()">切换 ACAO</button>
+        <button class="warning" onclick="toggleACAC()">切换 ACAC</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 日志区 ========== -->
+<div class="section">
+  <h2>请求 / 响应日志</h2>
+  <div class="log-box" id="logBox">准备就绪，请选择一个场景后发送请求...</div>
+</div>
+
+<!-- ========== 原理说明 ========== -->
+<div class="section">
+  <h2>核心原理速查</h2>
+  <div class="demo-row">
+    <div class="flow-diagram">
+<strong style="color:#60a5fa">简单请求流程</strong>
+
+1. 浏览器发送请求
+   └─ 自动带上 <span style="color:#fbbf24">Origin: http://localhost:...</span>
+2. 服务器响应
+   ├─ <span style="color:#4ade80">Access-Control-Allow-Origin: *</span>
+   └─ （或具体 origin）
+3. 浏览器检查 ACAO
+   ├─ ✅ 匹配 → 响应交给 JavaScript
+   └─ ❌ 不匹配 → 响应被拦截
+
+<span style="color:#94a3b8">─────────────────────</span>
+<strong style="color:#60a5fa">预检请求流程</strong>
+
+1. OPTIONS 预检请求
+   ├─ <span style="color:#fbbf24">Access-Control-Request-Method: POST</span>
+   └─ <span style="color:#fbbf24">Access-Control-Request-Headers: Content-Type</span>
+2. 服务器预检响应
+   ├─ <span style="color:#4ade80">Access-Control-Allow-Methods</span>
+   ├─ <span style="color:#4ade80">Access-Control-Allow-Headers</span>
+   └─ <span style="color:#4ade80">Access-Control-Max-Age: 86400</span>
+3. ✅ 预检通过 → 发送实际请求
+4. 同简单请求流程处理实际响应
+    </div>
+    <div class="flow-diagram">
+<strong style="color:#60a5fa">凭证请求关键约束</strong>
+
+请求方：
+  fetch(url, { credentials: 'include' })
+
+服务器必须同时设置：
+  ✓ Access-Control-Allow-Origin = 具体 origin
+  ✓ Access-Control-Allow-Credentials: true
+  ✗ 不能使用 * 通配符
+
+<span style="color:#94a3b8">─────────────────────</span>
+<strong style="color:#f87171">常见错误原因</strong>
+
+1. 服务器未返回 ACAO 头
+2. ACAO=* 但携带了 credentials
+3. 预检请求被服务器拒绝（无响应/4xx）
+4. 跨域重定向后 preflight 不支持
+
+<span style="color:#94a3b8">─────────────────────</span>
+<strong style="color:#60a5fa">开发调试技巧</strong>
+
+1. Chrome DevTools → Network
+   └─ 过滤选项：选择 "Doc" + "Other"
+2. 预检请求 Method 为 OPTIONS
+3. 响应头带灰色的为 CORS 相关
+4. Console 中橙色警告 = CORS 错误
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 状态
+// ============================================================
+let currentScenario = 'simple';
+let simulatedACAO = '*';
+let simulatedACAC = 'false';
+
+const scenarios = {
+  simple: {
+    desc: '简单请求：GET/POST + 仅安全列表头 + application/x-www-form-urlencoded 或 multipart/form-data 或 text/plain → 不发预检，直接请求',
+    flow: `<span class="step">① GET /api/data</span>  (带 Origin 头)
+<span class="header">  → Origin: http://localhost:xxx</span>
+<span class="allow">② 响应 200 + ACAO: *</span>
+<span class="ok">③ 浏览器：origin 允许 → JS 拿到数据 ✅</span>`,
+  },
+  preflight: {
+    desc: '预检请求：POST + Content-Type: application/json（或带自定义头）→ 先发 OPTIONS 预检，服务器允许后再发实际请求',
+    flow: `<span class="step">① OPTIONS /api/data</span>  (预检请求)
+<span class="header">  → Access-Control-Request-Method: POST</span>
+<span class="header">  → Access-Control-Request-Headers: content-type</span>
+<span class="allow">② 响应 204 + ACAM/ACAH/ACAR</span>
+<span class="step">③ POST /api/data</span>  (实际请求)
+<span class="allow">④ 响应 200 + ACAO</span>
+<span class="ok">⑤ 浏览器检查通过 → JS 拿到数据 ✅</span>`,
+  },
+  credentials: {
+    desc: '凭证请求：fetch(credentials: "include") → 浏览器自动带上 Cookie，服务器必须返回 ACAC: true 且 ACAO 不能是 *',
+    flow: `<span class="step">① GET /api/user</span>  (带 Cookie + Origin)
+<span class="header">  → Origin: http://localhost:xxx</span>
+<span class="header">  → Cookie: session=abc123</span>
+<span class="allow">② 响应 200 + ACAO: http://localhost:xxx + ACAC: true</span>
+<span class="ok">③ 浏览器：凭证 origin 匹配 → JS 拿到数据 ✅</span>
+
+<span class="block">❌ 若 ACAO = * → 浏览器阻断响应</span>
+<span class="block">❌ 若无 ACAC: true → 浏览器阻断响应</span>`,
+  },
+  error: {
+    desc: 'CORS 错误：服务器未返回 Access-Control-Allow-Origin，或 origin 不匹配 → 响应被浏览器拦截，JS 只能看到 generic error',
+    flow: `<span class="step">① GET /api/data</span>  (带 Origin 头)
+<span class="block">② 响应 200 + (无 ACAO 头)</span>
+<span class="block">③ 浏览器：ACAO 缺失 → 阻断响应</span>
+<span class="error">④ Console: CORS error — JS 只知道出错了</span>
+
+<span style="color:#94a3b8">⚠ 无法通过 JS 获取具体错误原因
+   需查看 DevTools Network 面板定位</span>`,
+  },
+};
+
+function switchScenario(name) {
+  currentScenario = name;
+  document.querySelectorAll('.tab-group button').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('scenarioDesc').textContent = scenarios[name].desc;
+  document.getElementById('flowDiagram').innerHTML = scenarios[name].flow;
+}
+
+function log(msg, type = 'info') {
+  const box = document.getElementById('logBox');
+  const entry = document.createElement('div');
+  entry.className = `log-entry ${type}`;
+  const ts = new Date().toLocaleTimeString();
+  entry.textContent = `[${ts}] ${msg}`;
+  box.appendChild(entry);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('logBox').innerHTML = '';
+  log('日志已清空');
+}
+
+// ============================================================
+// 模拟请求（用 fetch 模拟，注意：实际跨域需服务器配合 CORS 头）
+// ============================================================
+async function sendRequest() {
+  const btn = document.getElementById('btnSend');
+  btn.disabled = true;
+
+  if (currentScenario === 'error') {
+    await demoError();
+  } else if (currentScenario === 'simple') {
+    await demoSimple();
+  } else if (currentScenario === 'preflight') {
+    await demoPreflight();
+  } else if (currentScenario === 'credentials') {
+    await demoCredentials();
+  }
+
+  btn.disabled = false;
+}
+
+async function demoSimple() {
+  log('── 简单请求演示 ──', 'req');
+  log('请求：GET https://jsonplaceholder.typicode.com/posts/1');
+  log('该 API 返回 CORS 头，允许所有来源（ACAO: *）', 'info');
+
+  try {
+    const res = await fetch('https://jsonplaceholder.typicode.com/posts/1');
+    const origin = res.headers.get('Access-Control-Allow-Origin') || '(无)';
+    log(`响应状态: ${res.status}`, 'res');
+    log(`响应头 Access-Control-Allow-Origin: ${origin}`, 'res');
+
+    if (origin === '*' || origin === window.location.origin) {
+      const data = await res.json();
+      log(`JS 成功读取数据: title = "${data.title.substring(0, 40)}..."`, 'ok');
+    } else {
+      log('CORS 检查通过，读取响应', 'ok');
+    }
+  } catch (e) {
+    log(`请求失败: ${e.message}`, 'error');
+  }
+}
+
+async function demoPreflight() {
+  log('── 预检请求演示 ──', 'req');
+  log('请求：POST https://httpbin.org/post + Content-Type: application/json', 'req');
+  log('→ 先发 OPTIONS 预检，服务器响应允许后再发 POST', 'info');
+
+  try {
+    const res = await fetch('https://httpbin.org/post', {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'test', value: 123 }),
+    });
+
+    log(`OPTIONS 预检已由 fetch 内部处理`, 'warn');
+    log(`实际 POST 响应状态: ${res.status}`, 'res');
+
+    const data = await res.json();
+    log(`JS 成功读取响应 JSON，origin = ${data.headers?.Origin || '(未知)'}`, 'ok');
+    log(`备注：httpbin.org 返回请求的 Origin 头作为响应的一部分`, 'info');
+  } catch (e) {
+    log(`请求失败: ${e.message}`, 'error');
+  }
+}
+
+async function demoCredentials() {
+  log('── 凭证请求演示 ──', 'req');
+  log('请求：GET https://httpbin.org/headers (带 credentials)', 'req');
+  log('→ 使用 credentials: "include" 自动携带同源 Cookie', 'info');
+  log('→ 跨域时服务器必须返回 ACAC: true 且 ACAO 不能是 *', 'warn');
+
+  try {
+    // 注意：httpbin.org 的 CORS 配置
+    const res = await fetch('https://httpbin.org/headers', {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'include',
+    });
+
+    const acao = res.headers.get('Access-Control-Allow-Origin') || '(无)';
+    const acac = res.headers.get('Access-Control-Allow-Credentials') || '(无)';
+
+    log(`响应状态: ${res.status}`, 'res');
+    log(`ACAO: ${acao}  |  ACAC: ${acac}`, 'res');
+
+    if (acao !== '*') {
+      const data = await res.json();
+      log('凭证请求成功！JS 读取到了响应数据', 'ok');
+      log(`请求头信息: ${JSON.stringify(data.headers || {}).substring(0, 80)}...`, 'info');
+    } else {
+      log('警告: httpbin.org 返回 ACAO: *，如果浏览器要求凭证则会阻断响应', 'warn');
+      log('这是因为 httpbin.org 没有针对 credentials 模式做特殊处理', 'warn');
+    }
+  } catch (e) {
+    log(`请求失败: ${e.message}`, 'error');
+  }
+}
+
+async function demoError() {
+  log('── CORS 错误演示 ──', 'req');
+  log('目标：https://httpbin.org/status/403（无 CORS 头）', 'req');
+  log('→ 浏览器拦截响应，JS 无法读取，抛出 TypeError', 'warn');
+
+  try {
+    const res = await fetch('https://httpbin.org/status/403', { mode: 'cors' });
+    // 如果能走到这里，说明 CORS 通过了（fetch 没报错，但响应内容可能是受限的）
+    log(`响应状态: ${res.status}`, 'res');
+    log('注意: 该 URL 没有强制 CORS 限制，下面的读取会成功', 'info');
+
+    try {
+      await res.json();
+      log('JS 成功读取了响应', 'warn');
+    } catch {
+      log('读取响应失败（CORS 限制）', 'error');
+    }
+  } catch (e) {
+    log(`CORS 错误: ${e.message}`, 'error');
+    log('错误详情（通常）: "Failed to fetch"', 'error');
+    log('→ 浏览器阻断响应，JS 只知道网络错误，不知道具体原因', 'error');
+    log('→ 排查方法：DevTools → Network → 查看响应头是否包含 ACAO', 'warn');
+  }
+
+  // 演示一个真实会 CORS 失败的场景
+  log('', 'info');
+  log('真实 CORS 失败场景演示：', 'req');
+  log('尝试请求一个不存在且无 CORS 头的 API...', 'info');
+  try {
+    const res = await fetch('https://httpbin.org/post', {
+      method: 'OPTIONS', // 预检请求
+      mode: 'cors',
+    });
+    log(`OPTIONS 响应状态: ${res.status}`, 'res');
+  } catch (e) {
+    log(`预检失败（预期行为）: ${e.message}`, 'error');
+  }
+}
+
+// ============================================================
+// 模拟响应头切换（页面内模拟，不影响真实请求）
+// ============================================================
+function toggleACAO() {
+  simulatedACAO = simulatedACAO === '*' ? window.location.origin : '*';
+  log(`模拟 ACAO 切换为: ${simulatedACAO}`, 'warn');
+  simulateCheck();
+}
+
+function toggleACAC() {
+  simulatedACAC = simulatedACAC === 'true' ? 'false' : 'true';
+  log(`模拟 ACAC 切换为: ${simulatedACAC}`, 'warn');
+  simulateCheck();
+}
+
+function simulateCheck() {
+  const credMode = currentScenario === 'credentials' ? 'include' : 'omit';
+  const hasCred = credMode === 'include';
+
+  if (hasCred && simulatedACAO === '*' && simulatedACAC === 'true') {
+    log('⚠ 模拟结果: credentials=true + ACAO=* → 浏览器会阻断响应！', 'error');
+  } else if (hasCred && simulatedACAC === 'true') {
+    log('✅ 模拟结果: credentials + ACAC:true + 具体 origin → 通过', 'ok');
+  } else if (simulatedACAO === '*' || simulatedACAO === window.location.origin) {
+    log('✅ 模拟结果: ACAO 允许当前 origin → 通过', 'ok');
+  } else {
+    log('❌ 模拟结果: ACAO 不允许当前 origin → 阻断', 'error');
+  }
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+switchScenario('simple');
+</script>
+</body>
+</html>

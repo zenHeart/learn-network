@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPC 协议对比演示</title>
+  <style>
+    :root {
+      --primary: #8b5cf6;
+      --primary-dark: #7c3aed;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-input: #334155;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border: #475569;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; }
+
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 { font-size: 2rem; margin-bottom: 0.5rem; }
+    header .subtitle { color: var(--text-muted); }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover { border-color: var(--primary); }
+    .tab-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1.25rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+
+    /* Comparison Table */
+    .comparison-table { width: 100%; border-collapse: collapse; }
+    .comparison-table th, .comparison-table td {
+      padding: 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .comparison-table th { color: var(--text-muted); font-weight: 500; }
+    .comparison-table tr:hover { background: rgba(139, 92, 246, 0.1); }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .badge-5 { background: #22c55e33; color: #22c55e; }
+    .badge-4 { background: #84cc1633; color: #84cc16; }
+    .badge-3 { background: #f59e0b33; color: #f59e0b; }
+    .badge-2 { background: #f9731633; color: #f97316; }
+    .badge-1 { background: #ef444433; color: #ef4444; }
+
+    /* Performance Bars */
+    .perf-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .perf-bar-track {
+      flex: 1;
+      height: 8px;
+      background: var(--bg-input);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .perf-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+    .perf-grpc { background: var(--primary); }
+    .perf-thrift { background: #06b6d4; }
+    .perf-json { background: var(--success); }
+    .perf-xml { background: var(--warning); }
+    .perf-soap { background: var(--danger); }
+    .perf-label { width: 50px; text-align: right; font-size: 0.875rem; color: var(--text-muted); }
+
+    /* Code Block */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+    .code-header {
+      background: var(--bg-input);
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-content {
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'Fira Code', 'Monaco', monospace;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    pre { margin: 0; white-space: pre-wrap; }
+    .comment { color: #6a737d; }
+    .keyword { color: #ff7b72; }
+    .string { color: #a5d6ff; }
+    .number { color: #79c0ff; }
+    .type { color: #ffa657; }
+    .function { color: #d2a8ff; }
+
+    /* Protocol Cards */
+    .protocol-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .protocol-card {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .protocol-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+    .protocol-card.active { border-color: var(--primary); background: rgba(139, 92, 246, 0.1); }
+    .protocol-card h3 { font-size: 1rem; margin-bottom: 0.5rem; }
+    .protocol-card p { font-size: 0.875rem; color: var(--text-muted); }
+
+    /* gRPC vs REST */
+    .vs-grid {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1rem;
+      align-items: center;
+    }
+    .vs-box {
+      background: var(--bg-input);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .vs-box h3 { margin-bottom: 0.5rem; }
+    .vs-center {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+
+    @media (max-width: 768px) {
+      .vs-grid { grid-template-columns: 1fr; }
+      .vs-center { display: none; }
+    }
+
+    /* Interactive Demo */
+    .demo-section { margin-top: 1.5rem; }
+    .demo-output {
+      background: #0d1117;
+      border-radius: var(--radius);
+      padding: 1rem;
+      min-height: 120px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    .demo-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .demo-btn {
+      padding: 0.5rem 1rem;
+      background: var(--primary);
+      border: none;
+      border-radius: var(--radius);
+      color: white;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .demo-btn:hover { background: var(--primary-dark); }
+    .demo-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🔄 RPC 协议对比演示</h1>
+      <p class="subtitle">交互式了解主流 RPC 协议的特点与应用场景</p>
+    </header>
+
+    <!-- Protocol Selection -->
+    <div class="card">
+      <h2>选择协议了解详情</h2>
+      <div class="protocol-grid">
+        <div class="protocol-card" data-protocol="grpc">
+          <h3>⚡ gRPC</h3>
+          <p>HTTP/2 + Protobuf<br>高性能、微服务首选</p>
+        </div>
+        <div class="protocol-card" data-protocol="jsonrpc">
+          <h3>📝 JSON-RPC</h3>
+          <p>轻量级、人类可读<br>简单集成首选</p>
+        </div>
+        <div class="protocol-card" data-protocol="thrift">
+          <h3>🔧 Thrift</h3>
+          <p>跨语言18+语言<br>大数据平台常用</p>
+        </div>
+        <div class="protocol-card" data-protocol="soap">
+          <h3>🏢 SOAP</h3>
+          <p>企业级、WS-*规范<br>金融系统使用</p>
+        </div>
+      </div>
+      <div id="protocol-detail"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="comparison">协议对比</button>
+      <button class="tab-btn" data-tab="performance">性能对比</button>
+      <button class="tab-btn" data-tab="grpc-vs-rest">gRPC vs REST</button>
+      <button class="tab-btn" data-tab="demo">代码演示</button>
+    </div>
+
+    <!-- Comparison Tab -->
+    <div id="comparison" class="tab-content active">
+      <div class="card">
+        <h2>📊 主流 RPC 协议对比</h2>
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>协议</th>
+              <th>序列化</th>
+              <th>性能</th>
+              <th>语言支持</th>
+              <th>传输协议</th>
+              <th>适用场景</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>gRPC</strong></td>
+              <td>Protobuf</td>
+              <td><span class="badge badge-5">⭐⭐⭐⭐⭐</span></td>
+              <td>Go, Java, Python, JS, C++</td>
+              <td>HTTP/2</td>
+              <td>云原生、微服务</td>
+            </tr>
+            <tr>
+              <td><strong>JSON-RPC</strong></td>
+              <td>JSON</td>
+              <td><span class="badge badge-3">⭐⭐⭐</span></td>
+              <td>任意语言</td>
+              <td>HTTP/1.1</td>
+              <td>Web、简单集成</td>
+            </tr>
+            <tr>
+              <td><strong>Thrift</strong></td>
+              <td>二进制</td>
+              <td><span class="badge badge-4">⭐⭐⭐⭐</span></td>
+              <td>18+ 语言</td>
+              <td>TCP/HTTP</td>
+              <td>跨语言、大数据</td>
+            </tr>
+            <tr>
+              <td><strong>XML-RPC</strong></td>
+              <td>XML</td>
+              <td><span class="badge badge-2">⭐⭐</span></td>
+              <td>任意语言</td>
+              <td>HTTP/1.1</td>
+              <td>老系统</td>
+            </tr>
+            <tr>
+              <td><strong>SOAP</strong></td>
+              <td>XML</td>
+              <td><span class="badge badge-1">⭐</span></td>
+              <td>主流语言</td>
+              <td>HTTP/SMTP</td>
+              <td>企业集成</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Performance Tab -->
+    <div id="performance" class="tab-content">
+      <div class="card">
+        <h2>⚡ 序列化性能对比</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">相对性能测试（数值越大性能越好）</p>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">gRPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-grpc" style="width: 100%;"></div></div>
+            <span class="perf-label">100%</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">Thrift</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-thrift" style="width: 90%;"></div></div>
+            <span class="perf-label">90%</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">JSON-RPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-json" style="width: 40%;"></div></div>
+            <span class="perf-label">40%</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">XML-RPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-xml" style="width: 30%;"></div></div>
+            <span class="perf-label">30%</span>
+          </div>
+          <div class="perf-bar">
+            <span style="width: 80px;">SOAP</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-soap" style="width: 25%;"></div></div>
+            <span class="perf-label">25%</span>
+          </div>
+        </div>
+
+        <div style="color: var(--text-muted); font-size: 0.875rem;">
+          <strong>测试环境：</strong>序列化 10000 个嵌套对象，取 100 次平均值<br>
+          <strong>结论：</strong>Protobuf 二进制序列化性能显著优于 JSON/XML
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📦 消息体积对比</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">相同数据结构的消息大小</p>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">gRPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-grpc" style="width: 15%;"></div></div>
+            <span class="perf-label">~100B</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">Thrift</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-thrift" style="width: 18%;"></div></div>
+            <span class="perf-label">~120B</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">JSON-RPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-json" style="width: 60%;"></div></div>
+            <span class="perf-label">~400B</span>
+          </div>
+          <div class="perf-bar" style="margin-bottom: 0.75rem;">
+            <span style="width: 80px;">XML-RPC</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-xml" style="width: 80%;"></div></div>
+            <span class="perf-label">~530B</span>
+          </div>
+          <div class="perf-bar">
+            <span style="width: 80px;">SOAP</span>
+            <div class="perf-bar-track"><div class="perf-bar-fill perf-soap" style="width: 100%;"></div></div>
+            <span class="perf-label">~660B</span>
+          </div>
+        </div>
+
+        <div style="color: var(--text-muted); font-size: 0.875rem;">
+          <strong>测试数据：</strong>{id: 1, name: "张三", email: "test@example.com"}<br>
+          <strong>结论：</strong>二进制序列化（Protobuf）体积最小，适合带宽敏感场景
+        </div>
+      </div>
+    </div>
+
+    <!-- gRPC vs REST Tab -->
+    <div id="grpc-vs-rest" class="tab-content">
+      <div class="card">
+        <h2>gRPC vs REST 对比</h2>
+        <div class="vs-grid">
+          <div class="vs-box">
+            <h3>🔵 gRPC</h3>
+            <ul style="font-size: 0.875rem; color: var(--text-muted);">
+              <li>✓ HTTP/2 多路复用</li>
+              <li>✓ Protobuf 二进制序列化</li>
+              <li>✓ 双向流式支持</li>
+              <li>✓ 原生代码生成</li>
+              <li>✓ 强类型 .proto 定义</li>
+              <li>✗ 浏览器需 grpc-web</li>
+              <li>✗ 调试需解码工具</li>
+            </ul>
+          </div>
+          <div class="vs-center">VS</div>
+          <div class="vs-box">
+            <h3>🟢 REST</h3>
+            <ul style="font-size: 0.875rem; color: var(--text-muted);">
+              <li>✓ 浏览器原生支持</li>
+              <li>✓ 人类可读 JSON</li>
+              <li>✓ 生态丰富</li>
+              <li>✓ 简单易上手</li>
+              <li>✓ 广泛认知度</li>
+              <li>✗ JSON 体积大</li>
+              <li>✗ 无原生流支持</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>📋 选型决策树</h2>
+        <div style="font-size: 0.9rem; line-height: 2;">
+          <div style="margin-bottom: 0.5rem;">
+            <strong>需要浏览器直接调用？</strong>
+            <span style="color: var(--success);">→ 是 → REST</span>
+          </div>
+          <div style="margin-bottom: 0.5rem;">
+            <strong>微服务间高性能通信？</strong>
+            <span style="color: var(--primary);">→ 是 → gRPC</span>
+          </div>
+          <div style="margin-bottom: 0.5rem;">
+            <strong>需要双向流式传输？</strong>
+            <span style="color: var(--primary);">→ 是 → gRPC</span>
+          </div>
+          <div style="margin-bottom: 0.5rem;">
+            <strong>团队快速交付优先？</strong>
+            <span style="color: var(--success);">→ 是 → REST</span>
+          </div>
+          <div style="margin-bottom: 0.5rem;">
+            <strong>严格企业规范要求？</strong>
+            <span style="color: var(--warning);">→ 是 → SOAP</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demo Tab -->
+    <div id="demo" class="tab-content">
+      <div class="card">
+        <h2>🔧 代码示例演示</h2>
+        
+        <div class="demo-controls">
+          <button class="demo-btn" data-demo="grpc-proto">gRPC Proto</button>
+          <button class="demo-btn" data-demo="grpc-server">gRPC 服务端</button>
+          <button class="demo-btn" data-demo="grpc-client">gRPC 客户端</button>
+          <button class="demo-btn" data-demo="jsonrpc-server">JSON-RPC 服务端</button>
+          <button class="demo-btn" data-demo="jsonrpc-client">JSON-RPC 客户端</button>
+        </div>
+
+        <div class="demo-output" id="demo-output">
+          选择上方按钮查看代码示例...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>RPC 协议对比演示 | 学习网络协议</p>
+  </footer>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Protocol cards
+    const protocolDetails = {
+      grpc: `
+        <h3 style="margin-top: 1rem; color: var(--primary);">gRPC 特点</h3>
+        <ul style="color: var(--text-muted);">
+          <li>📌 <strong>定义文件：</strong>使用 .proto 定义服务和数据结构</li>
+          <li>📌 <strong>传输协议：</strong>基于 HTTP/2，支持多路复用、头部压缩</li>
+          <li>📌 <strong>序列化：</strong>Protocol Buffers，二进制格式，高性能</li>
+          <li>📌 <strong>流式支持：</strong>一元、服务器流、客户端流、双向流</li>
+          <li>📌 <strong>代码生成：</strong>protoc 工具自动生成多语言代码</li>
+        </ul>
+      `,
+      jsonrpc: `
+        <h3 style="margin-top: 1rem; color: var(--success);">JSON-RPC 特点</h3>
+        <ul style="color: var(--text-muted);">
+          <li>📌 <strong>协议简单：</strong>仅需 JSON + HTTP 即可实现</li>
+          <li>📌 <strong>人类可读：</strong>JSON 格式，便于调试和日志分析</li>
+          <li>📌 <strong>无代码生成：</strong>动态语言天然支持</li>
+          <li>📌 <strong>跨语言：</strong>任何能解析 JSON 的语言都支持</li>
+          <li>📌 <strong>轻量：</strong>适合简单 CRUD 和 Web 场景</li>
+        </ul>
+      `,
+      thrift: `
+        <h3 style="margin-top: 1rem; color: #06b6d4;">Thrift 特点</h3>
+        <ul style="color: var(--text-muted);">
+          <li>📌 <strong>IDL 定义：</strong>使用 .thrift 文件定义接口</li>
+          <li>📌 <strong>多语言支持：</strong>C++, Java, Python, PHP, Ruby, Go 等 18+ 语言</li>
+          <li>📌 <strong>传输层灵活：</strong>支持 Socket、HTTP、文件等</li>
+          <li>📌 <strong>大数据生态：</strong>Hadoop、Hive 早期采用</li>
+          <li>📌 <strong>Facebook 出品：</strong>成熟度高，久经考验</li>
+        </ul>
+      `,
+      soap: `
+        <h3 style="margin-top: 1rem; color: var(--warning);">SOAP 特点</h3>
+        <ul style="color: var(--text-muted);">
+          <li>📌 <strong>XML 格式：</strong>标准化程度高，WS-* 规范丰富</li>
+          <li>📌 <strong>企业特性：</strong>WS-Security、WS-Transaction 等</li>
+          <li>📌 <strong>严格规范：</strong>适合金融、政府等高合规要求</li>
+          <li>📌 <strong>性能较低：</strong>XML 冗余，解析开销大</li>
+          <li>📌 <strong>老旧系统：</strong>大量企业遗留系统使用</li>
+        </ul>
+      `
+    };
+
+    document.querySelectorAll('.protocol-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.protocol-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        document.getElementById('protocol-detail').innerHTML = protocolDetails[card.dataset.protocol] || '';
+      });
+    });
+
+    // Code demos
+    const codeExamples = {
+      'grpc-proto': `
+// user.proto - gRPC 服务定义
+syntax = "proto3";
+
+package user;
+
+service UserService {
+  // 一元调用
+  rpc GetUser(GetUserRequest) returns (User);
+  // 服务器流
+  rpc ListUsers(Empty) returns (stream User);
+}
+
+message GetUserRequest {
+  int32 id = 1;  // 用户ID
+}
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+  int32 age = 4;
+}
+
+message Empty {}
+      `,
+      'grpc-server': `
+// server.go - gRPC 服务端实现
+package main
+
+import (
+    "context"
+    "net"
+    "google.golang.org/grpc"
+    pb "your/package/user"
+)
+
+type server struct {
+    pb.UnimplementedUserServiceServer
+    users map[int32]*pb.User
+}
+
+func (s *server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.User, error) {
+    return s.users[req.Id], nil
+}
+
+func main() {
+    lis, _ := net.Listen("tcp", ":50051")
+    s := grpc.NewServer()
+    pb.RegisterUserServiceServer(s, &server{
+        users: map[int32]*pb.User{
+            1: {Id: 1, Name: "张三", Email: "zhang@example.com"},
+        },
+    })
+    log.Fatal(s.Serve(lis))
+}
+      `,
+      'grpc-client': `
+// client.go - gRPC 客户端调用
+package main
+
+import (
+    "context"
+    "log"
+    "google.golang.org/grpc"
+    pb "your/package/user"
+)
+
+func main() {
+    // 建立连接
+    conn, _ := grpc.Dial("localhost:50051", grpc.WithInsecure())
+    defer conn.Close()
+    
+    // 创建客户端
+    client := pb.NewUserServiceClient(conn)
+    
+    // 调用远程方法
+    resp, err := client.GetUser(context.Background(), &pb.GetUserRequest{Id: 1})
+    if err != nil {
+        log.Fatal(err)
+    }
+    
+    log.Printf("用户: %s <%s>", resp.Name, resp.Email)
+}
+      `,
+      'jsonrpc-server': `
+// server.js - JSON-RPC 2.0 服务端
+const http = require('http');
+
+const methods = {
+  add: ([a, b]) => a + b,
+  getUser: ({ id }) => ({ id, name: '张三', email: 'zhang@example.com' }),
+  listUsers: () => [
+    { id: 1, name: '张三' },
+    { id: 2, name: '李四' }
+  ]
+};
+
+const server = http.createServer((req, res) => {
+  if (req.method === 'POST' && req.url === '/jsonrpc') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      const { id, method, params } = JSON.parse(body);
+      try {
+        const result = methods[method](params);
+        res.end(JSON.stringify({ id, result, error: null }));
+      } catch (e) {
+        res.end(JSON.stringify({ id, result: null, error: e.message }));
+      }
+    });
+  }
+});
+
+server.listen(3000);
+console.log('JSON-RPC 服务运行在 :3000');
+      `,
+      'jsonrpc-client': `
+// client.js - JSON-RPC 客户端调用
+async function callRPC(method, params) {
+  const response = await fetch('/jsonrpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: Date.now(),
+      method,
+      params
+    })
+  });
+  const { result, error } = await response.json();
+  if (error) throw new Error(error);
+  return result;
+}
+
+// 调用示例
+async function main() {
+  // 简单计算
+  const sum = await callRPC('add', [2, 3]);
+  console.log('2 + 3 =', sum);  // 5
+
+  // 获取用户
+  const user = await callRPC('getUser', { id: 1 });
+  console.log('用户:', user);   // { id: 1, name: '张三', ... }
+}
+
+main();
+      `
+    };
+
+    document.querySelectorAll('.demo-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = codeExamples[btn.dataset.demo];
+        document.getElementById('demo-output').textContent = code || '暂无示例';
+      });
+    });
+  </script>
+</body>
+</html>

@@ -501,4 +501,4 @@ async function getWeatherProxy(city: string) {
 
 - [wttr.in 文档](https://github.com/chubin/wttr.in)
 - [OpenWeather API 文档](https://openweathermap.org/api)
-- [Weather API 类型定义](../examples/weather/weather-api-demo.html)
+- Weather API 类型定义见仓库 `examples/weather/weather-api-demo.html`
